@@ -1646,7 +1646,8 @@ impl RenderingBackend for GlContext {
                     4 => GL_UNSIGNED_INT,
                     _ => panic!("Unsupported index buffer type!"),
                 },
-                (index_type as i32 * base_element) as *mut _,
+                // (index_type as i32 * base_element) as *mut _,
+                (base_element) as *mut _,
                 num_instances,
             );
         }
