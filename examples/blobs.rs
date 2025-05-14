@@ -1,3 +1,8 @@
+///! A rendering example. You can spawn entities by
+///! clicking. They should bounce around the screen
+///! and visually interact with each other.
+///! Should look like this:
+///! https://youtu.be/W52jTDKOzIk
 use miniquad::*;
 
 #[repr(C)]

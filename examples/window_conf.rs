@@ -1,3 +1,5 @@
+///! Opens a fullscreen window with green screen.
+///! The title of that should be "miniquad".
 use miniquad::*;
 
 struct Stage {
