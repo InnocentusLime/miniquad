@@ -1,3 +1,6 @@
+///! A post processing example. Draws a rotating cube with
+///! differently colored sides. Should look like this:
+///! https://youtu.be/hdWWe-TkkfM
 use miniquad::*;
 
 use glam::{vec3, Mat4};

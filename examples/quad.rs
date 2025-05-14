@@ -1,3 +1,6 @@
+///! A simple rendering example. This example loads a texture from memory
+///! and draws a few quads with it. The example should look as follows:
+///! https://youtu.be/kksaeWrAT7E
 use miniquad::*;
 
 #[repr(C)]

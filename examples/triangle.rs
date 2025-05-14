@@ -1,3 +1,8 @@
+///! Just draws a static triangle with different vertex colors assigned
+///! to each corner:
+///! * left -- red
+///! * right -- green
+///! * top -- blue
 use miniquad::*;
 
 #[repr(C)]

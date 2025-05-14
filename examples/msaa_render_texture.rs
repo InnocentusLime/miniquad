@@ -1,3 +1,6 @@
+///! An example to demonstrate MSAA (Multi Sample Anti Aliasing)
+///! render targets. Should look like this:
+///! https://youtu.be/yLsyidsoYOI
 use miniquad::*;
 
 use glam::{vec3, Mat4};

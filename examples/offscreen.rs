@@ -1,3 +1,6 @@
+///! An offscreen render example. Draws a cube that has
+///! images of rotating cubes on each side. Should look like this:
+///! https://youtu.be/isKW3nQ-jW4
 use miniquad::*;
 
 use glam::{vec3, Mat4};

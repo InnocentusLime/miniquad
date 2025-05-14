@@ -1,3 +1,6 @@
+///! An example to demonstrate miniquad's cursor change capabilities.
+///! All possible cursor icons should work. To see how to switch them,
+///! consult the `char_event` handler.
 use miniquad::*;
 
 struct Stage {}
