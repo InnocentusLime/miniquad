@@ -1,3 +1,5 @@
+///! An example to show off instancing. Should look like this:
+///! https://youtu.be/2ibMHWmGa7k
 use miniquad::*;
 
 use glam::{vec3, Mat4, Vec3};

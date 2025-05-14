@@ -1,3 +1,5 @@
+///! Draws the same triangle as the `triangle` example, but
+///! using the byte based colors.
 use miniquad::*;
 
 #[repr(C)]
