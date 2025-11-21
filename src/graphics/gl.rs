@@ -21,495 +21,6 @@ pub mod raw_gl {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct Buffer {
-    gl_buf: GLuint,
-    buffer_type: BufferType,
-    size: usize,
-    // Dimension of the indices for this buffer,
-    // used only as a type argument for glDrawElements and can be
-    // 1, 2 or 4
-    index_type: Option<u32>,
-}
-
-#[derive(Debug)]
-struct ShaderUniform {
-    gl_loc: UniformLocation,
-    uniform_type: UniformType,
-    array_count: i32,
-}
-
-struct ShaderInternal {
-    program: GLuint,
-    images: Vec<ShaderImage>,
-    uniforms: Vec<ShaderUniform>,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum TextureOrRenderbuffer {
-    Texture(GLuint),
-    Renderbuffer(GLuint),
-}
-impl TextureOrRenderbuffer {
-    fn texture(&self) -> Option<GLuint> {
-        match self {
-            TextureOrRenderbuffer::Texture(id) => Some(*id),
-            _ => None,
-        }
-    }
-    fn renderbuffer(&self) -> Option<GLuint> {
-        match self {
-            TextureOrRenderbuffer::Renderbuffer(id) => Some(*id),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-struct Texture {
-    raw: TextureOrRenderbuffer,
-    params: TextureParams,
-}
-
-impl TextureFormat {
-    fn sized_internal_format(&self) -> GLenum {
-        match self {
-            TextureFormat::RGB8 => GL_RGB8,
-            TextureFormat::RGBA8 => GL_RGBA8,
-            TextureFormat::RGBA16F => GL_RGBA16F,
-            TextureFormat::Depth => GL_DEPTH_COMPONENT16,
-            TextureFormat::Depth32 => GL_DEPTH_COMPONENT32,
-            #[cfg(target_arch = "wasm32")]
-            TextureFormat::Alpha => GL_ALPHA,
-            #[cfg(not(target_arch = "wasm32"))]
-            TextureFormat::Alpha => GL_R8,
-        }
-    }
-}
-
-/// Converts from TextureFormat to (internal_format, format, pixel_type)
-impl From<TextureFormat> for (GLenum, GLenum, GLenum) {
-    fn from(format: TextureFormat) -> Self {
-        match format {
-            TextureFormat::RGB8 => (GL_RGB, GL_RGB, GL_UNSIGNED_BYTE),
-            TextureFormat::RGBA8 => (GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE),
-            TextureFormat::RGBA16F => (GL_RGBA16F, GL_RGBA, GL_FLOAT),
-            TextureFormat::Depth => (GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT),
-            TextureFormat::Depth32 => (GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT),
-            #[cfg(target_arch = "wasm32")]
-            TextureFormat::Alpha => (GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE),
-            #[cfg(not(target_arch = "wasm32"))]
-            TextureFormat::Alpha => (GL_R8, GL_RED, GL_UNSIGNED_BYTE), // texture updates will swizzle Red -> Alpha to match WASM
-        }
-    }
-}
-
-impl From<TextureKind> for GLuint {
-    fn from(kind: TextureKind) -> GLuint {
-        match kind {
-            TextureKind::Texture2D => GL_TEXTURE_2D,
-            TextureKind::CubeMap => GL_TEXTURE_CUBE_MAP,
-        }
-    }
-}
-impl From<Equation> for GLenum {
-    fn from(eq: Equation) -> Self {
-        match eq {
-            Equation::Add => GL_FUNC_ADD,
-            Equation::Subtract => GL_FUNC_SUBTRACT,
-            Equation::ReverseSubtract => GL_FUNC_REVERSE_SUBTRACT,
-        }
-    }
-}
-
-impl From<BlendFactor> for GLenum {
-    fn from(factor: BlendFactor) -> GLenum {
-        match factor {
-            BlendFactor::Zero => GL_ZERO,
-            BlendFactor::One => GL_ONE,
-            BlendFactor::Value(BlendValue::SourceColor) => GL_SRC_COLOR,
-            BlendFactor::Value(BlendValue::SourceAlpha) => GL_SRC_ALPHA,
-            BlendFactor::Value(BlendValue::DestinationColor) => GL_DST_COLOR,
-            BlendFactor::Value(BlendValue::DestinationAlpha) => GL_DST_ALPHA,
-            BlendFactor::OneMinusValue(BlendValue::SourceColor) => GL_ONE_MINUS_SRC_COLOR,
-            BlendFactor::OneMinusValue(BlendValue::SourceAlpha) => GL_ONE_MINUS_SRC_ALPHA,
-            BlendFactor::OneMinusValue(BlendValue::DestinationColor) => GL_ONE_MINUS_DST_COLOR,
-            BlendFactor::OneMinusValue(BlendValue::DestinationAlpha) => GL_ONE_MINUS_DST_ALPHA,
-            BlendFactor::SourceAlphaSaturate => GL_SRC_ALPHA_SATURATE,
-        }
-    }
-}
-
-impl From<StencilOp> for GLenum {
-    fn from(op: StencilOp) -> Self {
-        match op {
-            StencilOp::Keep => GL_KEEP,
-            StencilOp::Zero => GL_ZERO,
-            StencilOp::Replace => GL_REPLACE,
-            StencilOp::IncrementClamp => GL_INCR,
-            StencilOp::DecrementClamp => GL_DECR,
-            StencilOp::Invert => GL_INVERT,
-            StencilOp::IncrementWrap => GL_INCR_WRAP,
-            StencilOp::DecrementWrap => GL_DECR_WRAP,
-        }
-    }
-}
-
-impl From<CompareFunc> for GLenum {
-    fn from(cf: CompareFunc) -> Self {
-        match cf {
-            CompareFunc::Always => GL_ALWAYS,
-            CompareFunc::Never => GL_NEVER,
-            CompareFunc::Less => GL_LESS,
-            CompareFunc::Equal => GL_EQUAL,
-            CompareFunc::LessOrEqual => GL_LEQUAL,
-            CompareFunc::Greater => GL_GREATER,
-            CompareFunc::NotEqual => GL_NOTEQUAL,
-            CompareFunc::GreaterOrEqual => GL_GEQUAL,
-        }
-    }
-}
-
-impl Texture {
-    pub fn new(
-        ctx: &mut GlContext,
-        access: TextureAccess,
-        source: TextureSource,
-        params: TextureParams,
-    ) -> Texture {
-        if let TextureSource::Bytes(bytes_data) = source {
-            assert_eq!(
-                params.format.size(params.width, params.height) as usize,
-                bytes_data.len()
-            );
-        }
-        if access != TextureAccess::RenderTarget {
-            assert!(
-                params.sample_count <= 1,
-                "Multisampling is only supported for render textures"
-            );
-        }
-        let (internal_format, format, pixel_type) = params.format.into();
-
-        if access == TextureAccess::RenderTarget && params.sample_count > 1 {
-            let mut renderbuffer: u32 = 0;
-            unsafe {
-                glGenRenderbuffers(1, &mut renderbuffer as *mut _);
-                glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer as _);
-                let internal_format = params.format.sized_internal_format();
-                glRenderbufferStorageMultisample(
-                    GL_RENDERBUFFER,
-                    params.sample_count,
-                    internal_format,
-                    params.width as _,
-                    params.height as _,
-                );
-            }
-            return Texture {
-                raw: TextureOrRenderbuffer::Renderbuffer(renderbuffer),
-                params,
-            };
-        }
-
-        ctx.cache.store_texture_binding(0);
-
-        let mut texture: GLuint = 0;
-
-        unsafe {
-            glGenTextures(1, &mut texture as *mut _);
-            ctx.cache.bind_texture(0, params.kind.into(), texture);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
-
-            if cfg!(not(target_arch = "wasm32")) {
-                // if not WASM
-                if params.format == TextureFormat::Alpha {
-                    // if alpha miniquad texture, the value on non-WASM is stored in red channel
-                    // swizzle red -> alpha
-                    glTexParameteri(params.kind.into(), GL_TEXTURE_SWIZZLE_A, GL_RED as _);
-                } else {
-                    // keep alpha -> alpha
-                    glTexParameteri(params.kind.into(), GL_TEXTURE_SWIZZLE_A, GL_ALPHA as _);
-                }
-            }
-
-            match source {
-                TextureSource::Empty => {
-                    // not quite sure if glTexImage2D(null) is really a requirement
-                    // but it was like this for quite a while and apparantly it works?
-                    glTexImage2D(
-                        GL_TEXTURE_2D,
-                        0,
-                        internal_format as i32,
-                        params.width as i32,
-                        params.height as i32,
-                        0,
-                        format,
-                        pixel_type,
-                        std::ptr::null() as _,
-                    );
-                }
-                TextureSource::Bytes(source) => {
-                    assert!(params.kind == TextureKind::Texture2D, "incompatible TextureKind and TextureSource. Cubemaps require TextureSource::Array of 6 textures.");
-                    glTexImage2D(
-                        GL_TEXTURE_2D,
-                        0,
-                        internal_format as i32,
-                        params.width as i32,
-                        params.height as i32,
-                        0,
-                        format,
-                        pixel_type,
-                        source.as_ptr() as *const _,
-                    );
-                }
-                TextureSource::Array(array) => {
-                    if params.kind == TextureKind::CubeMap {
-                        assert!(
-                            array.len() == 6,
-                            "Cubemaps require TextureSource::Array of 6 textures."
-                        );
-                    }
-                    for (cubemap_face, mipmaps) in array.iter().enumerate() {
-                        if mipmaps.len() != 1 {
-                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, array.len() as _);
-                        }
-                        for (mipmap_level, bytes) in mipmaps.iter().enumerate() {
-                            let target = match params.kind {
-                                TextureKind::Texture2D => GL_TEXTURE_2D,
-                                TextureKind::CubeMap => {
-                                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + cubemap_face as u32
-                                }
-                            };
-                            glTexImage2D(
-                                target,
-                                mipmap_level as _,
-                                internal_format as i32,
-                                params.width as i32,
-                                params.height as i32,
-                                0,
-                                format,
-                                pixel_type,
-                                bytes.as_ptr() as *const _,
-                            );
-                        }
-                    }
-                }
-            }
-
-            let wrap = match params.wrap {
-                TextureWrap::Repeat => GL_REPEAT,
-                TextureWrap::Mirror => GL_MIRRORED_REPEAT,
-                TextureWrap::Clamp => GL_CLAMP_TO_EDGE,
-            };
-
-            let min_filter = Self::gl_filter(params.min_filter, params.mipmap_filter);
-            let mag_filter = match params.mag_filter {
-                FilterMode::Nearest => GL_NEAREST,
-                FilterMode::Linear => GL_LINEAR,
-            };
-
-            glTexParameteri(params.kind.into(), GL_TEXTURE_WRAP_S, wrap as i32);
-            glTexParameteri(params.kind.into(), GL_TEXTURE_WRAP_T, wrap as i32);
-            glTexParameteri(params.kind.into(), GL_TEXTURE_MIN_FILTER, min_filter as i32);
-            glTexParameteri(params.kind.into(), GL_TEXTURE_MAG_FILTER, mag_filter as i32);
-        }
-        ctx.cache.restore_texture_binding(0);
-
-        Texture {
-            raw: TextureOrRenderbuffer::Texture(texture),
-            params,
-        }
-    }
-
-    pub fn resize(&mut self, ctx: &mut GlContext, width: u32, height: u32, source: Option<&[u8]>) {
-        let raw = self
-            .raw
-            .texture()
-            .expect("Resize not yet implemented for RenderBuffer(multisampled) textures");
-        ctx.cache.store_texture_binding(0);
-        ctx.cache.bind_texture(0, self.params.kind.into(), raw);
-
-        let (internal_format, format, pixel_type) = self.params.format.into();
-
-        self.params.width = width;
-        self.params.height = height;
-
-        unsafe {
-            glTexImage2D(
-                GL_TEXTURE_2D,
-                0,
-                internal_format as i32,
-                self.params.width as i32,
-                self.params.height as i32,
-                0,
-                format,
-                pixel_type,
-                match source {
-                    Some(source) => source.as_ptr() as *const _,
-                    Option::None => std::ptr::null(),
-                },
-            );
-        }
-
-        ctx.cache.restore_texture_binding(0);
-    }
-
-    pub fn update_texture_part(
-        &self,
-        ctx: &mut GlContext,
-        x_offset: i32,
-        y_offset: i32,
-        width: i32,
-        height: i32,
-        source: &[u8],
-    ) {
-        assert_eq!(self.size(width as _, height as _), source.len());
-        assert!(x_offset + width <= self.params.width as _);
-        assert!(y_offset + height <= self.params.height as _);
-        let raw = self.raw.texture().expect(
-            "update_texture_part not yet implemented for RenderBuffer(multisampled) textures",
-        );
-
-        ctx.cache.store_texture_binding(0);
-        ctx.cache.bind_texture(0, self.params.kind.into(), raw);
-
-        let (_, format, pixel_type) = self.params.format.into();
-
-        unsafe {
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
-
-            if cfg!(not(target_arch = "wasm32")) {
-                // if not WASM
-                if self.params.format == TextureFormat::Alpha {
-                    // if alpha miniquad texture, the value on non-WASM is stored in red channel
-                    // swizzle red -> alpha
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED as _);
-                } else {
-                    // keep alpha -> alpha
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA as _);
-                }
-            }
-
-            glTexSubImage2D(
-                GL_TEXTURE_2D,
-                0,
-                x_offset as _,
-                y_offset as _,
-                width as _,
-                height as _,
-                format,
-                pixel_type,
-                source.as_ptr() as *const _,
-            );
-        }
-
-        ctx.cache.restore_texture_binding(0);
-    }
-
-    /// Read texture data into CPU memory
-    pub fn read_pixels(&self, bytes: &mut [u8]) {
-        let raw = self
-            .raw
-            .texture()
-            .expect("read_pixels not yet implemented for RenderBuffer(multisampled) textures");
-
-        let (_, format, pixel_type) = self.params.format.into();
-
-        let mut fbo = 0;
-        unsafe {
-            let mut binded_fbo: i32 = 0;
-            glGetIntegerv(gl::GL_DRAW_FRAMEBUFFER_BINDING, &mut binded_fbo);
-            glGenFramebuffers(1, &mut fbo);
-            glBindFramebuffer(gl::GL_FRAMEBUFFER, fbo);
-            glFramebufferTexture2D(
-                gl::GL_FRAMEBUFFER,
-                gl::GL_COLOR_ATTACHMENT0,
-                gl::GL_TEXTURE_2D,
-                raw,
-                0,
-            );
-
-            glReadPixels(
-                0,
-                0,
-                self.params.width as _,
-                self.params.height as _,
-                format,
-                pixel_type,
-                bytes.as_mut_ptr() as _,
-            );
-
-            glBindFramebuffer(gl::GL_FRAMEBUFFER, binded_fbo as _);
-            glDeleteFramebuffers(1, &fbo);
-        }
-    }
-
-    #[inline]
-    fn size(&self, width: u32, height: u32) -> usize {
-        self.params.format.size(width, height) as usize
-    }
-
-    fn gl_filter(filter: FilterMode, mipmap_filter: MipmapFilterMode) -> GLenum {
-        match filter {
-            FilterMode::Nearest => match mipmap_filter {
-                MipmapFilterMode::None => GL_NEAREST,
-                MipmapFilterMode::Nearest => GL_NEAREST_MIPMAP_NEAREST,
-                MipmapFilterMode::Linear => GL_NEAREST_MIPMAP_LINEAR,
-            },
-            FilterMode::Linear => match mipmap_filter {
-                MipmapFilterMode::None => GL_LINEAR,
-                MipmapFilterMode::Nearest => GL_LINEAR_MIPMAP_NEAREST,
-                MipmapFilterMode::Linear => GL_LINEAR_MIPMAP_LINEAR,
-            },
-        }
-    }
-}
-
-pub(crate) struct PipelineInternal {
-    layout: Vec<Option<VertexAttributeInternal>>,
-    shader: ShaderId,
-    params: PipelineParams,
-}
-
-type UniformLocation = GLint;
-
-pub struct ShaderImage {
-    gl_loc: UniformLocation,
-}
-
-fn get_uniform_location(program: GLuint, name: &str) -> Option<i32> {
-    let cname = CString::new(name).unwrap_or_else(|e| panic!("{}", e));
-    let location = unsafe { glGetUniformLocation(program, cname.as_ptr()) };
-
-    if location == -1 {
-        return None;
-    }
-
-    Some(location)
-}
-
-pub(crate) struct RenderPassInternal {
-    gl_fb: GLuint,
-    color_textures: Vec<TextureId>,
-    resolves: Option<Vec<(u32, TextureId)>>,
-    depth_texture: Option<TextureId>,
-}
-
-struct Textures(Vec<Texture>);
-impl Textures {
-    fn get(&self, texture: TextureId) -> Texture {
-        match texture.0 {
-            TextureIdInner::Raw(RawId::OpenGl(texture)) => Texture {
-                raw: TextureOrRenderbuffer::Texture(texture),
-                params: Default::default(),
-            },
-            #[cfg(target_vendor = "apple")]
-            TextureIdInner::Raw(RawId::Metal(..)) => panic!("Metal texture in OpenGL context!"),
-            TextureIdInner::Managed(texture) => self.0[texture],
-        }
-    }
-}
 pub struct GlContext {
     shaders: ResourceManager<ShaderInternal>,
     pipelines: ResourceManager<PipelineInternal>,
@@ -577,133 +88,7 @@ impl GlContext {
     pub fn features(&self) -> &Features {
         &self.info.features
     }
-}
-
-fn load_shader_internal(
-    vertex_shader: &str,
-    fragment_shader: &str,
-    meta: ShaderMeta,
-) -> Result<ShaderInternal, ShaderError> {
-    unsafe {
-        let vertex_shader = load_shader(GL_VERTEX_SHADER, vertex_shader)?;
-        let fragment_shader = load_shader(GL_FRAGMENT_SHADER, fragment_shader)?;
-
-        let program = glCreateProgram();
-        glAttachShader(program, vertex_shader);
-        glAttachShader(program, fragment_shader);
-        glLinkProgram(program);
-
-        // delete no longer used shaders
-        glDetachShader(program, vertex_shader);
-        glDeleteShader(vertex_shader);
-        glDeleteShader(fragment_shader);
-
-        let mut link_status = 0;
-        glGetProgramiv(program, GL_LINK_STATUS, &mut link_status as *mut _);
-        if link_status == 0 {
-            let mut max_length: i32 = 0;
-            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &mut max_length as *mut _);
-
-            let mut error_message = vec![0u8; max_length as usize + 1];
-            glGetProgramInfoLog(
-                program,
-                max_length,
-                &mut max_length as *mut _,
-                error_message.as_mut_ptr() as *mut _,
-            );
-            assert!(max_length >= 1);
-            let error_message =
-                std::string::String::from_utf8_lossy(&error_message[0..max_length as usize - 1]);
-            return Err(ShaderError::LinkError(error_message.to_string()));
-        }
-
-        glUseProgram(program);
-
-        let images = meta
-            .images
-            .into_iter()
-            .map(|name| {
-                Ok(ShaderImage {
-                    gl_loc: get_uniform_location(program, &name)
-                        .ok_or(ShaderError::MissingUniform { uniform: name })?,
-                })
-            })
-            .collect::<Result<Vec<_>, ShaderError>>()?;
-
-        let uniforms = meta
-            .uniforms
-            .uniforms
-            .into_iter()
-            .map(|uniform| {
-                Ok(ShaderUniform {
-                    gl_loc: get_uniform_location(program, &uniform.name).ok_or(
-                        ShaderError::MissingUniform {
-                            uniform: uniform.name,
-                        },
-                    )?,
-                    uniform_type: uniform.uniform_type,
-                    array_count: uniform.array_count as _,
-                })
-            })
-            .collect::<Result<Vec<_>, ShaderError>>()?;
-
-        Ok(ShaderInternal {
-            program,
-            images,
-            uniforms,
-        })
-    }
-}
-
-pub fn load_shader(shader_type: GLenum, source: &str) -> Result<GLuint, ShaderError> {
-    unsafe {
-        let shader = glCreateShader(shader_type);
-        assert!(shader != 0);
-
-        let cstring = CString::new(source)?;
-        let csource = [cstring];
-        glShaderSource(shader, 1, csource.as_ptr() as *const _, std::ptr::null());
-        glCompileShader(shader);
-
-        let mut is_compiled = 0;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &mut is_compiled as *mut _);
-        if is_compiled == 0 {
-            let mut max_length: i32 = 0;
-            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &mut max_length as *mut _);
-
-            let mut error_message = vec![0u8; max_length as usize + 1];
-            glGetShaderInfoLog(
-                shader,
-                max_length,
-                &mut max_length as *mut _,
-                error_message.as_mut_ptr() as *mut _,
-            );
-
-            assert!(max_length >= 1);
-            let mut error_message =
-                std::string::String::from_utf8_lossy(&error_message[0..max_length as usize - 1])
-                    .into_owned();
-
-            // On Wasm + Chrome, for unknown reason, string with zero-terminator is returned. On Firefox there is no zero-terminators in JavaScript string.
-            if error_message.ends_with('\0') {
-                error_message.pop();
-            }
-
-            return Err(ShaderError::CompilationError {
-                shader_type: match shader_type {
-                    GL_VERTEX_SHADER => ShaderType::Vertex,
-                    GL_FRAGMENT_SHADER => ShaderType::Fragment,
-                    _ => unreachable!(),
-                },
-                error_message,
-            });
-        }
-
-        Ok(shader)
-    }
-}
-
-impl GlContext {
+    
     fn set_blend(&mut self, color_blend: Option<BlendState>, alpha_blend: Option<BlendState>) {
         if color_blend.is_none() && alpha_blend.is_some() {
             panic!("AlphaBlend without ColorBlend");
@@ -825,71 +210,6 @@ impl GlContext {
         let (r, g, b, a) = color_write;
         unsafe { glColorMask(r as _, g as _, b as _, a as _) }
         self.cache.color_write = color_write;
-    }
-}
-
-#[allow(clippy::field_reassign_with_default)]
-fn gl_info() -> ContextInfo {
-    let version_string = unsafe { glGetString(super::gl::GL_VERSION) };
-    let gl_version_string = unsafe { std::ffi::CStr::from_ptr(version_string as _) }
-        .to_str()
-        .unwrap()
-        .to_string();
-    //let gles2 = !gles3 && gl_version_string.contains("OpenGL ES");
-
-    let gl2 = gl_version_string.is_empty()
-        || gl_version_string.starts_with("2")
-        || gl_version_string.starts_with("OpenGL ES 2");
-    let webgl1 = gl_version_string == "WebGL 1.0";
-
-    let features = Features {
-        instancing: !gl2,
-        resolve_attachments: !webgl1 && !gl2,
-    };
-
-    let mut glsl_support = GlslSupport::default();
-
-    // this is not quite documented,
-    // but somehow even GL2.1 usually have all the compatibility extensions to support glsl100
-    // It was tested on really old windows machines, virtual machines etc. glsl100 always works!
-    glsl_support.v100 = true;
-
-    // on wasm miniquad always creates webgl1 context, with the only glsl available being version 100
-    #[cfg(target_arch = "wasm32")]
-    {
-        // on web, miniquad always loads EXT_shader_texture_lod and OES_standard_derivatives
-        glsl_support.v100_ext = true;
-
-        let webgl2 = gl_version_string.contains("WebGL 2.0");
-        if webgl2 {
-            glsl_support.v300es = true;
-        }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let gles3 = gl_version_string.contains("OpenGL ES 3");
-
-        if gles3 {
-            glsl_support.v300es = true;
-        }
-    }
-
-    // there is no gl3.4, so 4+ and 3.3 covers all modern OpenGL
-    if gl_version_string.starts_with("3.2") {
-        glsl_support.v150 = true; // MacOS is defaulting to 3.2 and GLSL 150
-    } else if gl_version_string.starts_with("4") || gl_version_string.starts_with("3.3") {
-        glsl_support.v330 = true;
-    // gl 3.0, 3.1, 3.2 maps to 1.30, 1.40, 1.50 glsl versions
-    } else if gl_version_string.starts_with("3") {
-        glsl_support.v130 = true;
-    }
-
-    ContextInfo {
-        backend: Backend::OpenGl,
-        gl_version_string,
-        glsl_support,
-        features,
     }
 }
 
@@ -1757,5 +1077,684 @@ impl RenderingBackend for GlContext {
                 num_instances,
             );
         }
+    }
+}
+
+#[allow(clippy::field_reassign_with_default)]
+fn gl_info() -> ContextInfo {
+    let version_string = unsafe { glGetString(super::gl::GL_VERSION) };
+    let gl_version_string = unsafe { std::ffi::CStr::from_ptr(version_string as _) }
+        .to_str()
+        .unwrap()
+        .to_string();
+    //let gles2 = !gles3 && gl_version_string.contains("OpenGL ES");
+
+    let gl2 = gl_version_string.is_empty()
+        || gl_version_string.starts_with("2")
+        || gl_version_string.starts_with("OpenGL ES 2");
+    let webgl1 = gl_version_string == "WebGL 1.0";
+
+    let features = Features {
+        instancing: !gl2,
+        resolve_attachments: !webgl1 && !gl2,
+    };
+
+    let mut glsl_support = GlslSupport::default();
+
+    // this is not quite documented,
+    // but somehow even GL2.1 usually have all the compatibility extensions to support glsl100
+    // It was tested on really old windows machines, virtual machines etc. glsl100 always works!
+    glsl_support.v100 = true;
+
+    // on wasm miniquad always creates webgl1 context, with the only glsl available being version 100
+    #[cfg(target_arch = "wasm32")]
+    {
+        // on web, miniquad always loads EXT_shader_texture_lod and OES_standard_derivatives
+        glsl_support.v100_ext = true;
+
+        let webgl2 = gl_version_string.contains("WebGL 2.0");
+        if webgl2 {
+            glsl_support.v300es = true;
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let gles3 = gl_version_string.contains("OpenGL ES 3");
+
+        if gles3 {
+            glsl_support.v300es = true;
+        }
+    }
+
+    // there is no gl3.4, so 4+ and 3.3 covers all modern OpenGL
+    if gl_version_string.starts_with("3.2") {
+        glsl_support.v150 = true; // MacOS is defaulting to 3.2 and GLSL 150
+    } else if gl_version_string.starts_with("4") || gl_version_string.starts_with("3.3") {
+        glsl_support.v330 = true;
+    // gl 3.0, 3.1, 3.2 maps to 1.30, 1.40, 1.50 glsl versions
+    } else if gl_version_string.starts_with("3") {
+        glsl_support.v130 = true;
+    }
+
+    ContextInfo {
+        backend: Backend::OpenGl,
+        gl_version_string,
+        glsl_support,
+        features,
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Buffer {
+    gl_buf: GLuint,
+    buffer_type: BufferType,
+    size: usize,
+    // Dimension of the indices for this buffer,
+    // used only as a type argument for glDrawElements and can be
+    // 1, 2 or 4
+    index_type: Option<u32>,
+}
+
+#[derive(Debug)]
+struct ShaderUniform {
+    gl_loc: UniformLocation,
+    uniform_type: UniformType,
+    array_count: i32,
+}
+
+struct ShaderInternal {
+    program: GLuint,
+    images: Vec<ShaderImage>,
+    uniforms: Vec<ShaderUniform>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum TextureOrRenderbuffer {
+    Texture(GLuint),
+    Renderbuffer(GLuint),
+}
+impl TextureOrRenderbuffer {
+    fn texture(&self) -> Option<GLuint> {
+        match self {
+            TextureOrRenderbuffer::Texture(id) => Some(*id),
+            _ => None,
+        }
+    }
+    fn renderbuffer(&self) -> Option<GLuint> {
+        match self {
+            TextureOrRenderbuffer::Renderbuffer(id) => Some(*id),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Texture {
+    raw: TextureOrRenderbuffer,
+    params: TextureParams,
+}
+
+impl TextureFormat {
+    fn sized_internal_format(&self) -> GLenum {
+        match self {
+            TextureFormat::RGB8 => GL_RGB8,
+            TextureFormat::RGBA8 => GL_RGBA8,
+            TextureFormat::RGBA16F => GL_RGBA16F,
+            TextureFormat::Depth => GL_DEPTH_COMPONENT16,
+            TextureFormat::Depth32 => GL_DEPTH_COMPONENT32,
+            #[cfg(target_arch = "wasm32")]
+            TextureFormat::Alpha => GL_ALPHA,
+            #[cfg(not(target_arch = "wasm32"))]
+            TextureFormat::Alpha => GL_R8,
+        }
+    }
+}
+
+/// Converts from TextureFormat to (internal_format, format, pixel_type)
+impl From<TextureFormat> for (GLenum, GLenum, GLenum) {
+    fn from(format: TextureFormat) -> Self {
+        match format {
+            TextureFormat::RGB8 => (GL_RGB, GL_RGB, GL_UNSIGNED_BYTE),
+            TextureFormat::RGBA8 => (GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE),
+            TextureFormat::RGBA16F => (GL_RGBA16F, GL_RGBA, GL_FLOAT),
+            TextureFormat::Depth => (GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT),
+            TextureFormat::Depth32 => (GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT),
+            #[cfg(target_arch = "wasm32")]
+            TextureFormat::Alpha => (GL_ALPHA, GL_ALPHA, GL_UNSIGNED_BYTE),
+            #[cfg(not(target_arch = "wasm32"))]
+            TextureFormat::Alpha => (GL_R8, GL_RED, GL_UNSIGNED_BYTE), // texture updates will swizzle Red -> Alpha to match WASM
+        }
+    }
+}
+
+impl From<TextureKind> for GLuint {
+    fn from(kind: TextureKind) -> GLuint {
+        match kind {
+            TextureKind::Texture2D => GL_TEXTURE_2D,
+            TextureKind::CubeMap => GL_TEXTURE_CUBE_MAP,
+        }
+    }
+}
+impl From<Equation> for GLenum {
+    fn from(eq: Equation) -> Self {
+        match eq {
+            Equation::Add => GL_FUNC_ADD,
+            Equation::Subtract => GL_FUNC_SUBTRACT,
+            Equation::ReverseSubtract => GL_FUNC_REVERSE_SUBTRACT,
+        }
+    }
+}
+
+impl From<BlendFactor> for GLenum {
+    fn from(factor: BlendFactor) -> GLenum {
+        match factor {
+            BlendFactor::Zero => GL_ZERO,
+            BlendFactor::One => GL_ONE,
+            BlendFactor::Value(BlendValue::SourceColor) => GL_SRC_COLOR,
+            BlendFactor::Value(BlendValue::SourceAlpha) => GL_SRC_ALPHA,
+            BlendFactor::Value(BlendValue::DestinationColor) => GL_DST_COLOR,
+            BlendFactor::Value(BlendValue::DestinationAlpha) => GL_DST_ALPHA,
+            BlendFactor::OneMinusValue(BlendValue::SourceColor) => GL_ONE_MINUS_SRC_COLOR,
+            BlendFactor::OneMinusValue(BlendValue::SourceAlpha) => GL_ONE_MINUS_SRC_ALPHA,
+            BlendFactor::OneMinusValue(BlendValue::DestinationColor) => GL_ONE_MINUS_DST_COLOR,
+            BlendFactor::OneMinusValue(BlendValue::DestinationAlpha) => GL_ONE_MINUS_DST_ALPHA,
+            BlendFactor::SourceAlphaSaturate => GL_SRC_ALPHA_SATURATE,
+        }
+    }
+}
+
+impl From<StencilOp> for GLenum {
+    fn from(op: StencilOp) -> Self {
+        match op {
+            StencilOp::Keep => GL_KEEP,
+            StencilOp::Zero => GL_ZERO,
+            StencilOp::Replace => GL_REPLACE,
+            StencilOp::IncrementClamp => GL_INCR,
+            StencilOp::DecrementClamp => GL_DECR,
+            StencilOp::Invert => GL_INVERT,
+            StencilOp::IncrementWrap => GL_INCR_WRAP,
+            StencilOp::DecrementWrap => GL_DECR_WRAP,
+        }
+    }
+}
+
+impl From<CompareFunc> for GLenum {
+    fn from(cf: CompareFunc) -> Self {
+        match cf {
+            CompareFunc::Always => GL_ALWAYS,
+            CompareFunc::Never => GL_NEVER,
+            CompareFunc::Less => GL_LESS,
+            CompareFunc::Equal => GL_EQUAL,
+            CompareFunc::LessOrEqual => GL_LEQUAL,
+            CompareFunc::Greater => GL_GREATER,
+            CompareFunc::NotEqual => GL_NOTEQUAL,
+            CompareFunc::GreaterOrEqual => GL_GEQUAL,
+        }
+    }
+}
+
+impl Texture {
+    pub fn new(
+        ctx: &mut GlContext,
+        access: TextureAccess,
+        source: TextureSource,
+        params: TextureParams,
+    ) -> Texture {
+        if let TextureSource::Bytes(bytes_data) = source {
+            assert_eq!(
+                params.format.size(params.width, params.height) as usize,
+                bytes_data.len()
+            );
+        }
+        if access != TextureAccess::RenderTarget {
+            assert!(
+                params.sample_count <= 1,
+                "Multisampling is only supported for render textures"
+            );
+        }
+        let (internal_format, format, pixel_type) = params.format.into();
+
+        if access == TextureAccess::RenderTarget && params.sample_count > 1 {
+            let mut renderbuffer: u32 = 0;
+            unsafe {
+                glGenRenderbuffers(1, &mut renderbuffer as *mut _);
+                glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer as _);
+                let internal_format = params.format.sized_internal_format();
+                glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER,
+                    params.sample_count,
+                    internal_format,
+                    params.width as _,
+                    params.height as _,
+                );
+            }
+            return Texture {
+                raw: TextureOrRenderbuffer::Renderbuffer(renderbuffer),
+                params,
+            };
+        }
+
+        ctx.cache.store_texture_binding(0);
+
+        let mut texture: GLuint = 0;
+
+        unsafe {
+            glGenTextures(1, &mut texture as *mut _);
+            ctx.cache.bind_texture(0, params.kind.into(), texture);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
+
+            if cfg!(not(target_arch = "wasm32")) {
+                // if not WASM
+                if params.format == TextureFormat::Alpha {
+                    // if alpha miniquad texture, the value on non-WASM is stored in red channel
+                    // swizzle red -> alpha
+                    glTexParameteri(params.kind.into(), GL_TEXTURE_SWIZZLE_A, GL_RED as _);
+                } else {
+                    // keep alpha -> alpha
+                    glTexParameteri(params.kind.into(), GL_TEXTURE_SWIZZLE_A, GL_ALPHA as _);
+                }
+            }
+
+            match source {
+                TextureSource::Empty => {
+                    // not quite sure if glTexImage2D(null) is really a requirement
+                    // but it was like this for quite a while and apparantly it works?
+                    glTexImage2D(
+                        GL_TEXTURE_2D,
+                        0,
+                        internal_format as i32,
+                        params.width as i32,
+                        params.height as i32,
+                        0,
+                        format,
+                        pixel_type,
+                        std::ptr::null() as _,
+                    );
+                }
+                TextureSource::Bytes(source) => {
+                    assert!(params.kind == TextureKind::Texture2D, "incompatible TextureKind and TextureSource. Cubemaps require TextureSource::Array of 6 textures.");
+                    glTexImage2D(
+                        GL_TEXTURE_2D,
+                        0,
+                        internal_format as i32,
+                        params.width as i32,
+                        params.height as i32,
+                        0,
+                        format,
+                        pixel_type,
+                        source.as_ptr() as *const _,
+                    );
+                }
+                TextureSource::Array(array) => {
+                    if params.kind == TextureKind::CubeMap {
+                        assert!(
+                            array.len() == 6,
+                            "Cubemaps require TextureSource::Array of 6 textures."
+                        );
+                    }
+                    for (cubemap_face, mipmaps) in array.iter().enumerate() {
+                        if mipmaps.len() != 1 {
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, array.len() as _);
+                        }
+                        for (mipmap_level, bytes) in mipmaps.iter().enumerate() {
+                            let target = match params.kind {
+                                TextureKind::Texture2D => GL_TEXTURE_2D,
+                                TextureKind::CubeMap => {
+                                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + cubemap_face as u32
+                                }
+                            };
+                            glTexImage2D(
+                                target,
+                                mipmap_level as _,
+                                internal_format as i32,
+                                params.width as i32,
+                                params.height as i32,
+                                0,
+                                format,
+                                pixel_type,
+                                bytes.as_ptr() as *const _,
+                            );
+                        }
+                    }
+                }
+            }
+
+            let wrap = match params.wrap {
+                TextureWrap::Repeat => GL_REPEAT,
+                TextureWrap::Mirror => GL_MIRRORED_REPEAT,
+                TextureWrap::Clamp => GL_CLAMP_TO_EDGE,
+            };
+
+            let min_filter = Self::gl_filter(params.min_filter, params.mipmap_filter);
+            let mag_filter = match params.mag_filter {
+                FilterMode::Nearest => GL_NEAREST,
+                FilterMode::Linear => GL_LINEAR,
+            };
+
+            glTexParameteri(params.kind.into(), GL_TEXTURE_WRAP_S, wrap as i32);
+            glTexParameteri(params.kind.into(), GL_TEXTURE_WRAP_T, wrap as i32);
+            glTexParameteri(params.kind.into(), GL_TEXTURE_MIN_FILTER, min_filter as i32);
+            glTexParameteri(params.kind.into(), GL_TEXTURE_MAG_FILTER, mag_filter as i32);
+        }
+        ctx.cache.restore_texture_binding(0);
+
+        Texture {
+            raw: TextureOrRenderbuffer::Texture(texture),
+            params,
+        }
+    }
+
+    pub fn resize(&mut self, ctx: &mut GlContext, width: u32, height: u32, source: Option<&[u8]>) {
+        let raw = self
+            .raw
+            .texture()
+            .expect("Resize not yet implemented for RenderBuffer(multisampled) textures");
+        ctx.cache.store_texture_binding(0);
+        ctx.cache.bind_texture(0, self.params.kind.into(), raw);
+
+        let (internal_format, format, pixel_type) = self.params.format.into();
+
+        self.params.width = width;
+        self.params.height = height;
+
+        unsafe {
+            glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                internal_format as i32,
+                self.params.width as i32,
+                self.params.height as i32,
+                0,
+                format,
+                pixel_type,
+                match source {
+                    Some(source) => source.as_ptr() as *const _,
+                    Option::None => std::ptr::null(),
+                },
+            );
+        }
+
+        ctx.cache.restore_texture_binding(0);
+    }
+
+    pub fn update_texture_part(
+        &self,
+        ctx: &mut GlContext,
+        x_offset: i32,
+        y_offset: i32,
+        width: i32,
+        height: i32,
+        source: &[u8],
+    ) {
+        assert_eq!(self.size(width as _, height as _), source.len());
+        assert!(x_offset + width <= self.params.width as _);
+        assert!(y_offset + height <= self.params.height as _);
+        let raw = self.raw.texture().expect(
+            "update_texture_part not yet implemented for RenderBuffer(multisampled) textures",
+        );
+
+        ctx.cache.store_texture_binding(0);
+        ctx.cache.bind_texture(0, self.params.kind.into(), raw);
+
+        let (_, format, pixel_type) = self.params.format.into();
+
+        unsafe {
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
+
+            if cfg!(not(target_arch = "wasm32")) {
+                // if not WASM
+                if self.params.format == TextureFormat::Alpha {
+                    // if alpha miniquad texture, the value on non-WASM is stored in red channel
+                    // swizzle red -> alpha
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_RED as _);
+                } else {
+                    // keep alpha -> alpha
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA as _);
+                }
+            }
+
+            glTexSubImage2D(
+                GL_TEXTURE_2D,
+                0,
+                x_offset as _,
+                y_offset as _,
+                width as _,
+                height as _,
+                format,
+                pixel_type,
+                source.as_ptr() as *const _,
+            );
+        }
+
+        ctx.cache.restore_texture_binding(0);
+    }
+
+    /// Read texture data into CPU memory
+    pub fn read_pixels(&self, bytes: &mut [u8]) {
+        let raw = self
+            .raw
+            .texture()
+            .expect("read_pixels not yet implemented for RenderBuffer(multisampled) textures");
+
+        let (_, format, pixel_type) = self.params.format.into();
+
+        let mut fbo = 0;
+        unsafe {
+            let mut binded_fbo: i32 = 0;
+            glGetIntegerv(gl::GL_DRAW_FRAMEBUFFER_BINDING, &mut binded_fbo);
+            glGenFramebuffers(1, &mut fbo);
+            glBindFramebuffer(gl::GL_FRAMEBUFFER, fbo);
+            glFramebufferTexture2D(
+                gl::GL_FRAMEBUFFER,
+                gl::GL_COLOR_ATTACHMENT0,
+                gl::GL_TEXTURE_2D,
+                raw,
+                0,
+            );
+
+            glReadPixels(
+                0,
+                0,
+                self.params.width as _,
+                self.params.height as _,
+                format,
+                pixel_type,
+                bytes.as_mut_ptr() as _,
+            );
+
+            glBindFramebuffer(gl::GL_FRAMEBUFFER, binded_fbo as _);
+            glDeleteFramebuffers(1, &fbo);
+        }
+    }
+
+    #[inline]
+    fn size(&self, width: u32, height: u32) -> usize {
+        self.params.format.size(width, height) as usize
+    }
+
+    fn gl_filter(filter: FilterMode, mipmap_filter: MipmapFilterMode) -> GLenum {
+        match filter {
+            FilterMode::Nearest => match mipmap_filter {
+                MipmapFilterMode::None => GL_NEAREST,
+                MipmapFilterMode::Nearest => GL_NEAREST_MIPMAP_NEAREST,
+                MipmapFilterMode::Linear => GL_NEAREST_MIPMAP_LINEAR,
+            },
+            FilterMode::Linear => match mipmap_filter {
+                MipmapFilterMode::None => GL_LINEAR,
+                MipmapFilterMode::Nearest => GL_LINEAR_MIPMAP_NEAREST,
+                MipmapFilterMode::Linear => GL_LINEAR_MIPMAP_LINEAR,
+            },
+        }
+    }
+}
+
+pub(crate) struct PipelineInternal {
+    layout: Vec<Option<VertexAttributeInternal>>,
+    shader: ShaderId,
+    params: PipelineParams,
+}
+
+type UniformLocation = GLint;
+
+pub struct ShaderImage {
+    gl_loc: UniformLocation,
+}
+
+fn get_uniform_location(program: GLuint, name: &str) -> Option<i32> {
+    let cname = CString::new(name).unwrap_or_else(|e| panic!("{}", e));
+    let location = unsafe { glGetUniformLocation(program, cname.as_ptr()) };
+
+    if location == -1 {
+        return None;
+    }
+
+    Some(location)
+}
+
+pub(crate) struct RenderPassInternal {
+    gl_fb: GLuint,
+    color_textures: Vec<TextureId>,
+    resolves: Option<Vec<(u32, TextureId)>>,
+    depth_texture: Option<TextureId>,
+}
+
+struct Textures(Vec<Texture>);
+impl Textures {
+    fn get(&self, texture: TextureId) -> Texture {
+        match texture.0 {
+            TextureIdInner::Raw(RawId::OpenGl(texture)) => Texture {
+                raw: TextureOrRenderbuffer::Texture(texture),
+                params: Default::default(),
+            },
+            #[cfg(target_vendor = "apple")]
+            TextureIdInner::Raw(RawId::Metal(..)) => panic!("Metal texture in OpenGL context!"),
+            TextureIdInner::Managed(texture) => self.0[texture],
+        }
+    }
+}
+
+fn load_shader_internal(
+    vertex_shader: &str,
+    fragment_shader: &str,
+    meta: ShaderMeta,
+) -> Result<ShaderInternal, ShaderError> {
+    unsafe {
+        let vertex_shader = load_shader(GL_VERTEX_SHADER, vertex_shader)?;
+        let fragment_shader = load_shader(GL_FRAGMENT_SHADER, fragment_shader)?;
+
+        let program = glCreateProgram();
+        glAttachShader(program, vertex_shader);
+        glAttachShader(program, fragment_shader);
+        glLinkProgram(program);
+
+        // delete no longer used shaders
+        glDetachShader(program, vertex_shader);
+        glDeleteShader(vertex_shader);
+        glDeleteShader(fragment_shader);
+
+        let mut link_status = 0;
+        glGetProgramiv(program, GL_LINK_STATUS, &mut link_status as *mut _);
+        if link_status == 0 {
+            let mut max_length: i32 = 0;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &mut max_length as *mut _);
+
+            let mut error_message = vec![0u8; max_length as usize + 1];
+            glGetProgramInfoLog(
+                program,
+                max_length,
+                &mut max_length as *mut _,
+                error_message.as_mut_ptr() as *mut _,
+            );
+            assert!(max_length >= 1);
+            let error_message =
+                std::string::String::from_utf8_lossy(&error_message[0..max_length as usize - 1]);
+            return Err(ShaderError::LinkError(error_message.to_string()));
+        }
+
+        glUseProgram(program);
+
+        let images = meta
+            .images
+            .into_iter()
+            .map(|name| {
+                Ok(ShaderImage {
+                    gl_loc: get_uniform_location(program, &name)
+                        .ok_or(ShaderError::MissingUniform { uniform: name })?,
+                })
+            })
+            .collect::<Result<Vec<_>, ShaderError>>()?;
+
+        let uniforms = meta
+            .uniforms
+            .uniforms
+            .into_iter()
+            .map(|uniform| {
+                Ok(ShaderUniform {
+                    gl_loc: get_uniform_location(program, &uniform.name).ok_or(
+                        ShaderError::MissingUniform {
+                            uniform: uniform.name,
+                        },
+                    )?,
+                    uniform_type: uniform.uniform_type,
+                    array_count: uniform.array_count as _,
+                })
+            })
+            .collect::<Result<Vec<_>, ShaderError>>()?;
+
+        Ok(ShaderInternal {
+            program,
+            images,
+            uniforms,
+        })
+    }
+}
+
+pub fn load_shader(shader_type: GLenum, source: &str) -> Result<GLuint, ShaderError> {
+    unsafe {
+        let shader = glCreateShader(shader_type);
+        assert!(shader != 0);
+
+        let cstring = CString::new(source)?;
+        let csource = [cstring];
+        glShaderSource(shader, 1, csource.as_ptr() as *const _, std::ptr::null());
+        glCompileShader(shader);
+
+        let mut is_compiled = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &mut is_compiled as *mut _);
+        if is_compiled == 0 {
+            let mut max_length: i32 = 0;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &mut max_length as *mut _);
+
+            let mut error_message = vec![0u8; max_length as usize + 1];
+            glGetShaderInfoLog(
+                shader,
+                max_length,
+                &mut max_length as *mut _,
+                error_message.as_mut_ptr() as *mut _,
+            );
+
+            assert!(max_length >= 1);
+            let mut error_message =
+                std::string::String::from_utf8_lossy(&error_message[0..max_length as usize - 1])
+                    .into_owned();
+
+            // On Wasm + Chrome, for unknown reason, string with zero-terminator is returned. On Firefox there is no zero-terminators in JavaScript string.
+            if error_message.ends_with('\0') {
+                error_message.pop();
+            }
+
+            return Err(ShaderError::CompilationError {
+                shader_type: match shader_type {
+                    GL_VERTEX_SHADER => ShaderType::Vertex,
+                    GL_FRAGMENT_SHADER => ShaderType::Fragment,
+                    _ => unreachable!(),
+                },
+                error_message,
+            });
+        }
+
+        Ok(shader)
     }
 }
