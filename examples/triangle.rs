@@ -12,7 +12,7 @@ struct Vertex {
 }
 
 struct Stage {
-    pipeline: Pipeline,
+    pipeline: PipelineId,
     bindings: Bindings,
     ctx: Box<dyn RenderingBackend>,
 }
@@ -83,7 +83,7 @@ impl EventHandler for Stage {
     fn update(&mut self) {}
 
     fn draw(&mut self) {
-        self.ctx.begin_default_pass(Default::default());
+        self.ctx.begin_default_render_pass(Default::default());
 
         self.ctx.apply_pipeline(&self.pipeline);
         self.ctx.apply_bindings(&self.bindings);

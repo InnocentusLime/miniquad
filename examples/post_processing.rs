@@ -6,11 +6,11 @@ use miniquad::*;
 use glam::{vec3, Mat4};
 
 struct Stage {
-    post_processing_pipeline: Pipeline,
+    post_processing_pipeline: PipelineId,
     post_processing_bind: Bindings,
-    offscreen_pipeline: Pipeline,
+    offscreen_pipeline: PipelineId,
     offscreen_bind: Bindings,
-    offscreen_pass: RenderPass,
+    offscreen_pass: RenderPassId,
     rx: f32,
     ry: f32,
 
@@ -230,7 +230,7 @@ impl EventHandler for Stage {
 
         let (w, h) = window::screen_size();
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
-        self.ctx.begin_pass(
+        self.ctx.begin_render_pass(
             Some(self.offscreen_pass),
             PassAction::clear_color(1.0, 1.0, 1.0, 1.0),
         );
@@ -247,7 +247,7 @@ impl EventHandler for Stage {
 
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
-        self.ctx.begin_default_pass(PassAction::Nothing);
+        self.ctx.begin_default_render_pass(PassAction::Nothing);
         self.ctx.apply_pipeline(&self.post_processing_pipeline);
         self.ctx.apply_bindings(&self.post_processing_bind);
         self.ctx

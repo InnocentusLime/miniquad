@@ -17,7 +17,7 @@ struct Vertex {
 }
 
 struct Stage {
-    pipeline: Pipeline,
+    pipeline: PipelineId,
     bindings: Bindings,
     start_time: f64,
     last_frame: f64,
@@ -143,7 +143,7 @@ impl EventHandler for Stage {
     fn draw(&mut self) {
         self.uniforms.time = (miniquad::date::now() - self.start_time) as f32;
 
-        self.ctx.begin_default_pass(Default::default());
+        self.ctx.begin_default_render_pass(Default::default());
         self.ctx.apply_pipeline(&self.pipeline);
         self.ctx.apply_bindings(&self.bindings);
         self.ctx

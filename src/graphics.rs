@@ -571,7 +571,7 @@ impl Default for PassAction {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct RenderPass(usize);
+pub struct RenderPassId(usize);
 
 pub const MAX_VERTEX_ATTRIBUTES: usize = 16;
 pub const MAX_SHADERSTAGE_IMAGES: usize = 12;
@@ -742,7 +742,7 @@ pub struct PipelineParams {
 
 // TODO(next major version bump): should be PipelineId
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Pipeline(usize);
+pub struct PipelineId(usize);
 
 impl Default for PipelineParams {
     fn default() -> PipelineParams {
@@ -791,21 +791,6 @@ pub enum BufferUsage {
     Immutable,
     Dynamic,
     Stream,
-}
-
-fn gl_buffer_target(buffer_type: &BufferType) -> GLenum {
-    match buffer_type {
-        BufferType::VertexBuffer => GL_ARRAY_BUFFER,
-        BufferType::IndexBuffer => GL_ELEMENT_ARRAY_BUFFER,
-    }
-}
-
-fn gl_usage(usage: &BufferUsage) -> GLenum {
-    match usage {
-        BufferUsage::Immutable => GL_STATIC_DRAW,
-        BufferUsage::Dynamic => GL_DYNAMIC_DRAW,
-        BufferUsage::Stream => GL_STREAM_DRAW,
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -1220,7 +1205,7 @@ pub trait RenderingBackend {
         &mut self,
         color_img: TextureId,
         depth_img: Option<TextureId>,
-    ) -> RenderPass {
+    ) -> RenderPassId {
         self.new_render_pass_mrt(&[color_img], None, depth_img)
     }
     /// Same as "new_render_pass", but allows multiple color attachments.
@@ -1235,11 +1220,11 @@ pub trait RenderingBackend {
         color_img: &[TextureId],
         resolve_img: Option<&[TextureId]>,
         depth_img: Option<TextureId>,
-    ) -> RenderPass;
+    ) -> RenderPassId;
     /// panics for depth-only or multiple color attachment render pass
     /// This function is, mostly, legacy. Using "render_pass_color_attachments"
     /// is recommended instead.
-    fn render_pass_texture(&self, render_pass: RenderPass) -> TextureId {
+    fn render_pass_texture(&self, render_pass: RenderPassId) -> TextureId {
         let textures = self.render_pass_color_attachments(render_pass);
         #[allow(clippy::len_zero)]
         if textures.len() == 0 {
@@ -1251,17 +1236,17 @@ pub trait RenderingBackend {
         textures[0]
     }
     /// For depth-only render pass returns empty slice.
-    fn render_pass_color_attachments(&self, render_pass: RenderPass) -> &[TextureId];
-    fn delete_render_pass(&mut self, render_pass: RenderPass);
+    fn render_pass_color_attachments(&self, render_pass: RenderPassId) -> &[TextureId];
+    fn delete_render_pass(&mut self, render_pass: RenderPassId);
     fn new_pipeline(
         &mut self,
         buffer_layout: &[BufferLayout],
         attributes: &[VertexAttribute],
         shader: ShaderId,
         params: PipelineParams,
-    ) -> Pipeline;
-    fn apply_pipeline(&mut self, pipeline: &Pipeline);
-    fn delete_pipeline(&mut self, pipeline: Pipeline);
+    ) -> PipelineId;
+    fn apply_pipeline(&mut self, pipeline: &PipelineId);
+    fn delete_pipeline(&mut self, pipeline: PipelineId);
 
     /// Create a buffer resource object.
     /// ```ignore
@@ -1352,9 +1337,9 @@ pub trait RenderingBackend {
         stencil: Option<i32>,
     );
     /// start rendering to the default frame buffer
-    fn begin_default_pass(&mut self, action: PassAction);
+    fn begin_default_render_pass(&mut self, action: PassAction);
     /// start rendering to an offscreen framebuffer
-    fn begin_pass(&mut self, pass: Option<RenderPass>, action: PassAction);
+    fn begin_render_pass(&mut self, pass: Option<RenderPassId>, action: PassAction);
 
     fn end_render_pass(&mut self);
 

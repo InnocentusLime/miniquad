@@ -10,7 +10,7 @@ const NUM_PARTICLES_EMITTED_PER_FRAME: usize = 10;
 struct Stage {
     ctx: Box<dyn RenderingBackend>,
 
-    pipeline: Pipeline,
+    pipeline: PipelineId,
     bindings: Bindings,
 
     pos: Vec<Vec3>,
@@ -160,7 +160,7 @@ impl EventHandler for Stage {
         self.ry += 0.01;
         let mvp = view_proj * Mat4::from_rotation_y(self.ry);
 
-        self.ctx.begin_default_pass(Default::default());
+        self.ctx.begin_default_render_pass(Default::default());
 
         self.ctx.apply_pipeline(&self.pipeline);
         self.ctx.apply_bindings(&self.bindings);
