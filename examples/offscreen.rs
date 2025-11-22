@@ -20,18 +20,24 @@ impl Stage {
     pub fn new() -> Stage {
         let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
 
-        let color_img = ctx.new_render_texture(TextureParams {
-            width: 256,
-            height: 256,
-            format: TextureFormat::RGBA8,
-            ..Default::default()
-        });
-        let depth_img = ctx.new_render_texture(TextureParams {
-            width: 256,
-            height: 256,
-            format: TextureFormat::Depth,
-            ..Default::default()
-        });
+        let color_img = ctx.new_texture(
+            TextureSource::Empty,
+            TextureParams {
+                width: 256,
+                height: 256,
+                format: TextureFormat::RGBA8,
+                ..Default::default()
+            },
+        );
+        let depth_img = ctx.new_texture(
+            TextureSource::Empty,
+            TextureParams {
+                width: 256,
+                height: 256,
+                format: TextureFormat::Depth,
+                ..Default::default()
+            },
+        );
 
         let offscreen_pass = ctx.new_render_pass(color_img, Some(depth_img));
 

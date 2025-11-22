@@ -1,9 +1,13 @@
 use std::ffi::CString;
 
-use crate::native::gl::*;
-use crate::graphics::{ShaderId, PipelineParams, UniformType, ShaderSource, PipelineId, VertexAttribute, VertexFormat, VertexStep, FrontFaceOrder, BufferId, ShaderMeta, ShaderError, ShaderType, BufferLayout, TextureId, MAX_VERTEX_ATTRIBUTES};
 use crate::graphics::gl::cache::{CachedAttribute, VertexAttributeInternal};
 use crate::graphics::gl::GlContext;
+use crate::graphics::{
+    BufferId, BufferLayout, FrontFaceOrder, PipelineId, PipelineParams, ShaderError, ShaderId,
+    ShaderMeta, ShaderSource, ShaderType, TextureId, UniformType, VertexAttribute, VertexFormat,
+    VertexStep, MAX_VERTEX_ATTRIBUTES,
+};
+use crate::native::gl::*;
 
 pub struct PipelineInternal {
     pub layout: Vec<Option<VertexAttributeInternal>>,
@@ -178,7 +182,7 @@ impl GlContext {
         let shader = load_shader_internal(vertex, fragment, meta)?;
         Ok(ShaderId(self.shaders.add(shader)))
     }
-    
+
     pub fn new_gl_pipeline(
         &mut self,
         buffer_layout: &[BufferLayout],
@@ -290,7 +294,7 @@ impl GlContext {
 
         PipelineId(self.pipelines.add(pipeline))
     }
-    
+
     pub fn delete_gl_shader(&mut self, program: ShaderId) {
         unsafe { glDeleteProgram(self.shaders[program.0].program) };
         self.shaders.remove(program.0);
@@ -345,7 +349,7 @@ impl GlContext {
         self.set_stencil(self.pipelines[pipeline.0].params.stencil_test);
         self.set_color_write(self.pipelines[pipeline.0].params.color_write);
     }
-    
+
     pub fn gl_apply_bindings_from_slice(
         &mut self,
         vertex_buffers: &[BufferId],
@@ -361,12 +365,9 @@ impl GlContext {
                 .unwrap_or_else(|| panic!("Image count in bindings and shader did not match!"));
             let gl_loc = shader_image.gl_loc;
             let texture = self.textures.get(*bindings_image);
-            let raw = match texture.raw {
-                super::texture::TextureOrRenderbuffer::Texture(id) => id,
-                super::texture::TextureOrRenderbuffer::Renderbuffer(id) => id,
-            };
             unsafe {
-                self.cache.bind_texture(n, texture.params.kind.into(), raw);
+                self.cache
+                    .bind_texture(n, texture.params.kind.into(), texture.gl_tex);
                 glUniform1i(gl_loc, n as i32);
             }
         }

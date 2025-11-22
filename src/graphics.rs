@@ -369,14 +369,6 @@ pub enum MipmapFilterMode {
     Nearest,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum TextureAccess {
-    /// Used as read-only from GPU
-    Static,
-    /// Can be written to from GPU
-    RenderTarget,
-}
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TextureKind {
     Texture2D,
@@ -398,12 +390,6 @@ pub struct TextureParams {
     // And reallocate non-mipmapped texture(on metal) on generateMipmaps call
     // But! Reallocating cubemaps is too much struggle, so leave it for later.
     pub allocate_mipmaps: bool,
-    /// Only used for render textures. `sample_count > 1` allows anti-aliased render textures.
-    ///
-    /// On OpenGL, for a `sample_count > 1` render texture, render buffer object will
-    /// be created instead of a regulat texture.
-    ///
-    pub sample_count: i32,
 }
 
 impl Default for TextureParams {
@@ -418,7 +404,6 @@ impl Default for TextureParams {
             width: 0,
             height: 0,
             allocate_mipmaps: false,
-            sample_count: 1,
         }
     }
 }
@@ -1117,21 +1102,13 @@ pub trait RenderingBackend {
         shader: ShaderSource,
         meta: ShaderMeta,
     ) -> Result<ShaderId, ShaderError>;
-    fn new_texture(
-        &mut self,
-        access: TextureAccess,
-        data: TextureSource,
-        params: TextureParams,
-    ) -> TextureId;
-    fn new_render_texture(&mut self, params: TextureParams) -> TextureId {
-        self.new_texture(TextureAccess::RenderTarget, TextureSource::Empty, params)
-    }
+    fn new_texture(&mut self, data: TextureSource, params: TextureParams) -> TextureId;
     fn new_texture_from_data_and_format(
         &mut self,
         bytes: &[u8],
         params: TextureParams,
     ) -> TextureId {
-        self.new_texture(TextureAccess::Static, TextureSource::Bytes(bytes), params)
+        self.new_texture(TextureSource::Bytes(bytes), params)
     }
     fn new_texture_from_rgba8(&mut self, width: u16, height: u16, bytes: &[u8]) -> TextureId {
         assert_eq!(width as usize * height as usize * 4, bytes.len());
@@ -1148,7 +1125,6 @@ pub trait RenderingBackend {
                 mag_filter: FilterMode::Linear,
                 mipmap_filter: MipmapFilterMode::None,
                 allocate_mipmaps: false,
-                sample_count: 1,
             },
         )
     }

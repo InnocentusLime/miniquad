@@ -1,10 +1,10 @@
 use crate::ResourceManager;
 
-mod cache;
 mod buffer;
-mod texture;
+mod cache;
 mod pipeline;
 mod render_pass;
+mod texture;
 
 use super::*;
 use cache::*;
@@ -90,7 +90,7 @@ impl GlContext {
     pub fn features(&self) -> &Features {
         &self.info.features
     }
-    
+
     fn set_blend(&mut self, color_blend: Option<BlendState>, alpha_blend: Option<BlendState>) {
         if color_blend.is_none() && alpha_blend.is_some() {
             panic!("AlphaBlend without ColorBlend");
@@ -220,13 +220,8 @@ impl RenderingBackend for GlContext {
         self.info.clone()
     }
 
-    fn new_texture(
-        &mut self,
-        access: TextureAccess,
-        source: TextureSource,
-        params: TextureParams,
-    ) -> TextureId {
-        self.new_gl_texture(access, source, params)
+    fn new_texture(&mut self, source: TextureSource, params: TextureParams) -> TextureId {
+        self.new_gl_texture(source, params)
     }
 
     fn delete_texture(&mut self, texture: TextureId) {
@@ -253,11 +248,11 @@ impl RenderingBackend for GlContext {
     ) {
         self.gl_texture_set_min_filter(texture, filter, mipmap_filter);
     }
-    
+
     fn texture_set_mag_filter(&mut self, texture: TextureId, filter: FilterMode) {
         self.gl_texture_set_mag_filter(texture, filter);
     }
-    
+
     fn texture_resize(
         &mut self,
         texture: TextureId,
@@ -267,7 +262,7 @@ impl RenderingBackend for GlContext {
     ) {
         self.gl_texture_resize(texture, width, height, source);
     }
-    
+
     fn texture_read_pixels(&mut self, texture: TextureId, source: &mut [u8]) {
         self.gl_texture_read_pixels(texture, source);
     }
@@ -275,7 +270,7 @@ impl RenderingBackend for GlContext {
     fn texture_generate_mipmaps(&mut self, texture: TextureId) {
         self.gl_texture_generate_mipmaps(texture);
     }
-    
+
     fn texture_update_part(
         &mut self,
         texture: TextureId,
@@ -287,11 +282,11 @@ impl RenderingBackend for GlContext {
     ) {
         self.gl_texture_update_part(texture, x_offset, y_offset, width, height, source);
     }
-    
+
     fn texture_params(&self, texture: TextureId) -> TextureParams {
         self.gl_texture_params(texture)
     }
-    
+
     unsafe fn texture_raw_id(&self, texture: TextureId) -> RawId {
         unsafe { self.gl_texture_raw_id(texture) }
     }
@@ -304,11 +299,11 @@ impl RenderingBackend for GlContext {
     ) -> RenderPassId {
         self.new_gl_render_pass_mrt(color_img, resolve_img, depth_img)
     }
-    
+
     fn render_pass_color_attachments(&self, render_pass: RenderPassId) -> &[TextureId] {
         self.gl_render_pass_color_attachments(render_pass)
     }
-    
+
     fn delete_render_pass(&mut self, render_pass: RenderPassId) {
         self.delete_gl_render_pass(render_pass);
     }
@@ -334,7 +329,7 @@ impl RenderingBackend for GlContext {
     fn apply_pipeline(&mut self, pipeline: &PipelineId) {
         self.apply_gl_pipeline(pipeline);
     }
-    
+
     fn apply_bindings_from_slice(
         &mut self,
         vertex_buffers: &[BufferId],
@@ -421,20 +416,24 @@ impl RenderingBackend for GlContext {
             );
         }
     }
-    
-    fn new_buffer(&mut self, type_: BufferType, usage: BufferUsage, data: BufferSource)
-        -> BufferId {
+
+    fn new_buffer(
+        &mut self,
+        type_: BufferType,
+        usage: BufferUsage,
+        data: BufferSource,
+    ) -> BufferId {
         self.new_gl_buffer(type_, usage, data)
     }
-    
+
     fn buffer_update(&mut self, buffer: BufferId, data: BufferSource) {
         self.gl_buffer_update(buffer, data);
     }
-    
+
     fn buffer_size(&mut self, buffer: BufferId) -> usize {
         self.gl_buffer_size(buffer)
     }
-    
+
     fn delete_buffer(&mut self, buffer: BufferId) {
         self.delete_gl_buffer(buffer);
     }

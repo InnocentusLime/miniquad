@@ -1,84 +1,34 @@
-use crate::native::gl::*;
-use crate::graphics::{TextureFormat, TextureAccess, TextureSource, TextureParams, TextureKind, FilterMode, TextureWrap, MipmapFilterMode, RawId, TextureId};
 use crate::graphics::gl::GlContext;
+use crate::graphics::{
+    FilterMode, MipmapFilterMode, RawId, TextureFormat, TextureId, TextureKind, TextureParams,
+    TextureSource, TextureWrap,
+};
+use crate::native::gl::*;
 use crate::TextureIdInner;
 
 #[derive(Clone, Copy, Debug)]
-pub enum TextureOrRenderbuffer {
-    Texture(GLuint),
-    Renderbuffer(GLuint),
-}
-
-impl TextureOrRenderbuffer {
-    pub fn texture(&self) -> Option<GLuint> {
-        match self {
-            TextureOrRenderbuffer::Texture(id) => Some(*id),
-            _ => None,
-        }
-    }
-    
-    pub fn renderbuffer(&self) -> Option<GLuint> {
-        match self {
-            TextureOrRenderbuffer::Renderbuffer(id) => Some(*id),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
 pub struct Texture {
-    pub raw: TextureOrRenderbuffer,
+    pub gl_tex: GLuint,
     pub params: TextureParams,
 }
 
 impl Texture {
-    pub fn new(
-        ctx: &mut GlContext,
-        access: TextureAccess,
-        source: TextureSource,
-        params: TextureParams,
-    ) -> Texture {
+    pub fn new(ctx: &mut GlContext, source: TextureSource, params: TextureParams) -> Texture {
         if let TextureSource::Bytes(bytes_data) = source {
             assert_eq!(
                 params.format.size(params.width, params.height) as usize,
                 bytes_data.len()
             );
         }
-        if access != TextureAccess::RenderTarget {
-            assert!(
-                params.sample_count <= 1,
-                "Multisampling is only supported for render textures"
-            );
-        }
         let (internal_format, format, pixel_type) = params.format.into();
-
-        if access == TextureAccess::RenderTarget && params.sample_count > 1 {
-            let mut renderbuffer: u32 = 0;
-            unsafe {
-                glGenRenderbuffers(1, &mut renderbuffer as *mut _);
-                glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer as _);
-                let internal_format = params.format.sized_internal_format();
-                glRenderbufferStorageMultisample(
-                    GL_RENDERBUFFER,
-                    params.sample_count,
-                    internal_format,
-                    params.width as _,
-                    params.height as _,
-                );
-            }
-            return Texture {
-                raw: TextureOrRenderbuffer::Renderbuffer(renderbuffer),
-                params,
-            };
-        }
 
         ctx.cache.store_texture_binding(0);
 
-        let mut texture: GLuint = 0;
+        let mut gl_tex: GLuint = 0;
 
         unsafe {
-            glGenTextures(1, &mut texture as *mut _);
-            ctx.cache.bind_texture(0, params.kind.into(), texture);
+            glGenTextures(1, &mut gl_tex as *mut _);
+            ctx.cache.bind_texture(0, params.kind.into(), gl_tex);
             glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
 
             if cfg!(not(target_arch = "wasm32")) {
@@ -177,19 +127,13 @@ impl Texture {
         }
         ctx.cache.restore_texture_binding(0);
 
-        Texture {
-            raw: TextureOrRenderbuffer::Texture(texture),
-            params,
-        }
+        Texture { gl_tex, params }
     }
 
     pub fn resize(&mut self, ctx: &mut GlContext, width: u32, height: u32, source: Option<&[u8]>) {
-        let raw = self
-            .raw
-            .texture()
-            .expect("Resize not yet implemented for RenderBuffer(multisampled) textures");
         ctx.cache.store_texture_binding(0);
-        ctx.cache.bind_texture(0, self.params.kind.into(), raw);
+        ctx.cache
+            .bind_texture(0, self.params.kind.into(), self.gl_tex);
 
         let (internal_format, format, pixel_type) = self.params.format.into();
 
@@ -228,12 +172,10 @@ impl Texture {
         assert_eq!(self.size(width as _, height as _), source.len());
         assert!(x_offset + width <= self.params.width as _);
         assert!(y_offset + height <= self.params.height as _);
-        let raw = self.raw.texture().expect(
-            "update_texture_part not yet implemented for RenderBuffer(multisampled) textures",
-        );
 
         ctx.cache.store_texture_binding(0);
-        ctx.cache.bind_texture(0, self.params.kind.into(), raw);
+        ctx.cache
+            .bind_texture(0, self.params.kind.into(), self.gl_tex);
 
         let (_, format, pixel_type) = self.params.format.into();
 
@@ -270,11 +212,6 @@ impl Texture {
 
     /// Read texture data into CPU memory
     pub fn read_pixels(&self, bytes: &mut [u8]) {
-        let raw = self
-            .raw
-            .texture()
-            .expect("read_pixels not yet implemented for RenderBuffer(multisampled) textures");
-
         let (_, format, pixel_type) = self.params.format.into();
 
         let mut fbo = 0;
@@ -287,7 +224,7 @@ impl Texture {
                 GL_FRAMEBUFFER,
                 GL_COLOR_ATTACHMENT0,
                 GL_TEXTURE_2D,
-                raw,
+                self.gl_tex,
                 0,
             );
 
@@ -327,22 +264,6 @@ impl Texture {
     }
 }
 
-impl TextureFormat {
-    fn sized_internal_format(&self) -> GLenum {
-        match self {
-            TextureFormat::RGB8 => GL_RGB8,
-            TextureFormat::RGBA8 => GL_RGBA8,
-            TextureFormat::RGBA16F => GL_RGBA16F,
-            TextureFormat::Depth => GL_DEPTH_COMPONENT16,
-            TextureFormat::Depth32 => GL_DEPTH_COMPONENT32,
-            #[cfg(target_arch = "wasm32")]
-            TextureFormat::Alpha => GL_ALPHA,
-            #[cfg(not(target_arch = "wasm32"))]
-            TextureFormat::Alpha => GL_R8,
-        }
-    }
-}
-
 /// Converts from TextureFormat to (internal_format, format, pixel_type)
 impl From<TextureFormat> for (GLenum, GLenum, GLenum) {
     fn from(format: TextureFormat) -> Self {
@@ -376,7 +297,7 @@ impl Textures {
     pub fn get(&self, texture: TextureId) -> Texture {
         match texture.0 {
             TextureIdInner::Raw(RawId::OpenGl(texture)) => Texture {
-                raw: TextureOrRenderbuffer::Texture(texture),
+                gl_tex: texture,
                 params: Default::default(),
             },
             #[cfg(target_vendor = "apple")]
@@ -387,13 +308,8 @@ impl Textures {
 }
 
 impl GlContext {
-    pub fn new_gl_texture(
-        &mut self,
-        access: TextureAccess,
-        source: TextureSource,
-        params: TextureParams,
-    ) -> TextureId {
-        let texture = Texture::new(self, access, source, params);
+    pub fn new_gl_texture(&mut self, source: TextureSource, params: TextureParams) -> TextureId {
+        let texture = Texture::new(self, source, params);
         self.textures.0.push(texture);
         TextureId(TextureIdInner::Managed(self.textures.0.len() - 1))
     }
@@ -402,25 +318,21 @@ impl GlContext {
         //self.cache.clear_texture_bindings();
 
         let t = self.textures.get(texture);
-        match &t.raw {
-            TextureOrRenderbuffer::Texture(raw) => unsafe {
-                glDeleteTextures(1, raw as *const _);
-            },
-            TextureOrRenderbuffer::Renderbuffer(raw) => unsafe {
-                glDeleteRenderbuffers(1, raw as *const _);
-            },
+        unsafe {
+            glDeleteTextures(1, t.gl_tex as *const _);
         }
     }
 
-    pub fn gl_texture_set_wrap(&mut self, texture: TextureId, wrap_x: TextureWrap, wrap_y: TextureWrap) {
+    pub fn gl_texture_set_wrap(
+        &mut self,
+        texture: TextureId,
+        wrap_x: TextureWrap,
+        wrap_y: TextureWrap,
+    ) {
         let t = self.textures.get(texture);
-        let raw = t
-            .raw
-            .texture()
-            .expect("texture_set_wrap not yet implemented for RenderBuffer(multisampled) textures");
 
         self.cache.store_texture_binding(0);
-        self.cache.bind_texture(0, t.params.kind.into(), raw);
+        self.cache.bind_texture(0, t.params.kind.into(), t.gl_tex);
         let wrap_x = match wrap_x {
             TextureWrap::Repeat => GL_REPEAT,
             TextureWrap::Mirror => GL_MIRRORED_REPEAT,
@@ -447,12 +359,9 @@ impl GlContext {
         mipmap_filter: MipmapFilterMode,
     ) {
         let t = self.textures.get(texture);
-        let raw = t.raw.texture().expect(
-            "texture_set_min_filter not yet implemented for RenderBuffer(multisampled) textures",
-        );
 
         self.cache.store_texture_binding(0);
-        self.cache.bind_texture(0, t.params.kind.into(), raw);
+        self.cache.bind_texture(0, t.params.kind.into(), t.gl_tex);
 
         let filter = Texture::gl_filter(filter, mipmap_filter);
         unsafe {
@@ -463,13 +372,9 @@ impl GlContext {
 
     pub fn gl_texture_set_mag_filter(&mut self, texture: TextureId, filter: FilterMode) {
         let t = self.textures.get(texture);
-        let raw = t
-            .raw
-            .texture()
-            .expect("texture_set_wrap not yet implemented for RenderBuffer(multisampled) textures");
 
         self.cache.store_texture_binding(0);
-        self.cache.bind_texture(0, t.params.kind.into(), raw);
+        self.cache.bind_texture(0, t.params.kind.into(), t.gl_tex);
 
         let filter = match filter {
             FilterMode::Nearest => GL_NEAREST,
@@ -494,7 +399,7 @@ impl GlContext {
             self.textures.0[tex_id].params = t.params;
         };
     }
-    
+
     pub fn gl_texture_read_pixels(&mut self, texture: TextureId, source: &mut [u8]) {
         let t = self.textures.get(texture);
         t.read_pixels(source);
@@ -502,12 +407,9 @@ impl GlContext {
 
     pub fn gl_texture_generate_mipmaps(&mut self, texture: TextureId) {
         let t = self.textures.get(texture);
-        let raw = t.raw.texture().expect(
-            "texture_generate_mipmaps not yet implemented for RenderBuffer(multisampled) textures",
-        );
 
         self.cache.store_texture_binding(0);
-        self.cache.bind_texture(0, t.params.kind.into(), raw);
+        self.cache.bind_texture(0, t.params.kind.into(), t.gl_tex);
         unsafe {
             glGenerateMipmap(t.params.kind.into());
         }
@@ -526,19 +428,15 @@ impl GlContext {
         let t = self.textures.get(texture);
         t.update_texture_part(self, x_offset, y_offset, width, height, source);
     }
-    
+
     pub fn gl_texture_params(&self, texture: TextureId) -> TextureParams {
         let texture = self.textures.get(texture);
         texture.params
     }
-    
+
     pub unsafe fn gl_texture_raw_id(&self, texture: TextureId) -> RawId {
         let texture = self.textures.get(texture);
-        let raw = texture
-            .raw
-            .texture()
-            .expect("For multisampled texture raw_id is not supported");
 
-        RawId::OpenGl(raw)
+        RawId::OpenGl(texture.gl_tex)
     }
 }

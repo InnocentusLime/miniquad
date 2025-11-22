@@ -21,18 +21,24 @@ impl Stage {
     pub fn new() -> Stage {
         let mut ctx = window::new_rendering_backend();
         let (w, h) = window::screen_size();
-        let color_img = ctx.new_render_texture(TextureParams {
-            width: w as _,
-            height: h as _,
-            format: TextureFormat::RGBA8,
-            ..Default::default()
-        });
-        let depth_img = ctx.new_render_texture(TextureParams {
-            width: w as _,
-            height: h as _,
-            format: TextureFormat::Depth,
-            ..Default::default()
-        });
+        let color_img = ctx.new_texture(
+            TextureSource::Empty,
+            TextureParams {
+                width: w as _,
+                height: h as _,
+                format: TextureFormat::RGBA8,
+                ..Default::default()
+            },
+        );
+        let depth_img = ctx.new_texture(
+            TextureSource::Empty,
+            TextureParams {
+                width: w as _,
+                height: h as _,
+                format: TextureFormat::Depth,
+                ..Default::default()
+            },
+        );
 
         let offscreen_pass = ctx.new_render_pass(color_img, Some(depth_img));
 
@@ -194,18 +200,24 @@ impl EventHandler for Stage {
     fn update(&mut self) {}
 
     fn resize_event(&mut self, width: f32, height: f32) {
-        let color_img = self.ctx.new_render_texture(TextureParams {
-            width: width as _,
-            height: height as _,
-            format: TextureFormat::RGBA8,
-            ..Default::default()
-        });
-        let depth_img = self.ctx.new_render_texture(TextureParams {
-            width: width as _,
-            height: height as _,
-            format: TextureFormat::Depth,
-            ..Default::default()
-        });
+        let color_img = self.ctx.new_texture(
+            TextureSource::Empty,
+            TextureParams {
+                width: width as _,
+                height: height as _,
+                format: TextureFormat::RGBA8,
+                ..Default::default()
+            },
+        );
+        let depth_img = self.ctx.new_texture(
+            TextureSource::Empty,
+            TextureParams {
+                width: width as _,
+                height: height as _,
+                format: TextureFormat::Depth,
+                ..Default::default()
+            },
+        );
 
         let offscreen_pass = self.ctx.new_render_pass(color_img, Some(depth_img));
 

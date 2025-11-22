@@ -1,7 +1,7 @@
-use crate::window;
-use crate::native::gl::*;
-use crate::graphics::{TextureId, RenderPassId, PassAction};
 use crate::graphics::gl::GlContext;
+use crate::graphics::{PassAction, RenderPassId, TextureId};
+use crate::native::gl::*;
+use crate::window;
 
 pub struct RenderPassInternal {
     pub gl_fb: GLuint,
@@ -28,45 +28,23 @@ impl GlContext {
             glBindFramebuffer(GL_FRAMEBUFFER, gl_fb);
             for (i, color_img) in color_img.iter().enumerate() {
                 let texture = self.textures.get(*color_img);
-                if texture.params.sample_count > 1 {
-                    let raw = texture.raw.renderbuffer().unwrap();
-                    glFramebufferRenderbuffer(
-                        GL_FRAMEBUFFER,
-                        GL_COLOR_ATTACHMENT0 + i as u32,
-                        GL_RENDERBUFFER,
-                        raw,
-                    );
-                } else {
-                    let raw = texture.raw.texture().unwrap();
-                    glFramebufferTexture2D(
-                        GL_FRAMEBUFFER,
-                        GL_COLOR_ATTACHMENT0 + i as u32,
-                        GL_TEXTURE_2D,
-                        raw,
-                        0,
-                    );
-                }
+                glFramebufferTexture2D(
+                    GL_FRAMEBUFFER,
+                    GL_COLOR_ATTACHMENT0 + i as u32,
+                    GL_TEXTURE_2D,
+                    texture.gl_tex,
+                    0,
+                );
             }
             if let Some(depth_img) = depth_img {
                 let texture = self.textures.get(depth_img);
-                if texture.params.sample_count > 1 {
-                    let raw = texture.raw.renderbuffer().unwrap();
-                    glFramebufferRenderbuffer(
-                        GL_FRAMEBUFFER,
-                        GL_DEPTH_ATTACHMENT,
-                        GL_RENDERBUFFER,
-                        raw,
-                    );
-                } else {
-                    let raw = texture.raw.texture().unwrap();
-                    glFramebufferTexture2D(
-                        GL_FRAMEBUFFER,
-                        GL_DEPTH_ATTACHMENT,
-                        GL_TEXTURE_2D,
-                        raw,
-                        0,
-                    );
-                }
+                glFramebufferTexture2D(
+                    GL_FRAMEBUFFER,
+                    GL_DEPTH_ATTACHMENT,
+                    GL_TEXTURE_2D,
+                    texture.gl_tex,
+                    0,
+                );
             }
             let mut attachments = vec![];
             for i in 0..color_img.len() {
@@ -86,12 +64,11 @@ impl GlContext {
                     glBindFramebuffer(GL_FRAMEBUFFER, resolve_fb);
                     resolves.push((resolve_fb, *resolve_img));
                     let texture = self.textures.get(*resolve_img);
-                    let raw = texture.raw.texture().unwrap();
                     glFramebufferTexture2D(
                         GL_FRAMEBUFFER,
                         GL_COLOR_ATTACHMENT0 + i as u32,
                         GL_TEXTURE_2D,
-                        raw,
+                        texture.gl_tex,
                         0,
                     );
                     let fb_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -110,11 +87,11 @@ impl GlContext {
 
         RenderPassId(self.passes.add(pass))
     }
-    
+
     pub fn gl_render_pass_color_attachments(&self, render_pass: RenderPassId) -> &[TextureId] {
         &self.passes[render_pass.0].color_textures
     }
-    
+
     pub fn delete_gl_render_pass(&mut self, render_pass: RenderPassId) {
         let pass_id = render_pass.0;
 
@@ -135,7 +112,7 @@ impl GlContext {
             self.delete_gl_texture(depth_texture);
         }
     }
-    
+
     pub fn begin_default_gl_render_pass(&mut self, action: PassAction) {
         self.begin_gl_render_pass(None, action);
     }

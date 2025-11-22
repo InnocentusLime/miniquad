@@ -1,6 +1,6 @@
-use crate::native::gl::*;
-use crate::graphics::{BufferType, BufferUsage, BufferSource, BufferId};
 use crate::graphics::gl::GlContext;
+use crate::graphics::{BufferId, BufferSource, BufferType, BufferUsage};
+use crate::native::gl::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Buffer {
