@@ -46,5 +46,6 @@ ndk-sys = "0.2"
 objc = { package = "objc-rs", version = "0.2" }
 
 [dev-dependencies]
-glam = { version = "0.24", features = ["scalar-math"] }
+glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
 quad-rand = "0.1"
+bytemuck = "1.24.0"

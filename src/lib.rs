@@ -12,8 +12,6 @@ mod event;
 pub mod fs;
 pub mod graphics;
 pub mod native;
-use std::collections::HashMap;
-use std::ops::{Index, IndexMut};
 
 pub use event::*;
 
@@ -22,47 +20,6 @@ pub use graphics::*;
 mod default_icon;
 
 pub use native::gl;
-
-#[derive(Clone)]
-pub(crate) struct ResourceManager<T> {
-    id: usize,
-    resources: HashMap<usize, T>,
-}
-
-impl<T> Default for ResourceManager<T> {
-    fn default() -> Self {
-        Self {
-            id: 0,
-            resources: HashMap::new(),
-        }
-    }
-}
-
-impl<T> ResourceManager<T> {
-    pub fn add(&mut self, resource: T) -> usize {
-        self.resources.insert(self.id, resource);
-        self.id += 1;
-        self.id - 1
-    }
-
-    pub fn remove(&mut self, id: usize) -> T {
-        // Let it crash if the resource is not found
-        self.resources.remove(&id).unwrap()
-    }
-}
-
-impl<T> Index<usize> for ResourceManager<T> {
-    type Output = T;
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.resources[&index]
-    }
-}
-
-impl<T> IndexMut<usize> for ResourceManager<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.resources.get_mut(&index).unwrap()
-    }
-}
 
 pub mod date {
     #[cfg(not(target_arch = "wasm32"))]
@@ -103,6 +60,8 @@ fn native_display() -> &'static Mutex<native::NativeDisplayData> {
 /// Window and associated to window rendering context related functions.
 /// in macroquad <= 0.3, it was ctx.screen_size(). Now it is window::screen_size()
 pub mod window {
+    use std::rc::Rc;
+
     use super::*;
 
     /// The same as
@@ -114,17 +73,8 @@ pub mod window {
     /// };
     /// ```
     /// but under #[cfg] gate to avoid MetalContext on non-apple platforms
-    pub fn new_rendering_backend() -> Box<dyn RenderingBackend> {
-        #[cfg(target_vendor = "apple")]
-        {
-            if window::apple_gfx_api() == conf::AppleGfxApi::Metal {
-                Box::new(MetalContext::new())
-            } else {
-                Box::new(GlContext::new())
-            }
-        }
-        #[cfg(not(target_vendor = "apple"))]
-        Box::new(GlContext::new())
+    pub fn new_rendering_backend() -> Rc<GlContext> {
+        GlContext::new().into()
     }
 
     /// The current framebuffer size in pixels

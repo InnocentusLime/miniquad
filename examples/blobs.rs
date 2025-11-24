@@ -1,3 +1,6 @@
+use std::rc::Rc;
+
+use glam::{vec2, Vec2};
 ///! A rendering example. You can spawn entities by
 ///! clicking. They should bounce around the screen
 ///! and visually interact with each other.
@@ -6,29 +9,25 @@
 use miniquad::*;
 
 #[repr(C)]
-struct Vec2 {
-    x: f32,
-    y: f32,
-}
-#[repr(C)]
 struct Vertex {
     pos: Vec2,
     uv: Vec2,
 }
 
 struct Stage {
-    pipeline: PipelineId,
-    bindings: Bindings,
+    pipeline: Pipeline,
+    vertices: Buffer,
+    indicies: Buffer,
     start_time: f64,
     last_frame: f64,
     uniforms: shader::Uniforms,
     blobs_velocities: [(f32, f32); 32],
-    ctx: Box<dyn RenderingBackend>,
+    ctx: Rc<GlContext>,
 }
 
 impl Stage {
     pub fn new() -> Stage {
-        let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
+        let ctx = window::new_rendering_backend();
 
         #[rustfmt::skip]
         let vertices: [Vertex; 4] = [
@@ -37,61 +36,49 @@ impl Stage {
             Vertex { pos : Vec2 { x:  1.0, y:  1.0 }, uv: Vec2 { x: 1., y: 1. } },
             Vertex { pos : Vec2 { x: -1.0, y:  1.0 }, uv: Vec2 { x: 0., y: 1. } },
         ];
-        let vertex_buffer = ctx.new_buffer(
+        let vertices = Buffer::new(
+            ctx.clone(),
             BufferType::VertexBuffer,
             BufferUsage::Immutable,
             BufferSource::slice(&vertices),
         );
 
-        let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
-        let index_buffer = ctx.new_buffer(
-            BufferType::IndexBuffer,
+        let indicies: [u16; 6] = [0, 1, 2, 0, 2, 3];
+        let indicies = Buffer::new(
+            ctx.clone(),
+            BufferType::IndexBuffer(IndexBufferElementSize::Two),
             BufferUsage::Immutable,
-            BufferSource::slice(&indices),
+            BufferSource::slice(&indicies),
         );
 
-        let bindings = Bindings {
-            vertex_buffers: vec![vertex_buffer],
-            index_buffer: index_buffer,
-            images: vec![],
-        };
-
-        let shader = ctx
-            .new_shader(
-                match ctx.info().backend {
-                    Backend::OpenGl => ShaderSource::Glsl {
-                        vertex: shader::VERTEX,
-                        fragment: shader::FRAGMENT,
-                    },
-                    Backend::Metal => ShaderSource::Msl {
-                        program: shader::METAL,
-                    },
+        let pipeline = Pipeline::new(
+            ctx.clone(),
+            match ctx.info().backend {
+                Backend::OpenGl => ShaderSource::Glsl {
+                    vertex: shader::VERTEX,
+                    fragment: shader::FRAGMENT,
                 },
-                shader::meta(),
-            )
-            .unwrap();
-
-        let pipeline = ctx.new_pipeline(
-            &[BufferLayout::default()],
-            &[
-                VertexAttribute::new("in_pos", VertexFormat::Float2),
-                VertexAttribute::new("in_uv", VertexFormat::Float2),
-            ],
-            shader,
+                Backend::Metal => ShaderSource::Msl {
+                    program: shader::METAL,
+                },
+            },
+            shader::meta(),
             PipelineParams::default(),
-        );
+        )
+        .unwrap();
 
         let uniforms = shader::Uniforms {
             time: 0.,
             blobs_count: 1,
-            blobs_positions: [(0., 0.); 32],
+            blobs_positions: [vec2(0., 0.); 32],
         };
 
         let time = miniquad::date::now();
 
         Stage {
             pipeline,
-            bindings,
+            vertices,
+            indicies,
             start_time: time,
             uniforms,
             blobs_velocities: [(0., 0.); 32],
@@ -108,13 +95,13 @@ impl EventHandler for Stage {
         self.last_frame = time;
 
         for i in 1..self.uniforms.blobs_count as usize {
-            self.uniforms.blobs_positions[i].0 += self.blobs_velocities[i].0 * delta * 0.1;
-            self.uniforms.blobs_positions[i].1 += self.blobs_velocities[i].1 * delta * 0.1;
+            self.uniforms.blobs_positions[i].x += self.blobs_velocities[i].0 * delta * 0.1;
+            self.uniforms.blobs_positions[i].y += self.blobs_velocities[i].1 * delta * 0.1;
 
-            if self.uniforms.blobs_positions[i].0 < 0. || self.uniforms.blobs_positions[i].0 > 1. {
+            if self.uniforms.blobs_positions[i].x < 0. || self.uniforms.blobs_positions[i].x > 1. {
                 self.blobs_velocities[i].0 *= -1.;
             }
-            if self.uniforms.blobs_positions[i].1 < 0. || self.uniforms.blobs_positions[i].1 > 1. {
+            if self.uniforms.blobs_positions[i].y < 0. || self.uniforms.blobs_positions[i].y > 1. {
                 self.blobs_velocities[i].1 *= -1.;
             }
         }
@@ -123,7 +110,7 @@ impl EventHandler for Stage {
     fn mouse_motion_event(&mut self, x: f32, y: f32) {
         let (w, h) = window::screen_size();
         let (x, y) = (x / w, 1. - y / h);
-        self.uniforms.blobs_positions[0] = (x, y);
+        self.uniforms.blobs_positions[0] = vec2(x, y);
     }
 
     fn mouse_button_down_event(&mut self, _button: MouseButton, x: f32, y: f32) {
@@ -135,23 +122,26 @@ impl EventHandler for Stage {
         let (x, y) = (x / w, 1. - y / h);
         let (dx, dy) = (quad_rand::gen_range(-1., 1.), quad_rand::gen_range(-1., 1.));
 
-        self.uniforms.blobs_positions[self.uniforms.blobs_count as usize] = (x, y);
+        self.uniforms.blobs_positions[self.uniforms.blobs_count as usize] = vec2(x, y);
         self.blobs_velocities[self.uniforms.blobs_count as usize] = (dx, dy);
         self.uniforms.blobs_count += 1;
     }
 
     fn draw(&mut self) {
         self.uniforms.time = (miniquad::date::now() - self.start_time) as f32;
-
-        self.ctx.begin_default_render_pass(Default::default());
-        self.ctx.apply_pipeline(&self.pipeline);
-        self.ctx.apply_bindings(&self.bindings);
         self.ctx
-            .apply_uniforms(UniformsSource::table(&self.uniforms));
-        self.ctx.draw(0, 6, 1);
-        self.ctx.end_render_pass();
-
-        self.ctx.commit_frame();
+            .perform_default_render_pass(PassAction::default(), || {
+                DrawCall {
+                    pipeline: &self.pipeline,
+                    base_element: 0,
+                    num_elements: 6,
+                    vertex_buffers: &[self.vertices.binding(0, 16), self.vertices.binding(8, 16)],
+                    index_buffer: &self.indicies,
+                    textures: &[],
+                    uniform_data: bytemuck::bytes_of(&self.uniforms),
+                }
+                .execute()
+            });
     }
 }
 
@@ -169,6 +159,8 @@ fn main() {
 
 // based on: https://www.shadertoy.com/view/XsS3DV
 mod shader {
+    use bytemuck::{Pod, Zeroable};
+    use glam::Vec2;
     use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
@@ -331,20 +323,23 @@ mod shader {
     pub fn meta() -> ShaderMeta {
         ShaderMeta {
             images: vec![],
-            uniforms: UniformBlockLayout {
-                uniforms: vec![
-                    UniformDesc::new("time", UniformType::Float1),
-                    UniformDesc::new("blobs_count", UniformType::Int1),
-                    UniformDesc::new("blobs_positions", UniformType::Float2).array(32),
-                ],
-            },
+            uniforms: vec![
+                UniformDesc::new("time", UniformType::Float1),
+                UniformDesc::new("blobs_count", UniformType::Int1),
+                UniformDesc::new("blobs_positions", UniformType::Float2).array(32),
+            ],
+            attributes: vec![
+                VertexAttribute::new("in_pos", VertexFormat::Float2),
+                VertexAttribute::new("in_uv", VertexFormat::Float2),
+            ],
         }
     }
 
     #[repr(C)]
+    #[derive(Zeroable, Pod, Clone, Copy)]
     pub struct Uniforms {
         pub time: f32,
         pub blobs_count: i32,
-        pub blobs_positions: [(f32, f32); 32],
+        pub blobs_positions: [Vec2; 32],
     }
 }

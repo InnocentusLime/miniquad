@@ -1,13 +1,11 @@
+use std::rc::Rc;
+
+use glam::{vec2, Vec2};
 ///! A simple rendering example. This example loads a texture from memory
 ///! and draws a few quads with it. The example should look as follows:
 ///! https://youtu.be/kksaeWrAT7E
 use miniquad::*;
 
-#[repr(C)]
-struct Vec2 {
-    x: f32,
-    y: f32,
-}
 #[repr(C)]
 struct Vertex {
     pos: Vec2,
@@ -15,15 +13,17 @@ struct Vertex {
 }
 
 struct Stage {
-    ctx: Box<dyn RenderingBackend>,
+    ctx: Rc<GlContext>,
 
-    pipeline: PipelineId,
-    bindings: Bindings,
+    pipeline: Pipeline,
+    vertices: Buffer,
+    indicies: Buffer,
+    texture: Texture,
 }
 
 impl Stage {
     pub fn new() -> Stage {
-        let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
+        let ctx = window::new_rendering_backend();
 
         #[rustfmt::skip]
         let vertices: [Vertex; 4] = [
@@ -32,17 +32,19 @@ impl Stage {
             Vertex { pos : Vec2 { x:  0.5, y:  0.5 }, uv: Vec2 { x: 1., y: 1. } },
             Vertex { pos : Vec2 { x: -0.5, y:  0.5 }, uv: Vec2 { x: 0., y: 1. } },
         ];
-        let vertex_buffer = ctx.new_buffer(
+        let vertices = Buffer::new(
+            ctx.clone(),
             BufferType::VertexBuffer,
             BufferUsage::Immutable,
             BufferSource::slice(&vertices),
         );
 
-        let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
-        let index_buffer = ctx.new_buffer(
-            BufferType::IndexBuffer,
+        let indicies: [u16; 6] = [0, 1, 2, 0, 2, 3];
+        let indicies = Buffer::new(
+            ctx.clone(),
+            BufferType::IndexBuffer(IndexBufferElementSize::Two),
             BufferUsage::Immutable,
-            BufferSource::slice(&indices),
+            BufferSource::slice(&indicies),
         );
 
         let pixels: [u8; 4 * 4 * 4] = [
@@ -52,42 +54,42 @@ impl Stage {
             0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
         ];
-        let texture = ctx.new_texture_from_rgba8(4, 4, &pixels);
-
-        let bindings = Bindings {
-            vertex_buffers: vec![vertex_buffer],
-            index_buffer: index_buffer,
-            images: vec![texture],
-        };
-
-        let shader = ctx
-            .new_shader(
-                match ctx.info().backend {
-                    Backend::OpenGl => ShaderSource::Glsl {
-                        vertex: shader::VERTEX,
-                        fragment: shader::FRAGMENT,
-                    },
-                    Backend::Metal => ShaderSource::Msl {
-                        program: shader::METAL,
-                    },
-                },
-                shader::meta(),
-            )
-            .unwrap();
-
-        let pipeline = ctx.new_pipeline(
-            &[BufferLayout::default()],
-            &[
-                VertexAttribute::new("in_pos", VertexFormat::Float2),
-                VertexAttribute::new("in_uv", VertexFormat::Float2),
-            ],
-            shader,
-            PipelineParams::default(),
+        let texture = Texture::new(
+            ctx.clone(),
+            TextureSource::Bytes(&pixels),
+            TextureParams {
+                format: TextureFormat::RGBA8,
+                width: 4,
+                height: 4,
+                wrap: TextureWrap::Clamp,
+                min_filter: FilterMode::Linear,
+                mag_filter: FilterMode::Linear,
+                mipmap_filter: MipmapFilterMode::None,
+                allocate_mipmaps: false,
+            },
         );
+
+        let pipeline = Pipeline::new(
+            ctx.clone(),
+            match ctx.info().backend {
+                Backend::OpenGl => ShaderSource::Glsl {
+                    vertex: shader::VERTEX,
+                    fragment: shader::FRAGMENT,
+                },
+                Backend::Metal => ShaderSource::Msl {
+                    program: shader::METAL,
+                },
+            },
+            shader::meta(),
+            PipelineParams::default(),
+        )
+        .unwrap();
 
         Stage {
             pipeline,
-            bindings,
+            vertices,
+            indicies,
+            texture,
             ctx,
         }
     }
@@ -99,22 +101,28 @@ impl EventHandler for Stage {
     fn draw(&mut self) {
         let t = date::now();
 
-        self.ctx.begin_default_render_pass(Default::default());
-
-        self.ctx.apply_pipeline(&self.pipeline);
-        self.ctx.apply_bindings(&self.bindings);
-        for i in 0..10 {
-            let t = t + i as f64 * 0.3;
-
-            self.ctx
-                .apply_uniforms(UniformsSource::table(&shader::Uniforms {
-                    offset: (t.sin() as f32 * 0.5, (t * 3.).cos() as f32 * 0.5),
-                }));
-            self.ctx.draw(0, 6, 1);
-        }
-        self.ctx.end_render_pass();
-
-        self.ctx.commit_frame();
+        self.ctx
+            .perform_default_render_pass(PassAction::default(), || {
+                for i in 0..10 {
+                    let t = t + i as f64 * 0.3;
+                    let uniforms = shader::Uniforms {
+                        offset: vec2(t.sin() as f32 * 0.5, (t * 3.).cos() as f32 * 0.5),
+                    };
+                    DrawCall {
+                        pipeline: &self.pipeline,
+                        base_element: 0,
+                        num_elements: 6,
+                        vertex_buffers: &[
+                            self.vertices.binding(0, 16),
+                            self.vertices.binding(8, 16),
+                        ],
+                        index_buffer: &self.indicies,
+                        textures: &[&self.texture],
+                        uniform_data: bytemuck::bytes_of(&uniforms),
+                    }
+                    .execute();
+                }
+            });
     }
 }
 
@@ -131,6 +139,8 @@ fn main() {
 }
 
 mod shader {
+    use bytemuck::{Pod, Zeroable};
+    use glam::Vec2;
     use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
@@ -197,14 +207,17 @@ mod shader {
     pub fn meta() -> ShaderMeta {
         ShaderMeta {
             images: vec!["tex".to_string()],
-            uniforms: UniformBlockLayout {
-                uniforms: vec![UniformDesc::new("offset", UniformType::Float2)],
-            },
+            uniforms: vec![UniformDesc::new("offset", UniformType::Float2)],
+            attributes: vec![
+                VertexAttribute::new("in_pos", VertexFormat::Float2),
+                VertexAttribute::new("in_uv", VertexFormat::Float2),
+            ],
         }
     }
 
     #[repr(C)]
+    #[derive(Zeroable, Pod, Clone, Copy)]
     pub struct Uniforms {
-        pub offset: (f32, f32),
+        pub offset: Vec2,
     }
 }

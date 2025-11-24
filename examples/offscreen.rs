@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 ///! An offscreen render example. Draws a cube that has
 ///! images of rotating cubes on each side. Should look like this:
 ///! https://youtu.be/isKW3nQ-jW4
@@ -6,21 +8,21 @@ use miniquad::*;
 use glam::{vec3, Mat4};
 
 struct Stage {
-    display_pipeline: PipelineId,
-    display_bind: Bindings,
-    offscreen_pipeline: PipelineId,
-    offscreen_bind: Bindings,
-    offscreen_pass: RenderPassId,
+    vertices_cube: Buffer,
+    indicies_cube: Buffer,
+    display_pipeline: Pipeline,
+    offscreen_pipeline: Pipeline,
+    offscreen_pass: RenderPass,
     rx: f32,
     ry: f32,
-    ctx: Box<dyn RenderingBackend>,
+    ctx: Rc<GlContext>,
 }
 
 impl Stage {
     pub fn new() -> Stage {
-        let mut ctx: Box<dyn RenderingBackend> = window::new_rendering_backend();
-
-        let color_img = ctx.new_texture(
+        let ctx = window::new_rendering_backend();
+        let color_img = Texture::new(
+            ctx.clone(),
             TextureSource::Empty,
             TextureParams {
                 width: 256,
@@ -29,7 +31,8 @@ impl Stage {
                 ..Default::default()
             },
         );
-        let depth_img = ctx.new_texture(
+        let depth_img = Texture::new(
+            ctx.clone(),
             TextureSource::Empty,
             TextureParams {
                 width: 256,
@@ -39,10 +42,10 @@ impl Stage {
             },
         );
 
-        let offscreen_pass = ctx.new_render_pass(color_img, Some(depth_img));
+        let offscreen_pass = RenderPass::new(ctx.clone(), vec![color_img], None, Some(depth_img));
 
         #[rustfmt::skip]
-        let vertices: &[f32] = &[
+        let vertices_cube: &[f32] = &[
             /* pos               color                   uvs */
             -1.0, -1.0, -1.0,    1.0, 0.5, 0.5, 1.0,     0.0, 0.0,
              1.0, -1.0, -1.0,    1.0, 0.5, 0.5, 1.0,     1.0, 0.0,
@@ -74,15 +77,15 @@ impl Stage {
              1.0,  1.0,  1.0,    1.0, 0.0, 0.5, 1.0,     1.0, 1.0,
              1.0,  1.0, -1.0,    1.0, 0.0, 0.5, 1.0,     0.0, 1.0
         ];
-
-        let vertex_buffer = ctx.new_buffer(
+        let vertices_cube = Buffer::new(
+            ctx.clone(),
             BufferType::VertexBuffer,
             BufferUsage::Immutable,
-            BufferSource::slice(&vertices),
+            BufferSource::slice(&vertices_cube),
         );
 
         #[rustfmt::skip]
-        let indices: &[u16] = &[
+        let indicies_cube: &[u16] = &[
             0, 1, 2,  0, 2, 3,
             6, 5, 4,  7, 6, 4,
             8, 9, 10,  8, 10, 11,
@@ -90,84 +93,58 @@ impl Stage {
             16, 17, 18,  16, 18, 19,
             22, 21, 20,  23, 22, 20
         ];
-
-        let index_buffer = ctx.new_buffer(
-            BufferType::IndexBuffer,
+        let indicies_cube = Buffer::new(
+            ctx.clone(),
+            BufferType::IndexBuffer(IndexBufferElementSize::Two),
             BufferUsage::Immutable,
-            BufferSource::slice(&indices),
+            BufferSource::slice(&indicies_cube),
         );
 
-        let offscreen_bind = Bindings {
-            vertex_buffers: vec![vertex_buffer.clone()],
-            index_buffer: index_buffer.clone(),
-            images: vec![],
-        };
-
-        let display_bind = Bindings {
-            vertex_buffers: vec![vertex_buffer],
-            index_buffer: index_buffer,
-            images: vec![color_img],
-        };
-
-        let source = match ctx.info().backend {
-            Backend::OpenGl => ShaderSource::Glsl {
-                vertex: display_shader::VERTEX,
-                fragment: display_shader::FRAGMENT,
+        let display_pipeline = Pipeline::new(
+            ctx.clone(),
+            match ctx.info().backend {
+                Backend::OpenGl => ShaderSource::Glsl {
+                    vertex: display_shader::VERTEX,
+                    fragment: display_shader::FRAGMENT,
+                },
+                Backend::Metal => ShaderSource::Msl {
+                    program: display_shader::METAL,
+                },
             },
-            Backend::Metal => ShaderSource::Msl {
-                program: display_shader::METAL,
-            },
-        };
-        let default_shader = ctx.new_shader(source, display_shader::meta()).unwrap();
-
-        let display_pipeline = ctx.new_pipeline(
-            &[BufferLayout::default()],
-            &[
-                VertexAttribute::new("in_pos", VertexFormat::Float3),
-                VertexAttribute::new("in_color", VertexFormat::Float4),
-                VertexAttribute::new("in_uv", VertexFormat::Float2),
-            ],
-            default_shader,
+            display_shader::meta(),
             PipelineParams {
                 depth_test: Comparison::LessOrEqual,
                 depth_write: true,
                 ..Default::default()
             },
-        );
+        )
+        .unwrap();
 
-        let source = match ctx.info().backend {
-            Backend::OpenGl => ShaderSource::Glsl {
-                vertex: offscreen_shader::VERTEX,
-                fragment: offscreen_shader::FRAGMENT,
+        let offscreen_pipeline = Pipeline::new(
+            ctx.clone(),
+            match ctx.info().backend {
+                Backend::OpenGl => ShaderSource::Glsl {
+                    vertex: offscreen_shader::VERTEX,
+                    fragment: offscreen_shader::FRAGMENT,
+                },
+                Backend::Metal => ShaderSource::Msl {
+                    program: offscreen_shader::METAL,
+                },
             },
-            Backend::Metal => ShaderSource::Msl {
-                program: offscreen_shader::METAL,
-            },
-        };
-        let offscreen_shader = ctx.new_shader(source, offscreen_shader::meta()).unwrap();
-
-        let offscreen_pipeline = ctx.new_pipeline(
-            &[BufferLayout {
-                stride: 36,
-                ..Default::default()
-            }],
-            &[
-                VertexAttribute::new("in_pos", VertexFormat::Float3),
-                VertexAttribute::new("in_color", VertexFormat::Float4),
-            ],
-            offscreen_shader,
+            offscreen_shader::meta(),
             PipelineParams {
                 depth_test: Comparison::LessOrEqual,
                 depth_write: true,
                 ..Default::default()
             },
-        );
+        )
+        .unwrap();
 
         Stage {
+            vertices_cube,
+            indicies_cube,
             display_pipeline,
-            display_bind,
             offscreen_pipeline,
-            offscreen_bind,
             offscreen_pass,
             rx: 0.,
             ry: 0.,
@@ -198,27 +175,42 @@ impl EventHandler for Stage {
         };
 
         // the offscreen pass, rendering a rotating, untextured cube into a render target image
-        self.ctx.begin_render_pass(
-            Some(self.offscreen_pass),
-            PassAction::clear_color(1.0, 1.0, 1.0, 1.0),
-        );
-        self.ctx.apply_pipeline(&self.offscreen_pipeline);
-        self.ctx.apply_bindings(&self.offscreen_bind);
-        self.ctx.apply_uniforms(UniformsSource::table(&vs_params));
-        self.ctx.draw(0, 36, 1);
-        self.ctx.end_render_pass();
+        self.offscreen_pass
+            .perform(PassAction::clear_color(1.0, 1.0, 1.0, 1.0), || {
+                DrawCall {
+                    pipeline: &self.offscreen_pipeline,
+                    base_element: 0,
+                    num_elements: 36,
+                    vertex_buffers: &[
+                        self.vertices_cube.binding(0, 36),
+                        self.vertices_cube.binding(12, 36),
+                    ],
+                    index_buffer: &self.indicies_cube,
+                    textures: &[],
+                    uniform_data: bytemuck::bytes_of(&vs_params),
+                }
+                .execute();
+            });
 
         // and the display-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
         self.ctx
-            .begin_default_render_pass(PassAction::clear_color(0.0, 0., 0.45, 1.));
-        self.ctx.apply_pipeline(&self.display_pipeline);
-        self.ctx.apply_bindings(&self.display_bind);
-        self.ctx.apply_uniforms(UniformsSource::table(&vs_params));
-        self.ctx.draw(0, 36, 1);
-        self.ctx.end_render_pass();
-
-        self.ctx.commit_frame();
+            .perform_default_render_pass(PassAction::clear_color(0.0, 0., 0.45, 1.), || {
+                DrawCall {
+                    pipeline: &self.display_pipeline,
+                    base_element: 0,
+                    num_elements: 36,
+                    vertex_buffers: &[
+                        self.vertices_cube.binding(0, 36),
+                        self.vertices_cube.binding(12, 36),
+                        self.vertices_cube.binding(28, 36),
+                    ],
+                    index_buffer: &self.indicies_cube,
+                    textures: &[&self.offscreen_pass.color_attachments()[0]],
+                    uniform_data: bytemuck::bytes_of(&vs_params),
+                }
+                .execute();
+            });
     }
 }
 
@@ -235,6 +227,7 @@ fn main() {
 }
 
 mod display_shader {
+    use bytemuck::{Pod, Zeroable};
     use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
@@ -306,13 +299,17 @@ mod display_shader {
     pub fn meta() -> ShaderMeta {
         ShaderMeta {
             images: vec!["tex".to_string()],
-            uniforms: UniformBlockLayout {
-                uniforms: vec![UniformDesc::new("mvp", UniformType::Mat4)],
-            },
+            uniforms: vec![UniformDesc::new("mvp", UniformType::Mat4)],
+            attributes: vec![
+                VertexAttribute::new("in_pos", VertexFormat::Float3),
+                VertexAttribute::new("in_color", VertexFormat::Float4),
+                VertexAttribute::new("in_uv", VertexFormat::Float2),
+            ],
         }
     }
 
     #[repr(C)]
+    #[derive(Zeroable, Pod, Clone, Copy)]
     pub struct Uniforms {
         pub mvp: glam::Mat4,
     }
@@ -382,9 +379,11 @@ mod offscreen_shader {
     pub fn meta() -> ShaderMeta {
         ShaderMeta {
             images: vec![],
-            uniforms: UniformBlockLayout {
-                uniforms: vec![UniformDesc::new("mvp", UniformType::Mat4)],
-            },
+            uniforms: vec![UniformDesc::new("mvp", UniformType::Mat4)],
+            attributes: vec![
+                VertexAttribute::new("in_pos", VertexFormat::Float3),
+                VertexAttribute::new("in_color", VertexFormat::Float4),
+            ],
         }
     }
 }

@@ -9,7 +9,8 @@ impl EventHandler for Stage {
     fn update(&mut self) {}
 
     fn draw(&mut self) {
-        self.ctx.clear(Some((0., 1., 0., 1.)), None, None);
+        self.ctx
+            .perform_default_render_pass(PassAction::clear_color(0., 1.0, 0.0, 1.0), || {});
     }
 }
 

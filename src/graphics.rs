@@ -13,7 +13,7 @@ pub use gl::raw_gl;
 #[cfg(target_vendor = "apple")]
 mod metal;
 
-pub use gl::GlContext;
+pub use gl::*;
 
 #[cfg(target_vendor = "apple")]
 pub use metal::MetalContext;
@@ -64,11 +64,6 @@ pub struct UniformDesc {
     pub array_count: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct UniformBlockLayout {
-    pub uniforms: Vec<UniformDesc>,
-}
-
 impl UniformDesc {
     pub fn new(name: &str, uniform_type: UniformType) -> UniformDesc {
         UniformDesc {
@@ -88,8 +83,9 @@ impl UniformDesc {
 
 #[derive(Clone)]
 pub struct ShaderMeta {
-    pub uniforms: UniformBlockLayout,
+    pub uniforms: Vec<UniformDesc>,
     pub images: Vec<String>,
+    pub attributes: Vec<VertexAttribute>,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -126,8 +122,6 @@ pub enum VertexFormat {
     Int3,
     /// Four unsigned 32-bit integers (equivalent to `[u32; 4]`)
     Int4,
-    /// Four by four matrix of 32-bit floats
-    Mat4,
 }
 
 impl VertexFormat {
@@ -152,7 +146,6 @@ impl VertexFormat {
             VertexFormat::Int2 => 2,
             VertexFormat::Int3 => 3,
             VertexFormat::Int4 => 4,
-            VertexFormat::Mat4 => 16,
         }
     }
 
@@ -175,7 +168,6 @@ impl VertexFormat {
             VertexFormat::Int2 => 2 * 4,
             VertexFormat::Int3 => 3 * 4,
             VertexFormat::Int4 => 4 * 4,
-            VertexFormat::Mat4 => 16 * 4,
         }
     }
 
@@ -197,7 +189,6 @@ impl VertexFormat {
             VertexFormat::Int2 => GL_UNSIGNED_INT,
             VertexFormat::Int3 => GL_UNSIGNED_INT,
             VertexFormat::Int4 => GL_UNSIGNED_INT,
-            VertexFormat::Mat4 => GL_FLOAT,
         }
     }
 }
@@ -210,27 +201,9 @@ pub enum VertexStep {
 }
 
 #[derive(Clone, Debug)]
-pub struct BufferLayout {
-    pub stride: i32,
-    pub step_func: VertexStep,
-    pub step_rate: i32,
-}
-
-impl Default for BufferLayout {
-    fn default() -> BufferLayout {
-        BufferLayout {
-            stride: 0,
-            step_func: VertexStep::PerVertex,
-            step_rate: 1,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
 pub struct VertexAttribute {
     pub name: &'static str,
     pub format: VertexFormat,
-    pub buffer_index: usize,
     /// This flag affects integer VertexFormats, Byte*, Short*, Int*
     /// Taking Byte4 as an example:
     /// On Metal, it might be received as either `float4` or `uint4`
@@ -244,27 +217,16 @@ pub struct VertexAttribute {
 
 impl VertexAttribute {
     pub const fn new(name: &'static str, format: VertexFormat) -> VertexAttribute {
-        Self::with_buffer(name, format, 0)
+        Self::with_buffer(name, format)
     }
 
-    pub const fn with_buffer(
-        name: &'static str,
-        format: VertexFormat,
-        buffer_index: usize,
-    ) -> VertexAttribute {
+    pub const fn with_buffer(name: &'static str, format: VertexFormat) -> VertexAttribute {
         VertexAttribute {
             name,
             format,
-            buffer_index,
             gl_pass_as_float: true,
         }
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct PipelineLayout {
-    pub buffers: &'static [BufferLayout],
-    pub attributes: &'static [VertexAttribute],
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -287,6 +249,9 @@ pub enum ShaderError {
     MissingUniform {
         uniform: String,
     },
+    MissingAttribute {
+        attribute: String,
+    },
     CompilationError {
         shader_type: ShaderType,
         error_message: String,
@@ -306,6 +271,7 @@ impl Display for ShaderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingUniform { uniform } => write!(f, "No such uniform:{uniform}"),
+            Self::MissingAttribute { attribute } => write!(f, "No such attribute:{attribute}"),
             Self::CompilationError {
                 shader_type,
                 error_message,
@@ -369,15 +335,8 @@ pub enum MipmapFilterMode {
     Nearest,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum TextureKind {
-    Texture2D,
-    CubeMap,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct TextureParams {
-    pub kind: TextureKind,
     pub format: TextureFormat,
     pub wrap: TextureWrap,
     pub min_filter: FilterMode,
@@ -395,7 +354,6 @@ pub struct TextureParams {
 impl Default for TextureParams {
     fn default() -> Self {
         TextureParams {
-            kind: TextureKind::Texture2D,
             format: TextureFormat::RGBA8,
             wrap: TextureWrap::Clamp,
             min_filter: FilterMode::Linear,
@@ -410,25 +368,6 @@ impl Default for TextureParams {
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
 pub struct ShaderId(usize);
-
-// Inner hence we can't have private data in enum fields
-#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum TextureIdInner {
-    Managed(usize),
-    Raw(RawId),
-}
-
-#[derive(Clone, Debug, Copy, PartialEq, Eq, Hash)]
-pub struct TextureId(TextureIdInner);
-
-impl TextureId {
-    /// Wrap raw platform texture into a TextureId acceptable for miniquad
-    /// Without allocating any miniquad memory and without letting miniquad
-    /// manage the texture.
-    pub fn from_raw_id(raw_id: RawId) -> TextureId {
-        TextureId(TextureIdInner::Raw(raw_id))
-    }
-}
 
 /// Pixel arithmetic description for blending operations.
 /// Will be used in an equation:
@@ -526,18 +465,22 @@ pub enum CompareFunc {
 
 type ColorMask = (bool, bool, bool, bool);
 
-pub enum PassAction {
-    Nothing,
-    Clear {
-        color: Option<(f32, f32, f32, f32)>,
-        depth: Option<f32>,
-        stencil: Option<i32>,
-    },
+#[derive(Clone, Copy)]
+pub struct PassAction {
+    color: Option<(f32, f32, f32, f32)>,
+    depth: Option<f32>,
+    stencil: Option<i32>,
 }
 
 impl PassAction {
+    pub const NOTHING: PassAction = PassAction {
+        color: None,
+        depth: None,
+        stencil: None,
+    };
+
     pub fn clear_color(r: f32, g: f32, b: f32, a: f32) -> PassAction {
-        PassAction::Clear {
+        PassAction {
             color: Some((r, g, b, a)),
             depth: Some(1.),
             stencil: None,
@@ -547,7 +490,7 @@ impl PassAction {
 
 impl Default for PassAction {
     fn default() -> PassAction {
-        PassAction::Clear {
+        PassAction {
             color: Some((0.0, 0.0, 0.0, 0.0)),
             depth: Some(1.),
             stencil: None,
@@ -746,29 +689,17 @@ impl Default for PipelineParams {
     }
 }
 
-/// Geometry bindings
-#[derive(Clone, Debug)]
-pub struct Bindings {
-    /// Vertex buffers. Data contained in the buffer must match layout
-    /// specified in the `Pipeline`.
-    ///
-    /// Most commonly vertex buffer will contain `(x,y,z,w)` coordinates of the
-    /// vertex in 3d space, as well as `(u,v)` coordinates that map the vertex
-    /// to some position in the corresponding `Texture`.
-    pub vertex_buffers: Vec<BufferId>,
-    /// Index buffer which instructs the GPU in which order to draw vertices
-    /// from a vertex buffer, with each subsequent 3 indices forming a
-    /// triangle.
-    pub index_buffer: BufferId,
-    /// Textures to be used with when drawing the geometry in the fragment
-    /// shader.
-    pub images: Vec<TextureId>,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BufferType {
     VertexBuffer,
-    IndexBuffer,
+    IndexBuffer(IndexBufferElementSize),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum IndexBufferElementSize {
+    One = 1,
+    Two = 2,
+    Four = 4,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -777,9 +708,6 @@ pub enum BufferUsage {
     Dynamic,
     Stream,
 }
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct BufferId(usize);
 
 /// `ElapsedQuery` is used to measure duration of GPU operations.
 ///
@@ -953,8 +881,6 @@ pub struct Arg<'a> {
 pub enum TextureSource<'a> {
     Empty,
     Bytes(&'a [u8]),
-    /// Array of `[cubemap_face][mipmap_level][bytes]`
-    Array(&'a [&'a [&'a [u8]]]),
 }
 
 pub enum BufferSource<'a> {
@@ -999,33 +925,11 @@ impl<'a> BufferSource<'a> {
     }
 }
 
-pub struct UniformsSource<'a>(Arg<'a>);
-impl<'a> UniformsSource<'a> {
-    pub fn table<T>(data: &'a T) -> UniformsSource<'a> {
-        Self(Arg {
-            ptr: data as *const T as _,
-            size: std::mem::size_of_val(data),
-            element_size: std::mem::size_of::<T>(),
-            is_slice: false,
-            _phantom: std::marker::PhantomData,
-        })
-    }
-}
-
 #[derive(Debug)]
 pub enum ShaderSource<'a> {
     Glsl { vertex: &'a str, fragment: &'a str },
     Msl { program: &'a str },
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
-pub enum RawId {
-    OpenGl(crate::native::gl::GLuint),
-    #[cfg(target_vendor = "apple")]
-    Metal(*mut objc::runtime::Object),
-}
-unsafe impl Send for RawId {}
-unsafe impl Sync for RawId {}
 
 #[derive(Clone, Debug, Default)]
 pub struct GlslSupport {
@@ -1073,261 +977,4 @@ impl ContextInfo {
 
 pub trait RenderingBackend {
     fn info(&self) -> ContextInfo;
-    /// For metal context's ShaderSource should contain MSL source string, for GL - glsl.
-    ///
-    /// If in doubt, _most_ OpenGL contexts support "#version 100" glsl shaders.
-    /// So far miniquad never encountered where it can create a rendering context,
-    /// but `version 100` shaders are not supported.
-    ///
-    /// Typical `new_shader` invocation for an MSL and `glsl version 100` sources:
-    /// ```ignore
-    /// let source = match ctx.info().backend {
-    ///    Backend::OpenGl => ShaderSource::Glsl {
-    ///        vertex: display_shader::VERTEX,
-    ///        fragment: display_shader::FRAGMENT,
-    ///    },
-    ///    Backend::Metal => ShaderSource::Msl {
-    ///        program: display_shader::METAL
-    ///    },
-    /// };
-    /// let shader = ctx.new_shader(source, display_shader::meta()).unwrap();
-    /// ```
-    /// Or just
-    /// ```ignore
-    /// let shader = ctx.new_shader(ShaderSource::Glsl {...}, ...);
-    /// ```
-    /// for GL-only.
-    fn new_shader(
-        &mut self,
-        shader: ShaderSource,
-        meta: ShaderMeta,
-    ) -> Result<ShaderId, ShaderError>;
-    fn new_texture(&mut self, data: TextureSource, params: TextureParams) -> TextureId;
-    fn new_texture_from_data_and_format(
-        &mut self,
-        bytes: &[u8],
-        params: TextureParams,
-    ) -> TextureId {
-        self.new_texture(TextureSource::Bytes(bytes), params)
-    }
-    fn new_texture_from_rgba8(&mut self, width: u16, height: u16, bytes: &[u8]) -> TextureId {
-        assert_eq!(width as usize * height as usize * 4, bytes.len());
-
-        self.new_texture_from_data_and_format(
-            bytes,
-            TextureParams {
-                kind: TextureKind::Texture2D,
-                width: width as _,
-                height: height as _,
-                format: TextureFormat::RGBA8,
-                wrap: TextureWrap::Clamp,
-                min_filter: FilterMode::Linear,
-                mag_filter: FilterMode::Linear,
-                mipmap_filter: MipmapFilterMode::None,
-                allocate_mipmaps: false,
-            },
-        )
-    }
-    fn texture_params(&self, texture: TextureId) -> TextureParams;
-    fn texture_size(&self, texture: TextureId) -> (u32, u32) {
-        let params = self.texture_params(texture);
-        (params.width, params.height)
-    }
-
-    /// Get OpenGL's GLuint texture ID or metals ObjcId
-    unsafe fn texture_raw_id(&self, texture: TextureId) -> RawId;
-
-    /// Update whole texture content
-    /// bytes should be width * height * 4 size - non rgba8 textures are not supported yet anyway
-    fn texture_update(&mut self, texture: TextureId, bytes: &[u8]) {
-        let (width, height) = self.texture_size(texture);
-        self.texture_update_part(texture, 0 as _, 0 as _, width as _, height as _, bytes)
-    }
-    fn texture_set_filter(
-        &mut self,
-        texture: TextureId,
-        filter: FilterMode,
-        mipmap_filter: MipmapFilterMode,
-    ) {
-        self.texture_set_min_filter(texture, filter, mipmap_filter);
-        self.texture_set_mag_filter(texture, filter);
-    }
-    fn texture_set_min_filter(
-        &mut self,
-        texture: TextureId,
-        filter: FilterMode,
-        mipmap_filter: MipmapFilterMode,
-    );
-    fn texture_set_mag_filter(&mut self, texture: TextureId, filter: FilterMode);
-    fn texture_set_wrap(&mut self, texture: TextureId, wrap_x: TextureWrap, wrap_y: TextureWrap);
-    /// Metal-specific note: if texture was created without `params.generate_mipmaps`
-    /// `generate_mipmaps` will do nothing.
-    ///
-    /// Also note that if MipmapFilter is set to None, mipmaps will not be visible, even if
-    /// generated.
-    fn texture_generate_mipmaps(&mut self, texture: TextureId);
-    fn texture_resize(&mut self, texture: TextureId, width: u32, height: u32, bytes: Option<&[u8]>);
-    fn texture_read_pixels(&mut self, texture: TextureId, bytes: &mut [u8]);
-    fn texture_update_part(
-        &mut self,
-        texture: TextureId,
-        x_offset: i32,
-        y_offset: i32,
-        width: i32,
-        height: i32,
-        bytes: &[u8],
-    );
-    fn new_render_pass(
-        &mut self,
-        color_img: TextureId,
-        depth_img: Option<TextureId>,
-    ) -> RenderPassId {
-        self.new_render_pass_mrt(&[color_img], None, depth_img)
-    }
-    /// Same as "new_render_pass", but allows multiple color attachments.
-    /// if `resolve_img` is set, MSAA-resolve operation will happen in `end_render_pass`
-    /// this operation require `color_img` to have sample_count > 1,resolve_img have
-    /// sample_count == 1, and color_img.len() should be equal to resolve_img.len()
-    ///
-    /// Note that resolve attachments may be not supported by current backend!
-    /// They are only available when `ctx.info().features.resolve_attachments` is true.
-    fn new_render_pass_mrt(
-        &mut self,
-        color_img: &[TextureId],
-        resolve_img: Option<&[TextureId]>,
-        depth_img: Option<TextureId>,
-    ) -> RenderPassId;
-    /// panics for depth-only or multiple color attachment render pass
-    /// This function is, mostly, legacy. Using "render_pass_color_attachments"
-    /// is recommended instead.
-    fn render_pass_texture(&self, render_pass: RenderPassId) -> TextureId {
-        let textures = self.render_pass_color_attachments(render_pass);
-        #[allow(clippy::len_zero)]
-        if textures.len() == 0 {
-            panic!("depth-only render pass");
-        }
-        if textures.len() != 1 {
-            panic!("multiple render target render pass");
-        }
-        textures[0]
-    }
-    /// For depth-only render pass returns empty slice.
-    fn render_pass_color_attachments(&self, render_pass: RenderPassId) -> &[TextureId];
-    fn delete_render_pass(&mut self, render_pass: RenderPassId);
-    fn new_pipeline(
-        &mut self,
-        buffer_layout: &[BufferLayout],
-        attributes: &[VertexAttribute],
-        shader: ShaderId,
-        params: PipelineParams,
-    ) -> PipelineId;
-    fn apply_pipeline(&mut self, pipeline: &PipelineId);
-    fn delete_pipeline(&mut self, pipeline: PipelineId);
-
-    /// Create a buffer resource object.
-    /// ```ignore
-    /// #[repr(C)]
-    /// struct Vertex {
-    ///     pos: Vec2,
-    ///     uv: Vec2,
-    /// }
-    /// let vertices: [Vertex; 4] = [
-    ///     Vertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },
-    ///     Vertex { pos : Vec2 { x:  0.5, y: -0.5 }, uv: Vec2 { x: 1., y: 0. } },
-    ///     Vertex { pos : Vec2 { x:  0.5, y:  0.5 }, uv: Vec2 { x: 1., y: 1. } },
-    ///     Vertex { pos : Vec2 { x: -0.5, y:  0.5 }, uv: Vec2 { x: 0., y: 1. } },
-    /// ];
-    ///    let buffer = ctx.new_buffer(
-    ///        BufferType::VertexBuffer,
-    ///        BufferUsage::Immutable,
-    ///        BufferSource::slice(&vertices),
-    ///    );
-    /// ```
-    fn new_buffer(&mut self, type_: BufferType, usage: BufferUsage, data: BufferSource)
-        -> BufferId;
-    fn buffer_update(&mut self, buffer: BufferId, data: BufferSource);
-
-    /// Size of buffer in bytes.
-    /// For 1 element, u16 buffer this will return 2.
-    fn buffer_size(&mut self, buffer: BufferId) -> usize;
-
-    /// Delete GPU buffer, leaving handle unmodified.
-    ///
-    /// More high-level code on top of miniquad probably is going to call this in Drop
-    /// implementation of some more RAII buffer object.
-    ///
-    /// There is no protection against using deleted buffers later. However its not an UB in OpenGl
-    /// and thats why this function is not marked as unsafe
-    fn delete_buffer(&mut self, buffer: BufferId);
-
-    /// Delete GPU texture, leaving handle unmodified.
-    ///
-    /// More high-level code on top of miniquad probably is going to call this in Drop
-    /// implementation of some more RAII buffer object.
-    ///
-    /// There is no protection against using deleted textures later. However its not a CPU-level UB
-    /// and thats why this function is not marked as unsafe
-    fn delete_texture(&mut self, texture: TextureId);
-
-    /// Delete GPU program, leaving handle unmodified.
-    ///
-    /// More high-level code on top of miniquad probably is going to call this in Drop
-    /// implementation of some more RAII buffer object.
-    ///
-    /// There is no protection against using deleted programs later. However its not a CPU-level
-    /// Porgram and thats why this function is not marked as unsafe
-    fn delete_shader(&mut self, program: ShaderId);
-
-    /// Set a new viewport rectangle.
-    /// Should be applied after begin_pass.
-    fn apply_viewport(&mut self, x: i32, y: i32, w: i32, h: i32);
-
-    /// Set a new scissor rectangle.
-    /// Should be applied after begin_pass.
-    fn apply_scissor_rect(&mut self, x: i32, y: i32, w: i32, h: i32);
-
-    fn apply_bindings_from_slice(
-        &mut self,
-        vertex_buffers: &[BufferId],
-        index_buffer: BufferId,
-        textures: &[TextureId],
-    );
-
-    fn apply_bindings(&mut self, bindings: &Bindings) {
-        self.apply_bindings_from_slice(
-            &bindings.vertex_buffers,
-            bindings.index_buffer,
-            &bindings.images,
-        );
-    }
-
-    fn apply_uniforms(&mut self, uniforms: UniformsSource) {
-        self.apply_uniforms_from_bytes(uniforms.0.ptr as _, uniforms.0.size)
-    }
-    fn apply_uniforms_from_bytes(&mut self, uniform_ptr: *const u8, size: usize);
-
-    fn clear(
-        &mut self,
-        color: Option<(f32, f32, f32, f32)>,
-        depth: Option<f32>,
-        stencil: Option<i32>,
-    );
-    /// start rendering to the default frame buffer
-    fn begin_default_render_pass(&mut self, action: PassAction);
-    /// start rendering to an offscreen framebuffer
-    fn begin_render_pass(&mut self, pass: Option<RenderPassId>, action: PassAction);
-
-    fn end_render_pass(&mut self);
-
-    fn commit_frame(&mut self);
-
-    /// Draw elements using currently applied bindings and pipeline.
-    ///
-    /// + `base_element` specifies starting offset in `index_buffer`.
-    /// + `num_elements` specifies length of the slice of `index_buffer` to draw.
-    /// + `num_instances` specifies how many instances should be rendered.
-    ///
-    /// NOTE: num_instances > 1 might be not supported by the GPU (gl2.1 and gles2).
-    /// `features.instancing` check is required.
-    fn draw(&self, base_element: i32, num_elements: i32, num_instances: i32);
 }
