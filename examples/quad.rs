@@ -63,15 +63,8 @@ impl Stage {
 
         let pipeline = Pipeline::new(
             ctx.clone(),
-            match ctx.info().backend {
-                Backend::OpenGl => ShaderSource::Glsl {
-                    vertex: shader::VERTEX,
-                    fragment: shader::FRAGMENT,
-                },
-                Backend::Metal => ShaderSource::Msl {
-                    program: shader::METAL,
-                },
-            },
+            shader::VERTEX,
+            shader::FRAGMENT,
             shader::meta(),
             PipelineParams::default(),
         )
@@ -119,15 +112,7 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    let mut conf = conf::Conf::default();
-    let metal = std::env::args().nth(1).as_deref() == Some("metal");
-    conf.platform.apple_gfx_api = if metal {
-        conf::AppleGfxApi::Metal
-    } else {
-        conf::AppleGfxApi::OpenGl
-    };
-
-    miniquad::start(conf, move || Box::new(Stage::new()));
+    miniquad::start(conf::Conf::default(), move || Box::new(Stage::new()));
 }
 
 mod shader {
@@ -155,45 +140,6 @@ mod shader {
 
     void main() {
         gl_FragColor = texture2D(tex, texcoord);
-    }"#;
-
-    pub const METAL: &str = r#"
-    #include <metal_stdlib>
-
-    using namespace metal;
-
-    struct Uniforms
-    {
-        float2 offset;
-    };
-
-    struct Vertex
-    {
-        float2 in_pos   [[attribute(0)]];
-        float2 in_uv    [[attribute(1)]];
-    };
-
-    struct RasterizerData
-    {
-        float4 position [[position]];
-        float2 uv       [[user(locn0)]];
-    };
-
-    vertex RasterizerData vertexShader(
-      Vertex v [[stage_in]], 
-      constant Uniforms& uniforms [[buffer(0)]])
-    {
-        RasterizerData out;
-
-        out.position = float4(v.in_pos.xy + uniforms.offset, 0.0, 1.0);
-        out.uv = v.in_uv;
-
-        return out;
-    }
-
-    fragment float4 fragmentShader(RasterizerData in [[stage_in]], texture2d<float> tex [[texture(0)]], sampler texSmplr [[sampler(0)]])
-    {
-        return tex.sample(texSmplr, in.uv);
     }"#;
 
     pub fn meta() -> ShaderMeta {

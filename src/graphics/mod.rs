@@ -4,19 +4,9 @@ use crate::native::gl::*;
 
 use std::{error::Error, fmt::Display};
 
-//pub use texture::{FilterMode, TextureAccess, TextureFormat, TextureParams, TextureWrap};
-
 mod gl;
 
-pub use gl::raw_gl;
-
-#[cfg(target_vendor = "apple")]
-mod metal;
-
 pub use gl::*;
-
-#[cfg(target_vendor = "apple")]
-pub use metal::MetalContext;
 
 #[derive(Clone, Copy, Debug)]
 pub enum UniformType {
@@ -859,12 +849,6 @@ pub enum TextureSource<'a> {
     Bytes(&'a [u8]),
 }
 
-#[derive(Debug)]
-pub enum ShaderSource<'a> {
-    Glsl { vertex: &'a str, fragment: &'a str },
-    Msl { program: &'a str },
-}
-
 #[derive(Clone, Debug, Default)]
 pub struct GlslSupport {
     pub v130: bool,
@@ -875,15 +859,8 @@ pub struct GlslSupport {
     pub v100: bool,
 }
 
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub enum Backend {
-    Metal,
-    OpenGl,
-}
-
 #[derive(Clone, Debug)]
 pub struct ContextInfo {
-    pub backend: Backend,
     /// GL_VERSION_STRING from OpenGL. Would be empty on metal.
     pub gl_version_string: String,
     /// OpenGL provides an enumeration over GL_SHADING_LANGUAGE_VERSION,
@@ -900,12 +877,7 @@ pub struct ContextInfo {
 
 impl ContextInfo {
     pub fn has_integer_attributes(&self) -> bool {
-        match self.backend {
-            Backend::Metal => true,
-            Backend::OpenGl => {
-                self.glsl_support.v150 | self.glsl_support.v300es | self.glsl_support.v330
-            }
-        }
+        self.glsl_support.v150 | self.glsl_support.v300es | self.glsl_support.v330
     }
 }
 

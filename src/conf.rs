@@ -72,21 +72,6 @@ pub enum LinuxBackend {
     WaylandWithX11Fallback,
 }
 
-/// On Apple platforms, choose the rendering API for creating contexts.
-///
-/// Miniquad always links to Metal.framework (assuming it's present),
-/// and links to OpenGL dynamically only if required.
-///
-/// Defaults to AppleGfxApi::GL for legacy reasons.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum AppleGfxApi {
-    /// Use OpenGL for Apple platforms. This is the default choice.
-    #[default]
-    OpenGl,
-    /// Use Metal for Apple platforms.
-    Metal,
-}
-
 /// On the Web, specify which WebGL version to use.
 ///
 /// While miniquad itself only uses WebGL 1 features, a WebGL 2 context allows to:
@@ -128,9 +113,6 @@ pub struct Platform {
 
     /// Specifies which WebGL version to use on the Web (1.0. or 2.0).
     pub webgl_version: WebGLVersion,
-
-    /// Defines which rendering API to use on Apple platforms (Metal or OpenGL).
-    pub apple_gfx_api: AppleGfxApi,
 
     /// Optional swap interval (vertical sync).
     ///
@@ -176,7 +158,6 @@ impl Default for Platform {
         Platform {
             linux_x11_gl: LinuxX11Gl::default(),
             linux_backend: LinuxBackend::default(),
-            apple_gfx_api: AppleGfxApi::default(),
             webgl_version: WebGLVersion::default(),
             blocking_event_loop: false,
             swap_interval: None,

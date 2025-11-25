@@ -6,7 +6,7 @@ use crate::graphics::gl::cache::{CachedAttribute, VertexAttributeInternal};
 use crate::graphics::gl::texture::Texture;
 use crate::graphics::gl::GlContext;
 use crate::graphics::{
-    ColorMask, FrontFaceOrder, PipelineParams, ShaderError, ShaderMeta, ShaderSource, ShaderType,
+    ColorMask, FrontFaceOrder, PipelineParams, ShaderError, ShaderMeta, ShaderType,
     UniformType, MAX_VERTEX_ATTRIBUTES,
 };
 use crate::native::gl::*;
@@ -18,14 +18,11 @@ pub struct Pipeline(Rc<PipelineInternal>);
 impl Pipeline {
     pub fn new(
         ctx: Rc<GlContext>,
-        shader: ShaderSource,
+        vertex: &str,
+        fragment: &str,
         meta: ShaderMeta,
         params: PipelineParams,
     ) -> Result<Pipeline, ShaderError> {
-        let (fragment, vertex) = match shader {
-            ShaderSource::Glsl { fragment, vertex } => (fragment, vertex),
-            _ => panic!("Metal source on OpenGl context"),
-        };
         let vertex = load_shader(GL_VERTEX_SHADER, vertex)?;
         let fragment = load_shader(GL_FRAGMENT_SHADER, fragment)?;
         let program = create_program(vertex, fragment)?;

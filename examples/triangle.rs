@@ -40,15 +40,8 @@ impl Stage {
 
         let pipeline = Pipeline::new(
             ctx.clone(),
-            match ctx.info().backend {
-                Backend::OpenGl => ShaderSource::Glsl {
-                    vertex: shader::VERTEX,
-                    fragment: shader::FRAGMENT,
-                },
-                Backend::Metal => ShaderSource::Msl {
-                    program: shader::METAL,
-                },
-            },
+            shader::VERTEX,
+            shader::FRAGMENT,
             shader::meta(),
             PipelineParams::default(),
         )
@@ -87,15 +80,7 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    let mut conf = conf::Conf::default();
-    let metal = std::env::args().nth(1).as_deref() == Some("metal");
-    conf.platform.apple_gfx_api = if metal {
-        conf::AppleGfxApi::Metal
-    } else {
-        conf::AppleGfxApi::OpenGl
-    };
-
-    miniquad::start(conf, move || Box::new(Stage::new()));
+    miniquad::start(conf::Conf::default(), move || Box::new(Stage::new()));
 }
 
 mod shader {
@@ -117,38 +102,6 @@ mod shader {
 
     void main() {
         gl_FragColor = color;
-    }"#;
-
-    pub const METAL: &str = r#"
-    #include <metal_stdlib>
-
-    using namespace metal;
-
-    struct Vertex
-    {
-        float2 in_pos   [[attribute(0)]];
-        float4 in_color [[attribute(1)]];
-    };
-
-    struct RasterizerData
-    {
-        float4 position [[position]];
-        float4 color [[user(locn0)]];
-    };
-
-    vertex RasterizerData vertexShader(Vertex v [[stage_in]])
-    {
-        RasterizerData out;
-
-        out.position = float4(v.in_pos.xy, 0.0, 1.0);
-        out.color = v.in_color;
-
-        return out;
-    }
-
-    fragment float4 fragmentShader(RasterizerData in [[stage_in]])
-    {
-        return in.color;
     }"#;
 
     pub fn meta() -> ShaderMeta {

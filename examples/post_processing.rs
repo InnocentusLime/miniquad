@@ -123,13 +123,8 @@ impl Stage {
 
         let post_processing_pipeline = Pipeline::new(
             ctx.clone(),
-            match ctx.info().backend {
-                Backend::OpenGl => ShaderSource::Glsl {
-                    vertex: post_processing_shader::VERTEX,
-                    fragment: post_processing_shader::FRAGMENT,
-                },
-                Backend::Metal => unimplemented!(),
-            },
+            post_processing_shader::VERTEX,
+            post_processing_shader::FRAGMENT,
             post_processing_shader::meta(),
             PipelineParams::default(),
         )
@@ -137,10 +132,8 @@ impl Stage {
 
         let offscreen_pipeline = Pipeline::new(
             ctx.clone(),
-            ShaderSource::Glsl {
-                vertex: offscreen_shader::VERTEX,
-                fragment: offscreen_shader::FRAGMENT,
-            },
+            offscreen_shader::VERTEX,
+            offscreen_shader::FRAGMENT,
             offscreen_shader::meta(),
             PipelineParams {
                 depth_test: Comparison::LessOrEqual,

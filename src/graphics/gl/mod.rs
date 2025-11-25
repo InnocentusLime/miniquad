@@ -181,7 +181,6 @@ fn gl_info() -> ContextInfo {
     }
 
     ContextInfo {
-        backend: Backend::OpenGl,
         gl_version_string,
         glsl_support,
         features,
