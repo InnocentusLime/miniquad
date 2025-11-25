@@ -9,7 +9,7 @@ use miniquad::*;
 use glam::{vec2, vec3, vec4, Mat4, Vec2, Vec3, Vec4};
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Clone, Copy)]
+#[derive(Default, Pod, Zeroable, Clone, Copy)]
 pub struct CubeVert {
     pub pos: Vec3,
     pub color: Vec4,
@@ -18,7 +18,7 @@ pub struct CubeVert {
 
 struct Stage {
     vertices_cube: Buffer<CubeVert>,
-    indicies_cube: IndexBuffer<u16>,
+    indicies_cube: IndexBuffer,
     display_pipeline: Pipeline,
     offscreen_pipeline: Pipeline,
     offscreen_pass: RenderPass,
@@ -179,9 +179,9 @@ impl EventHandler for Stage {
                     pipeline: &self.offscreen_pipeline,
                     base_element: 0,
                     num_elements: 36,
-                    vertex_buffers: &[
-                        self.vertices_cube.binding(0),
-                        self.vertices_cube.binding(12),
+                    vertex_buffers: &bind_buffers![
+                        (&self.vertices_cube) as <CubeVert>::pos,
+                        (&self.vertices_cube) as <CubeVert>::color,
                     ],
                     index_buffer: &self.indicies_cube,
                     textures: &[],
@@ -198,10 +198,10 @@ impl EventHandler for Stage {
                     pipeline: &self.display_pipeline,
                     base_element: 0,
                     num_elements: 36,
-                    vertex_buffers: &[
-                        self.vertices_cube.binding(0),
-                        self.vertices_cube.binding(12),
-                        self.vertices_cube.binding(28),
+                    vertex_buffers: &bind_buffers![
+                        (&self.vertices_cube) as <CubeVert>::pos,
+                        (&self.vertices_cube) as <CubeVert>::color,
+                        (&self.vertices_cube) as <CubeVert>::uv,
                     ],
                     index_buffer: &self.indicies_cube,
                     textures: &[&self.offscreen_pass.color_attachments()[0]],

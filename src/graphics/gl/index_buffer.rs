@@ -9,7 +9,7 @@ use crate::graphics::BufferUsage;
 use crate::native::gl::*;
 
 #[derive(Clone)]
-pub struct IndexBuffer<T: IndexBufferElement> {
+pub struct IndexBuffer<T: IndexBufferElement = u16> {
     internal: Rc<IndexBufferInternal>,
     _phantom: PhantomData<&'static [T]>,
 }

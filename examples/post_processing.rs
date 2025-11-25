@@ -9,7 +9,7 @@ use miniquad::*;
 use glam::{vec2, vec3, vec4, Mat4, Vec2, Vec3, Vec4};
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Clone, Copy)]
+#[derive(Default, Pod, Zeroable, Clone, Copy)]
 pub struct CubeVert {
     pub pos: Vec3,
     pub color: Vec4,
@@ -17,7 +17,7 @@ pub struct CubeVert {
 }
 
 #[repr(C)]
-#[derive(Pod, Zeroable, Clone, Copy)]
+#[derive(Default, Pod, Zeroable, Clone, Copy)]
 pub struct QuadVert {
     pub pos: Vec2,
     pub uv: Vec2,
@@ -25,9 +25,9 @@ pub struct QuadVert {
 
 struct Stage {
     vertices_cube: Buffer<CubeVert>,
-    indicies_cube: IndexBuffer<u16>,
+    indicies_cube: IndexBuffer,
     vertices_quad: Buffer<QuadVert>,
-    indicies_quad: IndexBuffer<u16>,
+    indicies_quad: IndexBuffer,
     post_processing_pipeline: Pipeline,
     offscreen_pipeline: Pipeline,
     offscreen_pass: RenderPass,
@@ -218,9 +218,9 @@ impl EventHandler for Stage {
                     pipeline: &self.offscreen_pipeline,
                     base_element: 0,
                     num_elements: 36,
-                    vertex_buffers: &[
-                        self.vertices_cube.binding(0),
-                        self.vertices_cube.binding(12),
+                    vertex_buffers: &bind_buffers![
+                        (&self.vertices_cube) as <CubeVert>::pos,
+                        (&self.vertices_cube) as <CubeVert>::color,
                     ],
                     index_buffer: &self.indicies_cube,
                     textures: &[],
@@ -241,7 +241,10 @@ impl EventHandler for Stage {
                     pipeline: &self.post_processing_pipeline,
                     base_element: 0,
                     num_elements: 6,
-                    vertex_buffers: &[self.vertices_quad.binding(0), self.vertices_quad.binding(8)],
+                    vertex_buffers: &bind_buffers![
+                        (&self.vertices_quad) as <QuadVert>::pos,
+                        (&self.vertices_quad) as <QuadVert>::uv,
+                    ],
                     index_buffer: &self.indicies_quad,
                     textures: &[&self.offscreen_pass.color_attachments()[0]],
                     uniform_data: bytemuck::bytes_of(&uniforms),

@@ -8,13 +8,36 @@ use crate::graphics::gl::GlContext;
 use crate::graphics::BufferUsage;
 use crate::native::gl::*;
 
+#[macro_export]
+macro_rules! bind_buffers {
+    (
+        $(
+            ($buf:expr) as <$Type:path>::$field:tt
+        ),+
+        $(,)?
+    ) => {
+        [$(
+            $crate::bind_buffer!($buf, $Type, $field)
+        ),+]
+    };
+    () => { [] }
+}
+
+#[macro_export]
+macro_rules! bind_buffer {
+    ($buf:expr, $Type:path, $field:tt) => {{
+        let local: &Buffer<$Type> = $buf;
+        local.binding($crate::offset_of!($Type, $field) as u32)
+    }};
+}
+
 #[derive(Clone)]
-pub struct Buffer<T: Zeroable + Pod + 'static> {
+pub struct Buffer<T: Default + Zeroable + Pod + 'static> {
     internal: Rc<BufferInternal>,
     _phantom: PhantomData<&'static [T]>,
 }
 
-impl<T: Zeroable + Pod + 'static> Buffer<T> {
+impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
     pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> Buffer<T> {
         assert_eq!(size % std::mem::size_of::<T>(), 0, "size must be aligned");
 

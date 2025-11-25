@@ -19,6 +19,7 @@ pub use graphics::*;
 
 mod default_icon;
 
+pub use bytemuck::offset_of;
 pub use native::gl;
 
 pub mod date {

@@ -10,7 +10,7 @@ use glam::{vec2, Vec2};
 use miniquad::*;
 
 #[repr(C)]
-#[derive(Zeroable, Pod, Clone, Copy)]
+#[derive(Default, Zeroable, Pod, Clone, Copy)]
 struct Vertex {
     pos: Vec2,
     uv: Vec2,
@@ -19,7 +19,7 @@ struct Vertex {
 struct Stage {
     pipeline: Pipeline,
     vertices: Buffer<Vertex>,
-    indicies: IndexBuffer<u16>,
+    indicies: IndexBuffer,
     start_time: f64,
     last_frame: f64,
     uniforms: shader::Uniforms,
@@ -127,7 +127,10 @@ impl EventHandler for Stage {
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 6,
-                    vertex_buffers: &[self.vertices.binding(0), self.vertices.binding(8)],
+                    vertex_buffers: &bind_buffers![
+                        (&self.vertices) as <Vertex>::pos,
+                        (&self.vertices) as <Vertex>::uv,
+                    ],
                     index_buffer: &self.indicies,
                     textures: &[],
                     uniform_data: bytemuck::bytes_of(&self.uniforms),
