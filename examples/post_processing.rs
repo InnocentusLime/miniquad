@@ -62,7 +62,7 @@ impl Stage {
             },
         );
 
-        let offscreen_pass = RenderPass::new(ctx.clone(), vec![color_img], None, Some(depth_img));
+        let offscreen_pass = RenderPass::new(vec![color_img], None, Some(depth_img));
 
         #[rustfmt::skip]
         let vertices_cube = &[
@@ -190,8 +190,7 @@ impl EventHandler for Stage {
             },
         );
 
-        self.offscreen_pass =
-            RenderPass::new(self.ctx.clone(), vec![color_img], None, Some(depth_img));
+        self.offscreen_pass = RenderPass::new(vec![color_img], None, Some(depth_img));
     }
 
     fn draw(&mut self) {

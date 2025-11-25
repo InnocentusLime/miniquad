@@ -11,7 +11,6 @@ pub struct RenderPass(Rc<RenderPassInternal>);
 
 impl RenderPass {
     pub fn new(
-        ctx: Rc<GlContext>,
         color_img: Vec<Texture>,
         resolve_img: Option<Vec<Texture>>,
         depth_img: Option<Texture>,
@@ -77,7 +76,6 @@ impl RenderPass {
         }
 
         let pass = RenderPassInternal {
-            ctx,
             gl_fb,
             color_textures: color_img.to_vec(),
             resolves,
@@ -157,7 +155,6 @@ impl GlContext {
 }
 
 struct RenderPassInternal {
-    ctx: Rc<GlContext>,
     gl_fb: GLuint,
     color_textures: Vec<Texture>,
     resolves: Option<Vec<(u32, Texture)>>,

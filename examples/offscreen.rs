@@ -51,7 +51,7 @@ impl Stage {
             },
         );
 
-        let offscreen_pass = RenderPass::new(ctx.clone(), vec![color_img], None, Some(depth_img));
+        let offscreen_pass = RenderPass::new(vec![color_img], None, Some(depth_img));
 
         #[rustfmt::skip]
         let vertices_cube = &[
