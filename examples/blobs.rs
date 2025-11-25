@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use bytemuck::{Pod, Zeroable};
 use glam::{vec2, Vec2};
 ///! A rendering example. You can spawn entities by
 ///! clicking. They should bounce around the screen
@@ -9,6 +10,7 @@ use glam::{vec2, Vec2};
 use miniquad::*;
 
 #[repr(C)]
+#[derive(Zeroable, Pod, Clone, Copy)]
 struct Vertex {
     pos: Vec2,
     uv: Vec2,
@@ -16,8 +18,8 @@ struct Vertex {
 
 struct Stage {
     pipeline: Pipeline,
-    vertices: Buffer,
-    indicies: Buffer,
+    vertices: Buffer<Vertex>,
+    indicies: IndexBuffer<u16>,
     start_time: f64,
     last_frame: f64,
     uniforms: shader::Uniforms,
@@ -30,26 +32,16 @@ impl Stage {
         let ctx = window::new_rendering_backend();
 
         #[rustfmt::skip]
-        let vertices: [Vertex; 4] = [
+        let vertices = [
             Vertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },
             Vertex { pos : Vec2 { x:  1.0, y: -1.0 }, uv: Vec2 { x: 1., y: 0. } },
             Vertex { pos : Vec2 { x:  1.0, y:  1.0 }, uv: Vec2 { x: 1., y: 1. } },
             Vertex { pos : Vec2 { x: -1.0, y:  1.0 }, uv: Vec2 { x: 0., y: 1. } },
         ];
-        let vertices = Buffer::new(
-            ctx.clone(),
-            BufferType::VertexBuffer,
-            BufferUsage::Immutable,
-            BufferSource::slice(&vertices),
-        );
+        let vertices = Buffer::new(ctx.clone(), BufferUsage::Immutable, &vertices);
 
-        let indicies: [u16; 6] = [0, 1, 2, 0, 2, 3];
-        let indicies = Buffer::new(
-            ctx.clone(),
-            BufferType::IndexBuffer(IndexBufferElementSize::Two),
-            BufferUsage::Immutable,
-            BufferSource::slice(&indicies),
-        );
+        let indicies = [0, 1, 2, 0, 2, 3];
+        let indicies = IndexBuffer::new(ctx.clone(), BufferUsage::Immutable, &indicies);
 
         let pipeline = Pipeline::new(
             ctx.clone(),
@@ -135,7 +127,7 @@ impl EventHandler for Stage {
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 6,
-                    vertex_buffers: &[self.vertices.binding(0, 16), self.vertices.binding(8, 16)],
+                    vertex_buffers: &[self.vertices.binding(0), self.vertices.binding(8)],
                     index_buffer: &self.indicies,
                     textures: &[],
                     uniform_data: bytemuck::bytes_of(&self.uniforms),

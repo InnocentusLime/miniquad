@@ -15,11 +15,8 @@ exclude = ["examples/"]
 keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
-[features]
-
-# Optional log-rs like macros implementation
-# disabled by default
-log-impl = []
+[dependencies]
+bytemuck = "1.24.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
@@ -48,4 +45,3 @@ objc = { package = "objc-rs", version = "0.2" }
 [dev-dependencies]
 glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
 quad-rand = "0.1"
-bytemuck = "1.24.0"

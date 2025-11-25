@@ -690,19 +690,6 @@ impl Default for PipelineParams {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum BufferType {
-    VertexBuffer,
-    IndexBuffer(IndexBufferElementSize),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum IndexBufferElementSize {
-    One = 1,
-    Two = 2,
-    Four = 4,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BufferUsage {
     Immutable,
     Dynamic,
@@ -867,62 +854,9 @@ impl ElapsedQuery {
     }
 }
 
-/// A vtable-erased generic argument.
-/// Basically, the same thing as `fn f<U>(a: &U)`, but
-/// trait-object friendly.
-pub struct Arg<'a> {
-    ptr: *const std::ffi::c_void,
-    element_size: usize,
-    size: usize,
-    is_slice: bool,
-    _phantom: std::marker::PhantomData<&'a ()>,
-}
-
 pub enum TextureSource<'a> {
     Empty,
     Bytes(&'a [u8]),
-}
-
-pub enum BufferSource<'a> {
-    Slice(Arg<'a>),
-    Empty { size: usize, element_size: usize },
-}
-impl<'a> BufferSource<'a> {
-    /// Empty buffer of `size * size_of::<T>` bytes
-    ///
-    /// Platform specific note, OpenGL:
-    /// For VertexBuffer T could be anything, it is only used to calculate total size,
-    /// but for IndexBuffers T should be either u8, u16 or u32, other
-    /// types are not supported.
-    ///
-    /// For vertex buffers it is OK to use `empty::<u8>(byte_size);`
-    pub fn empty<T>(size: usize) -> BufferSource<'a> {
-        let element_size = std::mem::size_of::<T>();
-        BufferSource::Empty {
-            size: size * std::mem::size_of::<T>(),
-            element_size,
-        }
-    }
-
-    pub fn slice<T>(data: &'a [T]) -> BufferSource<'a> {
-        BufferSource::Slice(Arg {
-            ptr: data.as_ptr() as _,
-            size: std::mem::size_of_val(data),
-            element_size: std::mem::size_of::<T>(),
-            is_slice: true,
-            _phantom: std::marker::PhantomData,
-        })
-    }
-
-    pub unsafe fn pointer(ptr: *const u8, size: usize, element_size: usize) -> BufferSource<'a> {
-        BufferSource::Slice(Arg {
-            ptr: ptr as _,
-            size,
-            element_size,
-            is_slice: true,
-            _phantom: std::marker::PhantomData,
-        })
-    }
 }
 
 #[derive(Debug)]

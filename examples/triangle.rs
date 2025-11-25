@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use bytemuck::{Pod, Zeroable};
+use glam::{vec2, vec4, Vec2, Vec4};
 ///! Just draws a static triangle with different vertex colors assigned
 ///! to each corner:
 ///! * left -- red
@@ -8,15 +10,16 @@ use std::rc::Rc;
 use miniquad::*;
 
 #[repr(C)]
+#[derive(Pod, Zeroable, Clone, Copy)]
 struct Vertex {
-    pos: [f32; 2],
-    color: [f32; 4],
+    pos: Vec2,
+    color: Vec4,
 }
 
 struct Stage {
     pipeline: Pipeline,
-    vertices: Buffer,
-    indicies: Buffer,
+    vertices: Buffer<Vertex>,
+    indicies: IndexBuffer<u16>,
     ctx: Rc<GlContext>,
 }
 
@@ -25,25 +28,15 @@ impl Stage {
         let ctx = window::new_rendering_backend();
 
         #[rustfmt::skip]
-        let vertices: [Vertex; 3] = [
-            Vertex { pos : [ -0.5, -0.5 ], color: [1., 0., 0., 1.] },
-            Vertex { pos : [  0.5, -0.5 ], color: [0., 1., 0., 1.] },
-            Vertex { pos : [  0.0,  0.5 ], color: [0., 0., 1., 1.] },
+        let vertices = [
+            Vertex { pos: vec2(-0.5, -0.5), color: vec4(1., 0., 0., 1.) },
+            Vertex { pos: vec2(0.5, -0.5), color: vec4(0., 1., 0., 1.) },
+            Vertex { pos: vec2(0.0,  0.5), color: vec4(0., 0., 1., 1.) },
         ];
-        let vertices = Buffer::new(
-            ctx.clone(),
-            BufferType::VertexBuffer,
-            BufferUsage::Immutable,
-            BufferSource::slice(&vertices),
-        );
+        let vertices = Buffer::new(ctx.clone(), BufferUsage::Immutable, &vertices);
 
-        let indicies: [u16; 3] = [0, 1, 2];
-        let indicies = Buffer::new(
-            ctx.clone(),
-            BufferType::IndexBuffer(IndexBufferElementSize::Two),
-            BufferUsage::Immutable,
-            BufferSource::slice(&indicies),
-        );
+        let indicies = [0, 1, 2];
+        let indicies = IndexBuffer::new(ctx.clone(), BufferUsage::Immutable, &indicies);
 
         let pipeline = Pipeline::new(
             ctx.clone(),
@@ -80,7 +73,7 @@ impl EventHandler for Stage {
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 3,
-                    vertex_buffers: &[self.vertices.binding(0, 24), self.vertices.binding(8, 24)],
+                    vertex_buffers: &[self.vertices.binding(0), self.vertices.binding(8)],
                     index_buffer: &self.indicies,
                     textures: &[],
                     uniform_data: &[],

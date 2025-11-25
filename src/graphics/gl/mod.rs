@@ -1,5 +1,6 @@
 mod buffer;
 mod cache;
+mod index_buffer;
 mod pipeline;
 mod render_pass;
 mod texture;
@@ -10,6 +11,7 @@ use super::*;
 use cache::*;
 
 pub use buffer::{Buffer, BufferBinding};
+pub use index_buffer::{IndexBuffer, IndexBufferElement};
 pub use pipeline::Pipeline;
 pub use render_pass::RenderPass;
 pub use texture::Texture;
@@ -49,10 +51,10 @@ impl GlContext {
             let info = gl_info();
             let cache = GlCache {
                 stored_index_buffer: 0,
-                stored_index_type: None,
+                stored_index_size: 0,
                 stored_vertex_buffer: 0,
                 index_buffer: 0,
-                index_type: None,
+                index_size: 0,
                 vertex_buffer: 0,
                 cur_pipeline: None,
                 color_blend: None,
@@ -81,17 +83,17 @@ impl GlContext {
     }
 }
 
-pub struct DrawCall<'a> {
+pub struct DrawCall<'a, I: IndexBufferElement> {
     pub pipeline: &'a Pipeline,
     pub base_element: i32,
     pub num_elements: i32,
-    pub vertex_buffers: &'a [BufferBinding<'a>],
-    pub index_buffer: &'a Buffer,
+    pub vertex_buffers: &'a [BufferBinding],
+    pub index_buffer: &'a IndexBuffer<I>,
     pub textures: &'a [&'a Texture],
     pub uniform_data: &'a [u8],
 }
 
-impl<'a> DrawCall<'a> {
+impl<'a, I: IndexBufferElement> DrawCall<'a, I> {
     pub fn execute(self) {
         self.pipeline.apply(
             self.vertex_buffers,
@@ -100,20 +102,15 @@ impl<'a> DrawCall<'a> {
             self.uniform_data,
         );
 
-        let index_type = self.index_buffer.index_type().unwrap();
+        let indices = std::mem::size_of::<I>() as i32 * self.base_element;
         let primitive_type = self.pipeline.primitive_type().into();
 
         unsafe {
             glDrawElementsInstanced(
                 primitive_type,
                 self.num_elements,
-                match index_type {
-                    1 => GL_UNSIGNED_BYTE,
-                    2 => GL_UNSIGNED_SHORT,
-                    4 => GL_UNSIGNED_INT,
-                    _ => panic!("Unsupported index buffer type!"),
-                },
-                (index_type as i32 * self.base_element) as *mut _,
+                I::GL_TYPE,
+                indices as *mut _,
                 1,
             );
         }

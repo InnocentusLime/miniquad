@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use std::rc::Rc;
 
-use crate::graphics::gl::buffer::{Buffer, BufferBinding};
+use crate::graphics::gl::buffer::BufferBinding;
 use crate::graphics::gl::cache::{CachedAttribute, VertexAttributeInternal};
 use crate::graphics::gl::texture::Texture;
 use crate::graphics::gl::GlContext;
@@ -10,7 +10,7 @@ use crate::graphics::{
     UniformType, MAX_VERTEX_ATTRIBUTES,
 };
 use crate::native::gl::*;
-use crate::{BlendState, CullFace, PrimitiveType, StencilState};
+use crate::{BlendState, CullFace, IndexBuffer, IndexBufferElement, PrimitiveType, StencilState};
 
 #[derive(Clone)]
 pub struct Pipeline(Rc<PipelineInternal>);
@@ -52,10 +52,10 @@ impl Pipeline {
         self.0.params.primitive_type
     }
 
-    pub(crate) fn apply(
+    pub(crate) fn apply<I: IndexBufferElement>(
         &self,
         vertex_buffers: &[BufferBinding],
-        index_buffer: &Buffer,
+        index_buffer: &IndexBuffer<I>,
         textures: &[&Texture],
         uniform_data: &[u8],
     ) {
@@ -117,10 +117,10 @@ impl Pipeline {
         }
     }
 
-    fn apply_bindings(
+    fn apply_bindings<I: IndexBufferElement>(
         &self,
         vertex_buffers: &[BufferBinding],
-        index_buffer: &Buffer,
+        index_buffer: &IndexBuffer<I>,
         textures: &[&Texture],
     ) {
         let mut cache = self.0.ctx.cache.borrow_mut();
@@ -133,11 +133,7 @@ impl Pipeline {
             }
         }
 
-        cache.bind_buffer(
-            GL_ELEMENT_ARRAY_BUFFER,
-            index_buffer.gl_buf(),
-            index_buffer.index_type(),
-        );
+        cache.bind_index_buffer(index_buffer.gl_buf(), std::mem::size_of::<I>() as u32);
 
         for attr_index in 0..MAX_VERTEX_ATTRIBUTES {
             let cached_attr = &mut cache.attributes[attr_index];
@@ -151,9 +147,9 @@ impl Pipeline {
             let vb = vertex_buffers.get(attr_index).unwrap();
 
             if cached_attr.map_or(true, |cached_attr| {
-                *attribute != cached_attr.attribute || cached_attr.gl_vbuf != vb.gl_buf()
+                *attribute != cached_attr.attribute || cached_attr.gl_vbuf != vb.gl_buf
             }) {
-                cache.bind_buffer(GL_ARRAY_BUFFER, vb.gl_buf(), vb.index_type());
+                cache.bind_buffer(vb.gl_buf);
 
                 unsafe {
                     match attribute.type_ {
@@ -184,7 +180,7 @@ impl Pipeline {
                 let cached_attr = &mut cache.attributes[attr_index];
                 *cached_attr = Some(CachedAttribute {
                     attribute: *attribute,
-                    gl_vbuf: vb.gl_buf(),
+                    gl_vbuf: vb.gl_buf,
                 });
             }
         }

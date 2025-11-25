@@ -138,10 +138,6 @@ impl RenderPass {
             }
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
-
-        let mut cache = self.0.ctx.cache.borrow_mut();
-        cache.bind_buffer(GL_ARRAY_BUFFER, 0, None);
-        cache.bind_buffer(GL_ELEMENT_ARRAY_BUFFER, 0, None);
     }
 }
 
@@ -157,10 +153,6 @@ impl GlContext {
         gl_clear(pass_action);
 
         code();
-
-        let mut cache = self.cache.borrow_mut();
-        cache.bind_buffer(GL_ARRAY_BUFFER, 0, None);
-        cache.bind_buffer(GL_ELEMENT_ARRAY_BUFFER, 0, None);
     }
 }
 

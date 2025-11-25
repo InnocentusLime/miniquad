@@ -23,12 +23,12 @@ pub struct CachedTexture {
 
 pub struct GlCache {
     pub stored_index_buffer: GLuint,
-    pub stored_index_type: Option<u32>,
+    pub stored_index_size: u32,
     pub stored_vertex_buffer: GLuint,
     pub stored_target: GLuint,
     pub stored_texture: GLuint,
     pub index_buffer: GLuint,
-    pub index_type: Option<u32>,
+    pub index_size: u32,
     pub vertex_buffer: GLuint,
     pub textures: [CachedTexture; MAX_SHADERSTAGE_IMAGES],
     pub cur_pipeline: Option<PipelineId>,
@@ -41,42 +41,44 @@ pub struct GlCache {
 }
 
 impl GlCache {
-    pub fn bind_buffer(&mut self, target: GLenum, buffer: GLuint, index_type: Option<u32>) {
-        if target == GL_ARRAY_BUFFER {
-            if self.vertex_buffer != buffer {
-                self.vertex_buffer = buffer;
-                unsafe {
-                    glBindBuffer(target, buffer);
-                }
+    pub fn bind_buffer(&mut self, buffer: GLuint) {
+        if self.vertex_buffer != buffer {
+            self.vertex_buffer = buffer;
+            unsafe {
+                glBindBuffer(GL_ARRAY_BUFFER, buffer);
             }
-        } else {
-            if self.index_buffer != buffer {
-                self.index_buffer = buffer;
-                unsafe {
-                    glBindBuffer(target, buffer);
-                }
-            }
-            self.index_type = index_type;
         }
     }
 
-    pub fn store_buffer_binding(&mut self, target: GLenum) {
-        if target == GL_ARRAY_BUFFER {
-            self.stored_vertex_buffer = self.vertex_buffer;
-        } else {
-            self.stored_index_buffer = self.index_buffer;
-            self.stored_index_type = self.index_type;
+    pub fn bind_index_buffer(&mut self, buffer: GLuint, index_size: u32) {
+        if self.index_buffer != buffer {
+            self.index_buffer = buffer;
+            unsafe {
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
+            }
+        }
+        self.index_size = index_size;
+    }
+
+    pub fn store_buffer_binding(&mut self) {
+        self.stored_vertex_buffer = self.vertex_buffer;
+    }
+
+    pub fn store_index_buffer_binding(&mut self) {
+        self.stored_index_buffer = self.index_buffer;
+        self.stored_index_size = self.index_size;
+    }
+
+    pub fn restore_buffer_binding(&mut self) {
+        if self.stored_vertex_buffer != 0 {
+            self.bind_buffer(self.stored_vertex_buffer);
+            self.stored_vertex_buffer = 0;
         }
     }
 
-    pub fn restore_buffer_binding(&mut self, target: GLenum) {
-        if target == GL_ARRAY_BUFFER {
-            if self.stored_vertex_buffer != 0 {
-                self.bind_buffer(target, self.stored_vertex_buffer, None);
-                self.stored_vertex_buffer = 0;
-            }
-        } else if self.stored_index_buffer != 0 {
-            self.bind_buffer(target, self.stored_index_buffer, self.stored_index_type);
+    pub fn restore_index_buffer_binding(&mut self) {
+        if self.stored_index_buffer != 0 {
+            self.bind_index_buffer(self.stored_index_buffer, self.stored_index_size);
             self.stored_index_buffer = 0;
         }
     }

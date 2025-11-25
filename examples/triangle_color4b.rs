@@ -1,19 +1,22 @@
 use std::rc::Rc;
 
+use bytemuck::{Pod, Zeroable};
+use glam::{u8vec4, vec2, U8Vec4, Vec2};
 ///! Draws the same triangle as the `triangle` example, but
 ///! using the byte based colors.
 use miniquad::*;
 
 #[repr(C)]
+#[derive(Pod, Zeroable, Clone, Copy)]
 struct Vertex {
-    pos: [f32; 2],
-    color: [u8; 4],
+    pos: Vec2,
+    color: U8Vec4,
 }
 
 struct Stage {
     pipeline: Pipeline,
-    vertices: Buffer,
-    indicies: Buffer,
+    vertices: Buffer<Vertex>,
+    indicies: IndexBuffer<u16>,
     ctx: Rc<GlContext>,
 }
 
@@ -22,25 +25,15 @@ impl Stage {
         let ctx = window::new_rendering_backend();
 
         #[rustfmt::skip]
-        let vertices: [Vertex; 3] = [
-            Vertex { pos : [ -0.5, -0.5 ], color: [0xFF, 0, 0, 0xFF] },
-            Vertex { pos : [  0.5, -0.5 ], color: [0, 0xFF, 0, 0xFF] },
-            Vertex { pos : [  0.0,  0.5 ], color: [0, 0, 0xFF, 0xFF] },
+        let vertices = [
+            Vertex { pos: vec2(-0.5, -0.5), color: u8vec4(0xFF, 0, 0, 0xFF) },
+            Vertex { pos: vec2(0.5, -0.5), color: u8vec4(0, 0xFF, 0, 0xFF) },
+            Vertex { pos: vec2(0.0,  0.5), color: u8vec4(0, 0, 0xFF, 0xFF) },
         ];
-        let vertices = Buffer::new(
-            ctx.clone(),
-            BufferType::VertexBuffer,
-            BufferUsage::Immutable,
-            BufferSource::slice(&vertices),
-        );
+        let vertices = Buffer::new(ctx.clone(), BufferUsage::Immutable, &vertices);
 
-        let indicies: [u16; 3] = [0, 1, 2];
-        let indicies = Buffer::new(
-            ctx.clone(),
-            BufferType::IndexBuffer(IndexBufferElementSize::Two),
-            BufferUsage::Immutable,
-            BufferSource::slice(&indicies),
-        );
+        let indicies = [0, 1, 2];
+        let indicies = IndexBuffer::new(ctx.clone(), BufferUsage::Immutable, &indicies);
 
         let pipeline = Pipeline::new(
             ctx.clone(),
@@ -77,7 +70,7 @@ impl EventHandler for Stage {
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 3,
-                    vertex_buffers: &[self.vertices.binding(0, 12), self.vertices.binding(8, 12)],
+                    vertex_buffers: &[self.vertices.binding(0), self.vertices.binding(8)],
                     index_buffer: &self.indicies,
                     textures: &[],
                     uniform_data: &[],

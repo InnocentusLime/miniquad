@@ -1,17 +1,33 @@
 use std::rc::Rc;
 
+use bytemuck::{Pod, Zeroable};
 ///! A post processing example. Draws a rotating cube with
 ///! differently colored sides. Should look like this:
 ///! https://youtu.be/hdWWe-TkkfM
 use miniquad::*;
 
-use glam::{vec2, vec3, Mat4};
+use glam::{vec2, vec3, vec4, Mat4, Vec2, Vec3, Vec4};
+
+#[repr(C)]
+#[derive(Pod, Zeroable, Clone, Copy)]
+pub struct CubeVert {
+    pub pos: Vec3,
+    pub color: Vec4,
+    pub uv: Vec2,
+}
+
+#[repr(C)]
+#[derive(Pod, Zeroable, Clone, Copy)]
+pub struct QuadVert {
+    pub pos: Vec2,
+    pub uv: Vec2,
+}
 
 struct Stage {
-    vertices_cube: Buffer,
-    indicies_cube: Buffer,
-    vertices_quad: Buffer,
-    indicies_quad: Buffer,
+    vertices_cube: Buffer<CubeVert>,
+    indicies_cube: IndexBuffer<u16>,
+    vertices_quad: Buffer<QuadVert>,
+    indicies_quad: IndexBuffer<u16>,
     post_processing_pipeline: Pipeline,
     offscreen_pipeline: Pipeline,
     offscreen_pass: RenderPass,
@@ -49,47 +65,41 @@ impl Stage {
         let offscreen_pass = RenderPass::new(ctx.clone(), vec![color_img], None, Some(depth_img));
 
         #[rustfmt::skip]
-        let vertices_cube: &[f32] = &[
-            /* pos               color                   uvs */
-            -1.0, -1.0, -1.0,    1.0, 0.5, 0.5, 1.0,     0.0, 0.0,
-             1.0, -1.0, -1.0,    1.0, 0.5, 0.5, 1.0,     1.0, 0.0,
-             1.0,  1.0, -1.0,    1.0, 0.5, 0.5, 1.0,     1.0, 1.0,
-            -1.0,  1.0, -1.0,    1.0, 0.5, 0.5, 1.0,     0.0, 1.0,
+        let vertices_cube = &[
+            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 0.0) },
+            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0),  uv: vec2(1.0, 0.0) },
+            CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(1.0, 1.0) },
+            CubeVert { pos: vec3(-1.0,  1.0, -1.0),  color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 1.0) }, 
 
-            -1.0, -1.0,  1.0,    0.5, 1.0, 0.5, 1.0,     0.0, 0.0,
-             1.0, -1.0,  1.0,    0.5, 1.0, 0.5, 1.0,     1.0, 0.0,
-             1.0,  1.0,  1.0,    0.5, 1.0, 0.5, 1.0,     1.0, 1.0,
-            -1.0,  1.0,  1.0,    0.5, 1.0, 0.5, 1.0,     0.0, 1.0,
+            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
+            CubeVert { pos: vec3(1.0, -1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
+            CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0),  uv: vec2(1.0, 1.0) },
+            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
 
-            -1.0, -1.0, -1.0,    0.5, 0.5, 1.0, 1.0,     0.0, 0.0,
-            -1.0,  1.0, -1.0,    0.5, 0.5, 1.0, 1.0,     1.0, 0.0,
-            -1.0,  1.0,  1.0,    0.5, 0.5, 1.0, 1.0,     1.0, 1.0,
-            -1.0, -1.0,  1.0,    0.5, 0.5, 1.0, 1.0,     0.0, 1.0,
+            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
+            CubeVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
+            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
+            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
 
-             1.0, -1.0, -1.0,    1.0, 0.5, 0.0, 1.0,     0.0, 0.0,
-             1.0,  1.0, -1.0,    1.0, 0.5, 0.0, 1.0,     1.0, 0.0,
-             1.0,  1.0,  1.0,    1.0, 0.5, 0.0, 1.0,     1.0, 1.0,
-             1.0, -1.0,  1.0,    1.0, 0.5, 0.0, 1.0,     0.0, 1.0,
+            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 0.0) },
+            CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 0.0) },
+            CubeVert { pos: vec3(1.0,  1.0,  1.0), color: vec4 (1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 1.0) },
+            CubeVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 1.0) },
 
-            -1.0, -1.0, -1.0,    0.0, 0.5, 1.0, 1.0,     0.0, 0.0,
-            -1.0, -1.0,  1.0,    0.0, 0.5, 1.0, 1.0,     1.0, 0.0,
-             1.0, -1.0,  1.0,    0.0, 0.5, 1.0, 1.0,     1.0, 1.0,
-             1.0, -1.0, -1.0,    0.0, 0.5, 1.0, 1.0,     0.0, 1.0,
+            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
+            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
+            CubeVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
+            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
 
-            -1.0,  1.0, -1.0,    1.0, 0.0, 0.5, 1.0,     0.0, 0.0,
-            -1.0,  1.0,  1.0,    1.0, 0.0, 0.5, 1.0,     1.0, 0.0,
-             1.0,  1.0,  1.0,    1.0, 0.0, 0.5, 1.0,     1.0, 1.0,
-             1.0,  1.0, -1.0,    1.0, 0.0, 0.5, 1.0,     0.0, 1.0
+            CubeVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
+            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
+            CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 1.0) },
+            CubeVert { pos: vec3(1.0,  1.0, -1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
         ];
-        let vertices_cube = Buffer::new(
-            ctx.clone(),
-            BufferType::VertexBuffer,
-            BufferUsage::Immutable,
-            BufferSource::slice(&vertices_cube),
-        );
+        let vertices_cube = Buffer::new(ctx.clone(), BufferUsage::Immutable, vertices_cube);
 
         #[rustfmt::skip]
-        let indicies_cube: &[u16] = &[
+        let indicies_cube = &[
             0, 1, 2,  0, 2, 3,
             6, 5, 4,  7, 6, 4,
             8, 9, 10,  8, 10, 11,
@@ -97,35 +107,19 @@ impl Stage {
             16, 17, 18,  16, 18, 19,
             22, 21, 20,  23, 22, 20
         ];
-        let indicies_cube = Buffer::new(
-            ctx.clone(),
-            BufferType::IndexBuffer(IndexBufferElementSize::Two),
-            BufferUsage::Immutable,
-            BufferSource::slice(&indicies_cube),
-        );
+        let indicies_cube = IndexBuffer::new(ctx.clone(), BufferUsage::Immutable, indicies_cube);
 
         #[rustfmt::skip]
-        let vertices: &[f32] = &[
-            /* pos         uvs */
-            -1.0, -1.0,    0.0, 0.0,
-             1.0, -1.0,    1.0, 0.0,
-             1.0,  1.0,    1.0, 1.0,
-            -1.0,  1.0,    0.0, 1.0,
+        let vertices_quad = &[
+            QuadVert { pos: vec2(-1.0, -1.0), uv: vec2(0.0, 0.0) },
+            QuadVert { pos: vec2(1.0, -1.0), uv: vec2(1.0, 0.0) },
+            QuadVert { pos: vec2(1.0,  1.0), uv: vec2(1.0, 1.0) },
+            QuadVert { pos: vec2(-1.0,  1.0), uv: vec2(0.0, 1.0) },
         ];
-        let vertices_quad = Buffer::new(
-            ctx.clone(),
-            BufferType::VertexBuffer,
-            BufferUsage::Immutable,
-            BufferSource::slice(&vertices),
-        );
+        let vertices_quad = Buffer::new(ctx.clone(), BufferUsage::Immutable, vertices_quad);
 
-        let indicies_quad: &[u16] = &[0, 1, 2, 0, 2, 3];
-        let indicies_quad = Buffer::new(
-            ctx.clone(),
-            BufferType::IndexBuffer(IndexBufferElementSize::Two),
-            BufferUsage::Immutable,
-            BufferSource::slice(&indicies_quad),
-        );
+        let indicies_quad = &[0, 1, 2, 0, 2, 3];
+        let indicies_quad = IndexBuffer::new(ctx.clone(), BufferUsage::Immutable, indicies_quad);
 
         let post_processing_pipeline = Pipeline::new(
             ctx.clone(),
@@ -225,8 +219,8 @@ impl EventHandler for Stage {
                     base_element: 0,
                     num_elements: 36,
                     vertex_buffers: &[
-                        self.vertices_cube.binding(0, 36),
-                        self.vertices_cube.binding(12, 36),
+                        self.vertices_cube.binding(0),
+                        self.vertices_cube.binding(12),
                     ],
                     index_buffer: &self.indicies_cube,
                     textures: &[],
@@ -247,10 +241,7 @@ impl EventHandler for Stage {
                     pipeline: &self.post_processing_pipeline,
                     base_element: 0,
                     num_elements: 6,
-                    vertex_buffers: &[
-                        self.vertices_quad.binding(0, 16),
-                        self.vertices_quad.binding(8, 16),
-                    ],
+                    vertex_buffers: &[self.vertices_quad.binding(0), self.vertices_quad.binding(8)],
                     index_buffer: &self.indicies_quad,
                     textures: &[&self.offscreen_pass.color_attachments()[0]],
                     uniform_data: bytemuck::bytes_of(&uniforms),
