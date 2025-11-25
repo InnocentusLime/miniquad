@@ -29,7 +29,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         unsafe {
             glBufferData(
                 GL_ELEMENT_ARRAY_BUFFER,
-                size as GLsizei,
+                size as GLsizeiptr,
                 std::ptr::null(),
                 gl_usage(usage),
             );
@@ -62,7 +62,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         unsafe {
             glBufferData(
                 GL_ELEMENT_ARRAY_BUFFER,
-                size as GLsizei,
+                size as GLsizeiptr,
                 data.as_ptr() as *const GLvoid,
                 gl_usage(usage),
             );

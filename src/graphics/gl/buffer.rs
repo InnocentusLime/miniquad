@@ -52,7 +52,7 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         unsafe {
             glBufferData(
                 GL_ARRAY_BUFFER,
-                size as GLsizei,
+                size as GLsizeiptr,
                 std::ptr::null(),
                 gl_usage(usage),
             );
@@ -85,7 +85,7 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         unsafe {
             glBufferData(
                 GL_ARRAY_BUFFER,
-                size as GLsizei,
+                size as GLsizeiptr,
                 data.as_ptr() as *const GLvoid,
                 gl_usage(usage),
             );
