@@ -37,5 +37,5 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), || Box::new(Stage {}));
+    miniquad::start(conf::Conf::default(), |_ctx| Box::new(Stage {}));
 }

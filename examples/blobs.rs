@@ -28,9 +28,7 @@ struct Stage {
 }
 
 impl Stage {
-    pub fn new() -> Stage {
-        let ctx = window::new_rendering_backend();
-
+    pub fn new(ctx: Rc<GlContext>) -> Stage {
         #[rustfmt::skip]
         let vertices = [
             Vertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },
@@ -117,6 +115,7 @@ impl EventHandler for Stage {
         self.ctx
             .perform_default_render_pass(PassAction::default(), || {
                 DrawCall {
+                    ctx: &self.ctx,
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 6,
@@ -134,7 +133,7 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), move || Box::new(Stage::new()));
+    miniquad::start(conf::Conf::default(), move |ctx| Box::new(Stage::new(ctx)));
 }
 
 // based on: https://www.shadertoy.com/view/XsS3DV

@@ -1,16 +1,16 @@
-use std::ffi::CString;
 use std::rc::Rc;
 
 use crate::graphics::gl::buffer::BufferBinding;
-use crate::graphics::gl::cache::{CachedAttribute, VertexAttributeInternal};
+use crate::graphics::gl::cache::VertexAttributeInternal;
 use crate::graphics::gl::texture::Texture;
 use crate::graphics::gl::GlContext;
 use crate::graphics::{
-    ColorMask, FrontFaceOrder, PipelineParams, ShaderError, ShaderMeta, ShaderType,
-    UniformType, MAX_VERTEX_ATTRIBUTES,
+    ColorMask, FrontFaceOrder, PipelineParams, ShaderError, ShaderMeta, ShaderType, UniformType,
+    MAX_VERTEX_ATTRIBUTES,
 };
-use crate::native::gl::*;
 use crate::{BlendState, CullFace, IndexBuffer, IndexBufferElement, PrimitiveType, StencilState};
+
+use glow::HasContext;
 
 #[derive(Clone)]
 pub struct Pipeline(Rc<PipelineInternal>);
@@ -23,19 +23,19 @@ impl Pipeline {
         meta: ShaderMeta,
         params: PipelineParams,
     ) -> Result<Pipeline, ShaderError> {
-        let vertex = load_shader(GL_VERTEX_SHADER, vertex)?;
-        let fragment = load_shader(GL_FRAGMENT_SHADER, fragment)?;
-        let program = create_program(vertex, fragment)?;
+        let vertex = load_shader(&ctx.gl, glow::VERTEX_SHADER, vertex)?;
+        let fragment = load_shader(&ctx.gl, glow::FRAGMENT_SHADER, fragment)?;
+        let program = create_program(&ctx.gl, vertex, fragment)?;
 
         unsafe {
-            glUseProgram(program);
+            ctx.gl.use_program(Some(program));
         }
-        let attributes = get_pipeline_attributes(program, &meta)?;
-        let images = get_pipeline_images(program, &meta)?;
-        let uniforms = get_pipeline_uniforms(program, &meta)?;
+        let attributes = get_pipeline_attributes(&ctx.gl, program, &meta)?;
+        let images = get_pipeline_images(&ctx.gl, program, &meta)?;
+        let uniforms = get_pipeline_uniforms(&ctx.gl, program, &meta)?;
         let internal = PipelineInternal {
             ctx,
-            program,
+            gl_prog: program,
             images,
             uniforms,
             attributes,
@@ -57,7 +57,7 @@ impl Pipeline {
         uniform_data: &[u8],
     ) {
         unsafe {
-            glUseProgram(self.0.program);
+            self.0.ctx.gl.use_program(Some(self.0.gl_prog));
         }
 
         self.apply_parameters(&self.0.params);
@@ -66,6 +66,7 @@ impl Pipeline {
     }
 
     fn apply_uniforms(&self, uniform_data: &[u8]) {
+        let gl = &self.0.ctx.gl;
         let mut offset = 0;
         for uniform in self.0.uniforms.iter() {
             let location = uniform.gl_loc;
@@ -74,40 +75,40 @@ impl Pipeline {
 
             match uniform.uniform_type {
                 UniformType::Float1 => unsafe {
-                    let value = data.as_ptr() as *const f32;
-                    glUniform1fv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_1_f32_slice(Some(&location), value);
                 },
                 UniformType::Float2 => unsafe {
-                    let value = data.as_ptr() as *const f32;
-                    glUniform2fv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_2_f32_slice(Some(&location), value);
                 },
                 UniformType::Float3 => unsafe {
-                    let value = data.as_ptr() as *const f32;
-                    glUniform3fv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_3_f32_slice(Some(&location), value);
                 },
                 UniformType::Float4 => unsafe {
-                    let value = data.as_ptr() as *const f32;
-                    glUniform4fv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_4_f32_slice(Some(&location), value);
                 },
                 UniformType::Int1 => unsafe {
-                    let value = data.as_ptr() as *const i32;
-                    glUniform1iv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_1_i32_slice(Some(&location), value);
                 },
                 UniformType::Int2 => unsafe {
-                    let value = data.as_ptr() as *const i32;
-                    glUniform2iv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_2_i32_slice(Some(&location), value);
                 },
                 UniformType::Int3 => unsafe {
-                    let value = data.as_ptr() as *const i32;
-                    glUniform3iv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_3_i32_slice(Some(&location), value);
                 },
                 UniformType::Int4 => unsafe {
-                    let value = data.as_ptr() as *const i32;
-                    glUniform4iv(location, uniform.array_count, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_4_i32_slice(Some(&location), value);
                 },
                 UniformType::Mat4 => unsafe {
-                    let value = data.as_ptr() as *const f32;
-                    glUniformMatrix4fv(location, uniform.array_count, 0, value);
+                    let value = bytemuck::cast_slice(data);
+                    gl.uniform_matrix_4_f32_slice(Some(&location), false, value);
                 },
             }
             offset += sz;
@@ -120,87 +121,81 @@ impl Pipeline {
         index_buffer: &IndexBuffer<I>,
         textures: &[&Texture],
     ) {
+        let gl = &self.0.ctx.gl;
         let mut cache = self.0.ctx.cache.borrow_mut();
 
         for (n, (shader_image, texture)) in self.0.images.iter().zip(textures).enumerate() {
-            let gl_loc = shader_image.gl_loc;
             unsafe {
-                cache.bind_texture(n, GL_TEXTURE_2D, texture.gl_tex());
-                glUniform1i(gl_loc, n as i32);
+                cache.bind_texture(gl, n as u32, glow::TEXTURE_2D, texture.gl_tex());
+                gl.uniform_1_i32(Some(&shader_image.gl_loc), n as i32);
             }
         }
 
-        cache.bind_index_buffer(index_buffer.gl_buf(), std::mem::size_of::<I>() as u32);
+        cache.bind_index_buffer(gl, index_buffer.gl_buf());
 
         for attr_index in 0..MAX_VERTEX_ATTRIBUTES {
-            let cached_attr = &mut cache.attributes[attr_index];
             let Some(attribute) = self.0.attributes.get(attr_index) else {
                 unsafe {
-                    glDisableVertexAttribArray(attr_index as GLuint);
+                    gl.disable_vertex_attrib_array(attr_index as u32);
                 }
-                *cached_attr = None;
                 continue;
             };
+
             let vb = vertex_buffers.get(attr_index).unwrap();
-
-            if cached_attr.map_or(true, |cached_attr| {
-                *attribute != cached_attr.attribute || cached_attr.gl_vbuf != vb.gl_buf
-            }) {
-                cache.bind_buffer(vb.gl_buf);
-
-                unsafe {
-                    match attribute.type_ {
-                        GL_INT | GL_UNSIGNED_INT | GL_SHORT | GL_UNSIGNED_SHORT
-                        | GL_UNSIGNED_BYTE | GL_BYTE
-                            if !attribute.gl_pass_as_float =>
-                        {
-                            glVertexAttribIPointer(
-                                attr_index as GLuint,
-                                attribute.size,
-                                attribute.type_,
-                                vb.stride as GLsizei,
-                                vb.offset as *mut _,
-                            )
-                        }
-                        _ => glVertexAttribPointer(
-                            attr_index as GLuint,
+            cache.bind_buffer(gl, vb.gl_buf);
+            unsafe {
+                gl.enable_vertex_attrib_array(attr_index as u32);
+                match attribute.type_ {
+                    glow::INT
+                    | glow::UNSIGNED_INT
+                    | glow::SHORT
+                    | glow::UNSIGNED_SHORT
+                    | glow::UNSIGNED_BYTE
+                    | glow::BYTE
+                        if !attribute.gl_pass_as_float =>
+                    {
+                        gl.vertex_attrib_pointer_i32(
+                            attr_index as u32,
                             attribute.size,
                             attribute.type_,
-                            GL_FALSE as u8,
-                            vb.stride as GLsizei,
-                            vb.offset as *mut _,
-                        ),
+                            vb.stride as i32,
+                            vb.offset as i32,
+                        )
                     }
-                    glEnableVertexAttribArray(attr_index as GLuint);
-                };
-
-                let cached_attr = &mut cache.attributes[attr_index];
-                *cached_attr = Some(CachedAttribute {
-                    attribute: *attribute,
-                    gl_vbuf: vb.gl_buf,
-                });
+                    _ => gl.vertex_attrib_pointer_f32(
+                        attr_index as u32,
+                        attribute.size,
+                        attribute.type_,
+                        false,
+                        vb.stride as i32,
+                        vb.offset as i32,
+                    ),
+                }
+                gl.enable_vertex_attrib_array(attr_index as u32);
             }
         }
     }
 
     fn apply_parameters(&self, params: &PipelineParams) {
+        let gl = &self.0.ctx.gl;
+
         if params.depth_write {
             unsafe {
-                glEnable(GL_DEPTH_TEST);
-                glDepthFunc(params.depth_test.into())
+                gl.enable(glow::DEPTH_TEST);
+                gl.depth_func(params.depth_test.into())
             }
         } else {
             unsafe {
-                glDisable(GL_DEPTH_TEST);
+                gl.disable(glow::DEPTH_TEST);
             }
         }
 
         match params.front_face_order {
             FrontFaceOrder::Clockwise => unsafe {
-                glFrontFace(GL_CW);
+                gl.front_face(glow::CW);
             },
             FrontFaceOrder::CounterClockwise => unsafe {
-                glFrontFace(GL_CCW);
+                gl.front_face(glow::CCW);
             },
         }
 
@@ -211,6 +206,7 @@ impl Pipeline {
     }
 
     fn set_blend(&self, color_blend: Option<BlendState>, alpha_blend: Option<BlendState>) {
+        let gl = &self.0.ctx.gl;
         let mut cache = self.0.ctx.cache.borrow_mut();
 
         if color_blend.is_none() && alpha_blend.is_some() {
@@ -223,7 +219,7 @@ impl Pipeline {
         unsafe {
             if let Some(color_blend) = color_blend {
                 if cache.color_blend.is_none() {
-                    glEnable(GL_BLEND);
+                    gl.enable(glow::BLEND);
                 }
 
                 let BlendState {
@@ -238,19 +234,19 @@ impl Pipeline {
                     dfactor: dst_alpha,
                 }) = alpha_blend
                 {
-                    glBlendFuncSeparate(
+                    gl.blend_func_separate(
                         src_rgb.into(),
                         dst_rgb.into(),
                         src_alpha.into(),
                         dst_alpha.into(),
                     );
-                    glBlendEquationSeparate(eq_rgb.into(), eq_alpha.into());
+                    gl.blend_equation_separate(eq_rgb.into(), eq_alpha.into());
                 } else {
-                    glBlendFunc(src_rgb.into(), dst_rgb.into());
-                    glBlendEquationSeparate(eq_rgb.into(), eq_rgb.into());
+                    gl.blend_func(src_rgb.into(), dst_rgb.into());
+                    gl.blend_equation_separate(eq_rgb.into(), eq_rgb.into());
                 }
             } else if cache.color_blend.is_some() {
-                glDisable(GL_BLEND);
+                gl.disable(glow::BLEND);
             }
         }
 
@@ -259,6 +255,7 @@ impl Pipeline {
     }
 
     fn set_stencil(&self, stencil_test: Option<StencilState>) {
+        let gl = &self.0.ctx.gl;
         let mut cache = self.0.ctx.cache.borrow_mut();
 
         if cache.stencil == stencil_test {
@@ -267,40 +264,40 @@ impl Pipeline {
         unsafe {
             if let Some(stencil) = stencil_test {
                 if cache.stencil.is_none() {
-                    glEnable(GL_STENCIL_TEST);
+                    gl.enable(glow::STENCIL_TEST);
                 }
 
                 let front = &stencil.front;
-                glStencilOpSeparate(
-                    GL_FRONT,
+                gl.stencil_op_separate(
+                    glow::FRONT,
                     front.fail_op.into(),
                     front.depth_fail_op.into(),
                     front.pass_op.into(),
                 );
-                glStencilFuncSeparate(
-                    GL_FRONT,
+                gl.stencil_func_separate(
+                    glow::FRONT,
                     front.test_func.into(),
                     front.test_ref,
                     front.test_mask,
                 );
-                glStencilMaskSeparate(GL_FRONT, front.write_mask);
+                gl.stencil_mask_separate(glow::FRONT, front.write_mask);
 
                 let back = &stencil.back;
-                glStencilOpSeparate(
-                    GL_BACK,
+                gl.stencil_op_separate(
+                    glow::BACK,
                     back.fail_op.into(),
                     back.depth_fail_op.into(),
                     back.pass_op.into(),
                 );
-                glStencilFuncSeparate(
-                    GL_BACK,
+                gl.stencil_func_separate(
+                    glow::BACK,
                     back.test_func.into(),
                     back.test_ref,
                     back.test_mask,
                 );
-                glStencilMaskSeparate(GL_BACK, back.write_mask);
+                gl.stencil_mask_separate(glow::BACK, back.write_mask);
             } else if cache.stencil.is_some() {
-                glDisable(GL_STENCIL_TEST);
+                gl.disable(glow::STENCIL_TEST);
             }
         }
 
@@ -308,6 +305,7 @@ impl Pipeline {
     }
 
     fn set_cull_face(&self, cull_face: CullFace) {
+        let gl = &self.0.ctx.gl;
         let mut cache = self.0.ctx.cache.borrow_mut();
 
         if cache.cull_face == cull_face {
@@ -316,70 +314,49 @@ impl Pipeline {
 
         match cull_face {
             CullFace::Nothing => unsafe {
-                glDisable(GL_CULL_FACE);
+                gl.disable(glow::CULL_FACE);
             },
             CullFace::Front => unsafe {
-                glEnable(GL_CULL_FACE);
-                glCullFace(GL_FRONT);
+                gl.enable(glow::CULL_FACE);
+                gl.cull_face(glow::FRONT);
             },
             CullFace::Back => unsafe {
-                glEnable(GL_CULL_FACE);
-                glCullFace(GL_BACK);
+                gl.enable(glow::CULL_FACE);
+                gl.cull_face(glow::BACK);
             },
         }
         cache.cull_face = cull_face;
     }
 
     fn set_color_write(&self, color_write: ColorMask) {
+        let gl = &self.0.ctx.gl;
         let mut cache = self.0.ctx.cache.borrow_mut();
 
         if cache.color_write == color_write {
             return;
         }
         let (r, g, b, a) = color_write;
-        unsafe { glColorMask(r as _, g as _, b as _, a as _) }
+        unsafe { gl.color_mask(r as _, g as _, b as _, a as _) }
         cache.color_write = color_write;
     }
 }
 
-fn load_shader(shader_type: GLenum, source: &str) -> Result<GLuint, ShaderError> {
+fn load_shader(
+    gl: &glow::Context,
+    shader_type: u32,
+    source: &str,
+) -> Result<glow::Shader, ShaderError> {
     unsafe {
-        let shader = glCreateShader(shader_type);
-        assert!(shader != 0);
+        let shader = gl.create_shader(shader_type).unwrap();
+        gl.shader_source(shader, source);
+        gl.compile_shader(shader);
 
-        let cstring = CString::new(source)?;
-        let csource = [cstring];
-        glShaderSource(shader, 1, csource.as_ptr() as *const _, std::ptr::null());
-        glCompileShader(shader);
-
-        let mut is_compiled = 0;
-        glGetShaderiv(shader, GL_COMPILE_STATUS, &mut is_compiled as *mut _);
-        if is_compiled == 0 {
-            let mut max_length: i32 = 0;
-            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &mut max_length as *mut _);
-
-            let mut error_message = vec![0u8; max_length as usize + 1];
-            glGetShaderInfoLog(
-                shader,
-                max_length,
-                &mut max_length as *mut _,
-                error_message.as_mut_ptr() as *mut _,
-            );
-
-            assert!(max_length >= 1);
-            let mut error_message =
-                std::string::String::from_utf8_lossy(&error_message[0..max_length as usize - 1])
-                    .into_owned();
-
-            // On Wasm + Chrome, for unknown reason, string with zero-terminator is returned. On Firefox there is no zero-terminators in JavaScript string.
-            if error_message.ends_with('\0') {
-                error_message.pop();
-            }
-
+        if !gl.get_shader_compile_status(shader) {
+            let error_message = gl.get_shader_info_log(shader);
             return Err(ShaderError::CompilationError {
                 shader_type: match shader_type {
-                    GL_VERTEX_SHADER => ShaderType::Vertex,
-                    GL_FRAGMENT_SHADER => ShaderType::Fragment,
+                    glow::VERTEX_SHADER => ShaderType::Vertex,
+                    glow::FRAGMENT_SHADER => ShaderType::Fragment,
                     _ => unreachable!(),
                 },
                 error_message,
@@ -390,34 +367,26 @@ fn load_shader(shader_type: GLenum, source: &str) -> Result<GLuint, ShaderError>
     }
 }
 
-fn create_program(vertex_shader: GLuint, fragment_shader: GLuint) -> Result<GLuint, ShaderError> {
+fn create_program(
+    gl: &glow::Context,
+    vertex_shader: glow::Shader,
+    fragment_shader: glow::Shader,
+) -> Result<glow::Program, ShaderError> {
     unsafe {
-        let program = glCreateProgram();
-        glAttachShader(program, vertex_shader);
-        glAttachShader(program, fragment_shader);
-        glLinkProgram(program);
+        let program = gl.create_program().unwrap();
+        gl.attach_shader(program, vertex_shader);
+        gl.attach_shader(program, fragment_shader);
+        gl.link_program(program);
 
         // delete no longer used shaders
-        glDetachShader(program, vertex_shader);
-        glDeleteShader(vertex_shader);
-        glDetachShader(program, fragment_shader);
-        glDeleteShader(fragment_shader);
+        gl.detach_shader(program, vertex_shader);
+        gl.delete_shader(vertex_shader);
+        gl.detach_shader(program, fragment_shader);
+        gl.delete_shader(fragment_shader);
 
-        let mut link_status = 0;
-        glGetProgramiv(program, GL_LINK_STATUS, &mut link_status as *mut _);
-        if link_status == 0 {
-            let mut max_length: i32 = 0;
-            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &mut max_length as *mut _);
-
-            let mut error_message = vec![0u8; max_length as usize + 1];
-            glGetProgramInfoLog(
-                program,
-                max_length,
-                &mut max_length as *mut _,
-                error_message.as_mut_ptr() as *mut _,
-            );
-            let error_message = String::from_utf8_lossy(&error_message[0..max_length as usize - 1]);
-            return Err(ShaderError::LinkError(error_message.to_string()));
+        if !gl.get_program_link_status(program) {
+            let error_message = gl.get_program_info_log(program);
+            return Err(ShaderError::LinkError(error_message));
         }
 
         Ok(program)
@@ -425,20 +394,19 @@ fn create_program(vertex_shader: GLuint, fragment_shader: GLuint) -> Result<GLui
 }
 
 fn get_pipeline_attributes(
-    program: GLuint,
+    gl: &glow::Context,
+    program: glow::Program,
     meta: &ShaderMeta,
 ) -> Result<Vec<VertexAttributeInternal>, ShaderError> {
     let mut vertex_layout = Vec::new();
     for attr in meta.attributes.iter() {
-        let cname = CString::new(attr.name).unwrap_or_else(|e| panic!("{}", e));
-        let attr_loc = unsafe { glGetAttribLocation(program, cname.as_ptr() as *const _) };
-        if attr_loc == -1 {
+        let Some(attr_loc) = (unsafe { gl.get_attrib_location(program, attr.name) }) else {
             return Err(ShaderError::MissingAttribute {
                 attribute: attr.name.to_string(),
             });
-        }
+        };
         vertex_layout.push(VertexAttributeInternal {
-            attr_loc: attr_loc as GLuint,
+            attr_loc: attr_loc as u32,
             size: attr.format.components(),
             type_: attr.format.type_(),
             gl_pass_as_float: attr.gl_pass_as_float,
@@ -449,28 +417,30 @@ fn get_pipeline_attributes(
 }
 
 fn get_pipeline_images(
-    program: GLuint,
+    gl: &glow::Context,
+    program: glow::Program,
     meta: &ShaderMeta,
 ) -> Result<Vec<ShaderImage>, ShaderError> {
     meta.images
         .iter()
         .map(|name| {
             Ok(ShaderImage {
-                gl_loc: get_uniform_location(program, &name)?,
+                gl_loc: get_uniform_location(gl, program, &name)?,
             })
         })
         .collect::<Result<Vec<_>, ShaderError>>()
 }
 
 fn get_pipeline_uniforms(
-    program: GLuint,
+    gl: &glow::Context,
+    program: glow::Program,
     meta: &ShaderMeta,
 ) -> Result<Vec<ShaderUniform>, ShaderError> {
     meta.uniforms
         .iter()
         .map(|uniform| {
             Ok(ShaderUniform {
-                gl_loc: get_uniform_location(program, &uniform.name)?,
+                gl_loc: get_uniform_location(gl, program, &uniform.name)?,
                 uniform_type: uniform.uniform_type,
                 array_count: uniform.array_count as _,
             })
@@ -478,22 +448,19 @@ fn get_pipeline_uniforms(
         .collect::<Result<Vec<_>, ShaderError>>()
 }
 
-fn get_uniform_location(program: GLuint, name: &str) -> Result<i32, ShaderError> {
-    let cname = CString::new(name).unwrap();
-    let location = unsafe { glGetUniformLocation(program, cname.as_ptr()) };
-
-    if location == -1 {
-        Err(ShaderError::MissingUniform {
-            uniform: name.to_string(),
-        })
-    } else {
-        Ok(location)
-    }
+fn get_uniform_location(
+    gl: &glow::Context,
+    program: glow::Program,
+    name: &str,
+) -> Result<glow::UniformLocation, ShaderError> {
+    unsafe { gl.get_uniform_location(program, name) }.ok_or_else(|| ShaderError::MissingUniform {
+        uniform: name.to_string(),
+    })
 }
 
 pub struct PipelineInternal {
     ctx: Rc<GlContext>,
-    program: GLuint,
+    gl_prog: glow::Program,
     images: Vec<ShaderImage>,
     uniforms: Vec<ShaderUniform>,
     attributes: Vec<VertexAttributeInternal>,
@@ -504,20 +471,18 @@ impl Drop for PipelineInternal {
     fn drop(&mut self) {
         let mut cache = self.ctx.cache.borrow_mut();
 
-        unsafe { glDeleteProgram(self.program) };
+        unsafe { self.ctx.gl.delete_program(self.gl_prog) };
         cache.cur_pipeline = None;
     }
 }
 
 #[derive(Debug)]
 struct ShaderUniform {
-    gl_loc: UniformLocation,
+    gl_loc: glow::UniformLocation,
     uniform_type: UniformType,
     array_count: i32,
 }
 
 struct ShaderImage {
-    gl_loc: UniformLocation,
+    gl_loc: glow::UniformLocation,
 }
-
-type UniformLocation = GLint;

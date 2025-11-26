@@ -1,7 +1,3 @@
-//mod texture;
-
-use crate::native::gl::*;
-
 use std::{error::Error, fmt::Display};
 
 mod gl;
@@ -161,24 +157,24 @@ impl VertexFormat {
         }
     }
 
-    fn type_(&self) -> GLuint {
+    fn type_(&self) -> u32 {
         match self {
-            VertexFormat::Float1 => GL_FLOAT,
-            VertexFormat::Float2 => GL_FLOAT,
-            VertexFormat::Float3 => GL_FLOAT,
-            VertexFormat::Float4 => GL_FLOAT,
-            VertexFormat::Byte1 => GL_UNSIGNED_BYTE,
-            VertexFormat::Byte2 => GL_UNSIGNED_BYTE,
-            VertexFormat::Byte3 => GL_UNSIGNED_BYTE,
-            VertexFormat::Byte4 => GL_UNSIGNED_BYTE,
-            VertexFormat::Short1 => GL_UNSIGNED_SHORT,
-            VertexFormat::Short2 => GL_UNSIGNED_SHORT,
-            VertexFormat::Short3 => GL_UNSIGNED_SHORT,
-            VertexFormat::Short4 => GL_UNSIGNED_SHORT,
-            VertexFormat::Int1 => GL_UNSIGNED_INT,
-            VertexFormat::Int2 => GL_UNSIGNED_INT,
-            VertexFormat::Int3 => GL_UNSIGNED_INT,
-            VertexFormat::Int4 => GL_UNSIGNED_INT,
+            VertexFormat::Float1 => glow::FLOAT,
+            VertexFormat::Float2 => glow::FLOAT,
+            VertexFormat::Float3 => glow::FLOAT,
+            VertexFormat::Float4 => glow::FLOAT,
+            VertexFormat::Byte1 => glow::UNSIGNED_BYTE,
+            VertexFormat::Byte2 => glow::UNSIGNED_BYTE,
+            VertexFormat::Byte3 => glow::UNSIGNED_BYTE,
+            VertexFormat::Byte4 => glow::UNSIGNED_BYTE,
+            VertexFormat::Short1 => glow::UNSIGNED_SHORT,
+            VertexFormat::Short2 => glow::UNSIGNED_SHORT,
+            VertexFormat::Short3 => glow::UNSIGNED_SHORT,
+            VertexFormat::Short4 => glow::UNSIGNED_SHORT,
+            VertexFormat::Int1 => glow::UNSIGNED_INT,
+            VertexFormat::Int2 => glow::UNSIGNED_INT,
+            VertexFormat::Int3 => glow::UNSIGNED_INT,
+            VertexFormat::Int4 => glow::UNSIGNED_INT,
         }
     }
 }
@@ -543,17 +539,17 @@ pub enum Comparison {
     Always,
 }
 
-impl From<Comparison> for GLenum {
+impl From<Comparison> for u32 {
     fn from(cmp: Comparison) -> Self {
         match cmp {
-            Comparison::Never => GL_NEVER,
-            Comparison::Less => GL_LESS,
-            Comparison::LessOrEqual => GL_LEQUAL,
-            Comparison::Greater => GL_GREATER,
-            Comparison::GreaterOrEqual => GL_GEQUAL,
-            Comparison::Equal => GL_EQUAL,
-            Comparison::NotEqual => GL_NOTEQUAL,
-            Comparison::Always => GL_ALWAYS,
+            Comparison::Never => glow::NEVER,
+            Comparison::Less => glow::LESS,
+            Comparison::LessOrEqual => glow::LEQUAL,
+            Comparison::Greater => glow::GREATER,
+            Comparison::GreaterOrEqual => glow::GEQUAL,
+            Comparison::Equal => glow::EQUAL,
+            Comparison::NotEqual => glow::NOTEQUAL,
+            Comparison::Always => glow::ALWAYS,
         }
     }
 }
@@ -598,16 +594,6 @@ pub enum PrimitiveType {
     Triangles,
     Lines,
     Points,
-}
-
-impl From<PrimitiveType> for GLenum {
-    fn from(primitive_type: PrimitiveType) -> Self {
-        match primitive_type {
-            PrimitiveType::Triangles => GL_TRIANGLES,
-            PrimitiveType::Lines => GL_LINES,
-            PrimitiveType::Points => GL_POINTS,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -686,201 +672,7 @@ pub enum BufferUsage {
     Stream,
 }
 
-/// `ElapsedQuery` is used to measure duration of GPU operations.
-///
-/// Usual timing/profiling methods are difficult apply to GPU workloads as draw calls are submitted
-/// asynchronously effectively hiding execution time of individual operations from the user.
-/// `ElapsedQuery` allows to measure duration of individual rendering operations, as though the time
-/// was measured on GPU rather than CPU side.
-///
-/// The query is created using [`ElapsedQuery::new()`] function.
-/// ```
-/// use miniquad::graphics::ElapsedQuery;
-/// // initialization
-/// let mut query = ElapsedQuery::new();
-/// ```
-/// Measurement is performed by calling [`ElapsedQuery::begin_query()`] and
-/// [`ElapsedQuery::end_query()`]
-///
-/// ```
-/// # use miniquad::graphics::ElapsedQuery;
-/// # let mut query = ElapsedQuery::new();
-///
-/// query.begin_query();
-/// // one or multiple calls to miniquad::GraphicsContext::draw()
-/// query.end_query();
-/// ```
-///
-/// Retreival of measured duration is only possible at a later point in time. Often a frame or
-/// couple frames later. Measurement latency can especially be high on WASM/WebGL target.
-///
-/// ```
-/// // couple frames later:
-/// # use miniquad::graphics::ElapsedQuery;
-/// # let mut query = ElapsedQuery::new();
-/// # query.begin_query();
-/// # query.end_query();
-/// if query.is_available() {
-///   let duration_nanoseconds = query.get_result();
-///   // use/display duration_nanoseconds
-/// }
-/// ```
-///
-/// And during finalization:
-/// ```
-/// // clean-up
-/// # use miniquad::graphics::ElapsedQuery;
-/// # let mut query = ElapsedQuery::new();
-/// # query.begin_query();
-/// # query.end_query();
-/// # if query.is_available() {
-/// #   let duration_nanoseconds = query.get_result();
-/// #   // use/display duration_nanoseconds
-/// # }
-/// query.delete();
-/// ```
-///
-/// It is only possible to measure single query at once.
-///
-/// On OpenGL/WebGL platforms implementation relies on [`EXT_disjoint_timer_query`] extension.
-///
-/// [`EXT_disjoint_timer_query`]: https://www.khronos.org/registry/OpenGL/extensions/EXT/EXT_disjoint_timer_query.txt
-///
-#[derive(Clone, Copy)]
-pub struct ElapsedQuery {
-    gl_query: GLuint,
-}
-
-impl Default for ElapsedQuery {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ElapsedQuery {
-    pub fn new() -> ElapsedQuery {
-        ElapsedQuery { gl_query: 0 }
-    }
-
-    /// Submit a beginning of elapsed-time query.
-    ///
-    /// Only a single query can be measured at any moment in time.
-    ///
-    /// Use [`ElapsedQuery::end_query()`] to finish the query and
-    /// [`ElapsedQuery::get_result()`] to read the result when rendering is complete.
-    ///
-    /// The query can be used again after retriving the result.
-    ///
-    /// Implemented as `glBeginQuery(GL_TIME_ELAPSED, ...)` on OpenGL/WebGL platforms.
-    ///
-    /// Use [`ElapsedQuery::is_supported()`] to check if functionality is available and the method can be called.
-    pub fn begin_query(&mut self) {
-        if self.gl_query == 0 {
-            unsafe { glGenQueries(1, &mut self.gl_query) };
-        }
-        unsafe { glBeginQuery(GL_TIME_ELAPSED, self.gl_query) };
-    }
-
-    /// Submit an end of elapsed-time query that can be read later when rendering is complete.
-    ///
-    /// This function is usd in conjunction with [`ElapsedQuery::begin_query()`] and
-    /// [`ElapsedQuery::get_result()`].
-    ///
-    /// Implemented as `glEndQuery(GL_TIME_ELAPSED)` on OpenGL/WebGL platforms.
-    pub fn end_query(&mut self) {
-        unsafe { glEndQuery(GL_TIME_ELAPSED) };
-    }
-
-    /// Retreieve measured duration in nanonseconds.
-    ///
-    /// Note that the result may be ready only couple frames later due to asynchronous nature of GPU
-    /// command submission. Use [`ElapsedQuery::is_available()`] to check if the result is
-    /// available for retrieval.
-    ///
-    /// Use [`ElapsedQuery::is_supported()`] to check if functionality is available and the method can be called.
-    pub fn get_result(&self) -> u64 {
-        // let mut time: GLuint64 = 0;
-        // assert!(self.gl_query != 0);
-        // unsafe { glGetQueryObjectui64v(self.gl_query, GL_QUERY_RESULT, &mut time) };
-        // time
-        0
-    }
-
-    /// Reports whenever elapsed timer is supported and other methods can be invoked.
-    pub fn is_supported() -> bool {
-        unimplemented!();
-        //unsafe { sapp_is_elapsed_timer_supported() }
-    }
-
-    /// Reports whenever result of submitted query is available for retrieval with
-    /// [`ElapsedQuery::get_result()`].
-    ///
-    /// Note that the result may be ready only couple frames later due to asynchrnous nature of GPU
-    /// command submission.
-    ///
-    /// Use [`ElapsedQuery::is_supported()`] to check if functionality is available and the method can be called.
-    pub fn is_available(&self) -> bool {
-        // let mut available: GLint = 0;
-
-        // // begin_query was not called yet
-        // if self.gl_query == 0 {
-        //     return false;
-        // }
-
-        //unsafe { glGetQueryObjectiv(self.gl_query, GL_QUERY_RESULT_AVAILABLE, &mut available) };
-        //available != 0
-
-        false
-    }
-
-    /// Delete query.
-    ///
-    /// Note that the query is not deleted automatically when dropped.
-    ///
-    /// Implemented as `glDeleteQueries(...)` on OpenGL/WebGL platforms.
-    pub fn delete(&mut self) {
-        unsafe { glDeleteQueries(1, &self.gl_query) }
-        self.gl_query = 0;
-    }
-}
-
 pub enum TextureSource<'a> {
     Empty,
     Bytes(&'a [u8]),
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct GlslSupport {
-    pub v130: bool,
-    pub v150: bool,
-    pub v330: bool,
-    pub v300es: bool,
-    pub v100_ext: bool,
-    pub v100: bool,
-}
-
-#[derive(Clone, Debug)]
-pub struct ContextInfo {
-    /// GL_VERSION_STRING from OpenGL. Would be empty on metal.
-    pub gl_version_string: String,
-    /// OpenGL provides an enumeration over GL_SHADING_LANGUAGE_VERSION,
-    /// allowing to see which glsl versions are actually supported.
-    /// Unfortunately, it only works on GL4.3+... and even there it is not quite correct.
-    ///
-    /// miniquad will take a guess based on GL_VERSION_STRING, current platform and implementation
-    /// details. Would be all false on metal.
-    pub glsl_support: GlslSupport,
-    /// List of platform-dependent features that miniquad failed to make cross-platforms
-    /// and therefore they might be missing.
-    pub features: Features,
-}
-
-impl ContextInfo {
-    pub fn has_integer_attributes(&self) -> bool {
-        self.glsl_support.v150 | self.glsl_support.v300es | self.glsl_support.v330
-    }
-}
-
-pub trait RenderingBackend {
-    fn info(&self) -> ContextInfo;
 }

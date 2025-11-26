@@ -16,6 +16,7 @@ keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
 [dependencies]
+glow = "0.16.0"
 bytemuck = "1.24.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]

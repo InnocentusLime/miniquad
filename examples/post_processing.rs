@@ -38,8 +38,7 @@ struct Stage {
 }
 
 impl Stage {
-    pub fn new() -> Stage {
-        let ctx = window::new_rendering_backend();
+    pub fn new(ctx: Rc<GlContext>) -> Stage {
         let (w, h) = window::screen_size();
         let color_img = Texture::new(
             ctx.clone(),
@@ -62,7 +61,7 @@ impl Stage {
             },
         );
 
-        let offscreen_pass = RenderPass::new(vec![color_img], None, Some(depth_img));
+        let offscreen_pass = RenderPass::new(ctx.clone(), vec![color_img], Some(depth_img));
 
         #[rustfmt::skip]
         let vertices_cube = &[
@@ -183,7 +182,7 @@ impl EventHandler for Stage {
             },
         );
 
-        self.offscreen_pass = RenderPass::new(vec![color_img], None, Some(depth_img));
+        self.offscreen_pass = RenderPass::new(self.ctx.clone(), vec![color_img], Some(depth_img));
     }
 
     fn draw(&mut self) {
@@ -207,6 +206,7 @@ impl EventHandler for Stage {
         self.offscreen_pass
             .perform(PassAction::clear_color(1.0, 1.0, 1.0, 1.0), || {
                 DrawCall {
+                    ctx: &self.ctx,
                     pipeline: &self.offscreen_pipeline,
                     base_element: 0,
                     num_elements: 36,
@@ -230,6 +230,7 @@ impl EventHandler for Stage {
         self.ctx
             .perform_default_render_pass(PassAction::clear_color(1.0, 1.0, 1.0, 1.0), || {
                 DrawCall {
+                    ctx: &self.ctx,
                     pipeline: &self.post_processing_pipeline,
                     base_element: 0,
                     num_elements: 6,
@@ -247,7 +248,7 @@ impl EventHandler for Stage {
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), || Box::new(Stage::new()));
+    miniquad::start(conf::Conf::default(), |ctx| Box::new(Stage::new(ctx)));
 }
 
 mod post_processing_shader {

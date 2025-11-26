@@ -1,10 +1,10 @@
-use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf};
+use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, rc::Rc};
 
 use crate::{
     conf::{Conf, Icon},
     event::{KeyMods, MouseButton},
     native::{NativeDisplayData, Request},
-    CursorIcon, EventHandler,
+    CursorIcon, EventHandler, GlContext,
 };
 
 use winapi::{
@@ -768,7 +768,7 @@ unsafe fn create_msg_window() -> (HWND, HDC) {
 }
 
 impl WindowsDisplay {
-    unsafe fn get_proc_address(&mut self, proc: &str) -> Option<unsafe extern "C" fn() -> ()> {
+    unsafe fn get_proc_address(&mut self, proc: &str) -> *const std::os::raw::c_void {
         let proc = std::ffi::CString::new(proc).unwrap();
         let mut proc_ptr = (self.libopengl32.wglGetProcAddress)(proc.as_ptr());
         if proc_ptr.is_null() {
@@ -776,12 +776,8 @@ impl WindowsDisplay {
         }
         if proc_ptr.is_null() {
             eprintln!("Load GL func {:?} failed.", proc);
-            return None;
         }
-        Some(std::mem::transmute::<
-            *mut winapi::shared::minwindef::__some_function,
-            unsafe extern "C" fn(),
-        >(proc_ptr))
+        proc_ptr as _
     }
 
     /// updates current window and framebuffer size from the window's client rect,
@@ -882,7 +878,7 @@ impl WindowsDisplay {
 
 pub fn run<F>(conf: &Conf, f: F)
 where
-    F: 'static + FnOnce() -> Box<dyn EventHandler>,
+    F: 'static + FnOnce(Rc<GlContext>) -> Box<dyn EventHandler>,
 {
     unsafe {
         if conf.high_dpi {
@@ -945,9 +941,9 @@ where
             conf.platform.swap_interval.unwrap_or(1),
         );
 
-        super::gl::load_gl_funcs(|proc| display.get_proc_address(proc));
-
-        display.event_handler = Some(f());
+        let glow_gl = glow::Context::from_loader_function(|proc| display.get_proc_address(proc));
+        let ctx = Rc::new(GlContext::new(glow_gl));
+        display.event_handler = Some(f(ctx));
 
         #[cfg(target_arch = "x86_64")]
         SetWindowLongPtrA(wnd, GWLP_USERDATA, &mut display as *mut _ as isize);

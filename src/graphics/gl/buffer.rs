@@ -3,10 +3,10 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use bytemuck::{Pod, Zeroable};
+use glow::HasContext;
 
 use crate::graphics::gl::GlContext;
 use crate::graphics::BufferUsage;
-use crate::native::gl::*;
 
 #[macro_export]
 macro_rules! bind_buffers {
@@ -42,22 +42,12 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         assert_eq!(size % std::mem::size_of::<T>(), 0, "size must be aligned");
 
         let mut cache = ctx.cache.borrow_mut();
-        let mut gl_buf: u32 = 0;
-
+        let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
+        cache.bind_buffer(&ctx.gl, gl_buf);
         unsafe {
-            glGenBuffers(1, &mut gl_buf as *mut _);
+            ctx.gl
+                .buffer_data_size(glow::ARRAY_BUFFER, size as i32, super::gl_usage(usage));
         }
-        cache.store_buffer_binding();
-        cache.bind_buffer(gl_buf);
-        unsafe {
-            glBufferData(
-                GL_ARRAY_BUFFER,
-                size as GLsizeiptr,
-                std::ptr::null(),
-                gl_usage(usage),
-            );
-        }
-        cache.restore_buffer_binding();
 
         std::mem::drop(cache);
         let buffer = BufferInternal {
@@ -75,22 +65,12 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         let mut cache = ctx.cache.borrow_mut();
         let data: &[u8] = bytemuck::cast_slice(data);
         let size = data.len();
-        let mut gl_buf: u32 = 0;
-
+        let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
+        cache.bind_buffer(&ctx.gl, gl_buf);
         unsafe {
-            glGenBuffers(1, &mut gl_buf as *mut _);
+            ctx.gl
+                .buffer_data_u8_slice(glow::ARRAY_BUFFER, data, super::gl_usage(usage));
         }
-        cache.store_buffer_binding();
-        cache.bind_buffer(gl_buf);
-        unsafe {
-            glBufferData(
-                GL_ARRAY_BUFFER,
-                size as GLsizeiptr,
-                data.as_ptr() as *const GLvoid,
-                gl_usage(usage),
-            );
-        }
-        cache.restore_buffer_binding();
 
         std::mem::drop(cache);
         let buffer = BufferInternal {
@@ -114,13 +94,16 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         let size = data.len();
         assert!(size <= self.size());
 
-        cache.store_buffer_binding();
-        cache.bind_buffer(self.internal.gl_buf);
-        unsafe { glBufferSubData(GL_ARRAY_BUFFER, 0, size as _, data.as_ptr() as _) };
-        cache.restore_buffer_binding();
+        cache.bind_buffer(&self.internal.ctx.gl, self.internal.gl_buf);
+        unsafe {
+            self.internal
+                .ctx
+                .gl
+                .buffer_sub_data_u8_slice(glow::ARRAY_BUFFER, 0, data)
+        };
     }
 
-    pub fn gl_buf(&self) -> GLuint {
+    pub fn gl_buf(&self) -> glow::Buffer {
         self.internal.gl_buf
     }
 
@@ -136,27 +119,21 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
 #[derive(Clone)]
 pub struct BufferInternal {
     ctx: Rc<GlContext>,
-    gl_buf: GLuint,
+    gl_buf: glow::Buffer,
     size: Cell<usize>,
 }
 
 impl Drop for BufferInternal {
     fn drop(&mut self) {
-        unsafe { glDeleteBuffers(1, &self.gl_buf as *const _) }
-    }
-}
-
-fn gl_usage(usage: BufferUsage) -> GLenum {
-    match usage {
-        BufferUsage::Immutable => GL_STATIC_DRAW,
-        BufferUsage::Dynamic => GL_DYNAMIC_DRAW,
-        BufferUsage::Stream => GL_STREAM_DRAW,
+        unsafe {
+            self.ctx.gl.delete_buffer(self.gl_buf);
+        }
     }
 }
 
 #[derive(Clone, Copy)]
 pub struct BufferBinding {
-    pub(crate) gl_buf: GLuint,
+    pub(crate) gl_buf: glow::Buffer,
     pub(crate) offset: u32,
     pub(crate) stride: u32,
 }

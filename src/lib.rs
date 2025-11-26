@@ -20,7 +20,6 @@ pub use graphics::*;
 mod default_icon;
 
 pub use bytemuck::offset_of;
-pub use native::gl;
 
 pub mod date {
     #[cfg(not(target_arch = "wasm32"))]
@@ -41,9 +40,10 @@ pub mod date {
     }
 }
 
-pub type Context = dyn RenderingBackend;
-
-use std::sync::{Mutex, OnceLock};
+use std::{
+    rc::Rc,
+    sync::{Mutex, OnceLock},
+};
 
 static NATIVE_DISPLAY: OnceLock<Mutex<native::NativeDisplayData>> = OnceLock::new();
 
@@ -61,22 +61,7 @@ fn native_display() -> &'static Mutex<native::NativeDisplayData> {
 /// Window and associated to window rendering context related functions.
 /// in macroquad <= 0.3, it was ctx.screen_size(). Now it is window::screen_size()
 pub mod window {
-    use std::rc::Rc;
-
     use super::*;
-
-    /// The same as
-    /// ```ignore
-    /// if metal {
-    ///    Box::new(MetalContext::new())
-    /// } else {
-    ///   Box::new(GlContext::new())
-    /// };
-    /// ```
-    /// but under #[cfg] gate to avoid MetalContext on non-apple platforms
-    pub fn new_rendering_backend() -> Rc<GlContext> {
-        GlContext::new().into()
-    }
 
     /// The current framebuffer size in pixels
     /// NOTE: [High DPI Rendering](../conf/index.html#high-dpi-rendering)
@@ -291,7 +276,7 @@ pub enum CursorIcon {
 /// Start miniquad.
 pub fn start<F>(conf: conf::Conf, f: F)
 where
-    F: 'static + FnOnce() -> Box<dyn EventHandler>,
+    F: 'static + FnOnce(Rc<GlContext>) -> Box<dyn EventHandler>,
 {
     #[cfg(target_os = "linux")]
     {

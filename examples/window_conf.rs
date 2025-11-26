@@ -1,9 +1,11 @@
+use std::rc::Rc;
+
 ///! Opens a fullscreen window with green screen.
 ///! The title of that should be "miniquad".
 use miniquad::*;
 
 struct Stage {
-    ctx: GlContext,
+    ctx: Rc<GlContext>,
 }
 impl EventHandler for Stage {
     fn update(&mut self) {}
@@ -23,10 +25,6 @@ fn main() {
             fullscreen: true,
             ..Default::default()
         },
-        || {
-            Box::new(Stage {
-                ctx: GlContext::new(),
-            })
-        },
+        |ctx| Box::new(Stage { ctx }),
     );
 }

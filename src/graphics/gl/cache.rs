@@ -1,107 +1,67 @@
+use glow::HasContext;
+
 use crate::graphics::*;
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub struct VertexAttributeInternal {
-    pub attr_loc: GLuint,
+    pub attr_loc: u32,
     pub size: i32,
-    pub type_: GLuint,
+    pub type_: u32,
     pub gl_pass_as_float: bool,
 }
 
-#[derive(Default, Copy, Clone)]
-pub struct CachedAttribute {
-    pub attribute: VertexAttributeInternal,
-    pub gl_vbuf: GLuint,
-}
-
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct CachedTexture {
-    // GL_TEXTURE_2D or GL_TEXTURE_CUBEMAP
-    pub target: GLuint,
-    pub texture: GLuint,
+    pub target: u32,
+    pub texture: glow::Texture,
 }
 
 pub struct GlCache {
-    pub stored_index_buffer: GLuint,
-    pub stored_index_size: u32,
-    pub stored_vertex_buffer: GLuint,
-    pub stored_target: GLuint,
-    pub stored_texture: GLuint,
-    pub index_buffer: GLuint,
-    pub index_size: u32,
-    pub vertex_buffer: GLuint,
-    pub textures: [CachedTexture; MAX_SHADERSTAGE_IMAGES],
+    pub index_buffer: Option<glow::Buffer>,
+    pub vertex_buffer: Option<glow::Buffer>,
+    pub textures: [Option<CachedTexture>; MAX_SHADERSTAGE_IMAGES],
     pub cur_pipeline: Option<PipelineId>,
+
     pub color_blend: Option<BlendState>,
     pub alpha_blend: Option<BlendState>,
     pub stencil: Option<StencilState>,
     pub color_write: ColorMask,
     pub cull_face: CullFace,
-    pub attributes: [Option<CachedAttribute>; MAX_VERTEX_ATTRIBUTES],
 }
 
 impl GlCache {
-    pub fn bind_buffer(&mut self, buffer: GLuint) {
-        if self.vertex_buffer != buffer {
-            self.vertex_buffer = buffer;
+    pub fn bind_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
+        if self.vertex_buffer != Some(buffer) {
+            self.vertex_buffer = Some(buffer);
             unsafe {
-                glBindBuffer(GL_ARRAY_BUFFER, buffer);
+                gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
             }
         }
     }
 
-    pub fn bind_index_buffer(&mut self, buffer: GLuint, index_size: u32) {
-        if self.index_buffer != buffer {
-            self.index_buffer = buffer;
+    pub fn bind_index_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
+        if self.index_buffer != Some(buffer) {
+            self.index_buffer = Some(buffer);
             unsafe {
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer);
-            }
-        }
-        self.index_size = index_size;
-    }
-
-    pub fn store_buffer_binding(&mut self) {
-        self.stored_vertex_buffer = self.vertex_buffer;
-    }
-
-    pub fn store_index_buffer_binding(&mut self) {
-        self.stored_index_buffer = self.index_buffer;
-        self.stored_index_size = self.index_size;
-    }
-
-    pub fn restore_buffer_binding(&mut self) {
-        if self.stored_vertex_buffer != 0 {
-            self.bind_buffer(self.stored_vertex_buffer);
-            self.stored_vertex_buffer = 0;
-        }
-    }
-
-    pub fn restore_index_buffer_binding(&mut self) {
-        if self.stored_index_buffer != 0 {
-            self.bind_index_buffer(self.stored_index_buffer, self.stored_index_size);
-            self.stored_index_buffer = 0;
-        }
-    }
-
-    pub fn bind_texture(&mut self, slot_index: usize, target: GLuint, texture: GLuint) {
-        unsafe {
-            glActiveTexture(GL_TEXTURE0 + slot_index as GLuint);
-            if self.textures[slot_index].target != target
-                || self.textures[slot_index].texture != texture
-            {
-                let target = if target == 0 { GL_TEXTURE_2D } else { target };
-                glBindTexture(target, texture);
-                self.textures[slot_index] = CachedTexture { target, texture };
+                gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(buffer));
             }
         }
     }
 
-    pub fn store_texture_binding(&mut self, slot_index: usize) {
-        self.stored_target = self.textures[slot_index].target;
-        self.stored_texture = self.textures[slot_index].texture;
-    }
-
-    pub fn restore_texture_binding(&mut self, slot_index: usize) {
-        self.bind_texture(slot_index, self.stored_target, self.stored_texture);
+    pub fn bind_texture(
+        &mut self,
+        gl: &glow::Context,
+        slot_index: u32,
+        target: u32,
+        texture: glow::Texture,
+    ) {
+        let store = CachedTexture { target, texture };
+        if self.textures[slot_index as usize] != Some(store) {
+            unsafe {
+                gl.active_texture(slot_index);
+                gl.bind_texture(target, Some(texture));
+            }
+            self.textures[slot_index as usize] = Some(store);
+        }
     }
 }

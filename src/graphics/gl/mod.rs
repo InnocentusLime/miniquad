@@ -7,6 +7,8 @@ mod texture;
 
 use std::cell::RefCell;
 
+use glow::HasContext;
+
 use super::*;
 use cache::*;
 
@@ -16,74 +18,49 @@ pub use pipeline::Pipeline;
 pub use render_pass::RenderPass;
 pub use texture::Texture;
 
-/// Raw OpenGL bindings
-/// Highly unsafe, some of the functions could be missing due to incompatible GL version
-/// or all of them might be missing alltogether if rendering context is not a GL one.
-pub mod raw_gl {
-    use super::*;
-
-    #[doc(inline)]
-    pub use crate::native::gl::*;
-
-    pub fn texture_format_into_gl(format: TextureFormat) -> (GLenum, GLenum, GLenum) {
-        format.into()
-    }
-}
-
 pub struct GlContext {
+    pub(crate) gl: glow::Context,
+    pub(crate) vao: glow::VertexArray,
     pub(crate) cache: RefCell<GlCache>,
-    pub(crate) info: ContextInfo,
-}
-
-impl Default for GlContext {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl GlContext {
-    pub fn new() -> GlContext {
+    pub fn new(gl: glow::Context) -> GlContext {
+        let vao = unsafe { gl.create_vertex_array().unwrap() };
         unsafe {
-            let mut vao = 0;
+            gl.bind_vertex_array(Some(vao));
+        }
+        let cache = GlCache {
+            index_buffer: None,
+            vertex_buffer: None,
+            textures: [None; MAX_SHADERSTAGE_IMAGES],
+            cur_pipeline: None,
 
-            glGenVertexArrays(1, &mut vao as *mut _);
-            glBindVertexArray(vao);
-            let info = gl_info();
-            let cache = GlCache {
-                stored_index_buffer: 0,
-                stored_index_size: 0,
-                stored_vertex_buffer: 0,
-                index_buffer: 0,
-                index_size: 0,
-                vertex_buffer: 0,
-                cur_pipeline: None,
-                color_blend: None,
-                alpha_blend: None,
-                stencil: None,
-                color_write: (true, true, true, true),
-                cull_face: CullFace::Nothing,
-                stored_texture: 0,
-                stored_target: 0,
-                textures: [CachedTexture {
-                    target: 0,
-                    texture: 0,
-                }; MAX_SHADERSTAGE_IMAGES],
-                attributes: [None; MAX_VERTEX_ATTRIBUTES],
-            };
+            color_blend: None,
+            alpha_blend: None,
+            stencil: None,
+            color_write: (true, true, true, true),
+            cull_face: CullFace::Nothing,
+        };
 
-            GlContext {
-                info,
-                cache: RefCell::new(cache),
-            }
+        GlContext {
+            gl,
+            vao,
+            cache: RefCell::new(cache),
         }
     }
+}
 
-    pub fn features(&self) -> &Features {
-        &self.info.features
+impl Drop for GlContext {
+    fn drop(&mut self) {
+        unsafe {
+            self.gl.delete_vertex_array(self.vao);
+        }
     }
 }
 
 pub struct DrawCall<'a, I: IndexBufferElement> {
+    pub ctx: &'a GlContext,
     pub pipeline: &'a Pipeline,
     pub base_element: i32,
     pub num_elements: i32,
@@ -102,145 +79,83 @@ impl<'a, I: IndexBufferElement> DrawCall<'a, I> {
             self.uniform_data,
         );
 
-        let indices = std::mem::size_of::<I>() as i32 * self.base_element;
-        let primitive_type = self.pipeline.primitive_type().into();
+        let offset = std::mem::size_of::<I>() as i32 * self.base_element;
+        let mode = match self.pipeline.primitive_type() {
+            PrimitiveType::Triangles => glow::TRIANGLES,
+            PrimitiveType::Lines => glow::LINES,
+            PrimitiveType::Points => glow::POINTS,
+        };
 
         unsafe {
-            glDrawElementsInstanced(
-                primitive_type,
-                self.num_elements,
-                I::GL_TYPE,
-                indices as *mut _,
-                1,
-            );
+            self.ctx
+                .gl
+                .draw_elements_instanced(mode, self.num_elements, I::GL_TYPE, offset, 1);
         }
     }
 }
 
-impl RenderingBackend for GlContext {
-    fn info(&self) -> ContextInfo {
-        self.info.clone()
-    }
-}
-
-#[allow(clippy::field_reassign_with_default)]
-fn gl_info() -> ContextInfo {
-    let version_string = unsafe { glGetString(super::gl::GL_VERSION) };
-    let gl_version_string = unsafe { std::ffi::CStr::from_ptr(version_string as _) }
-        .to_str()
-        .unwrap()
-        .to_string();
-    //let gles2 = !gles3 && gl_version_string.contains("OpenGL ES");
-
-    let gl2 = gl_version_string.is_empty()
-        || gl_version_string.starts_with("2")
-        || gl_version_string.starts_with("OpenGL ES 2");
-    let webgl1 = gl_version_string == "WebGL 1.0";
-
-    let features = Features {
-        instancing: !gl2,
-        resolve_attachments: !webgl1 && !gl2,
-    };
-
-    let mut glsl_support = GlslSupport::default();
-
-    // this is not quite documented,
-    // but somehow even GL2.1 usually have all the compatibility extensions to support glsl100
-    // It was tested on really old windows machines, virtual machines etc. glsl100 always works!
-    glsl_support.v100 = true;
-
-    // on wasm miniquad always creates webgl1 context, with the only glsl available being version 100
-    #[cfg(target_arch = "wasm32")]
-    {
-        // on web, miniquad always loads EXT_shader_texture_lod and OES_standard_derivatives
-        glsl_support.v100_ext = true;
-
-        let webgl2 = gl_version_string.contains("WebGL 2.0");
-        if webgl2 {
-            glsl_support.v300es = true;
-        }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        let gles3 = gl_version_string.contains("OpenGL ES 3");
-
-        if gles3 {
-            glsl_support.v300es = true;
-        }
-    }
-
-    // there is no gl3.4, so 4+ and 3.3 covers all modern OpenGL
-    if gl_version_string.starts_with("3.2") {
-        glsl_support.v150 = true; // MacOS is defaulting to 3.2 and GLSL 150
-    } else if gl_version_string.starts_with("4") || gl_version_string.starts_with("3.3") {
-        glsl_support.v330 = true;
-    // gl 3.0, 3.1, 3.2 maps to 1.30, 1.40, 1.50 glsl versions
-    } else if gl_version_string.starts_with("3") {
-        glsl_support.v130 = true;
-    }
-
-    ContextInfo {
-        gl_version_string,
-        glsl_support,
-        features,
-    }
-}
-
-impl From<Equation> for GLenum {
+impl From<Equation> for u32 {
     fn from(eq: Equation) -> Self {
         match eq {
-            Equation::Add => GL_FUNC_ADD,
-            Equation::Subtract => GL_FUNC_SUBTRACT,
-            Equation::ReverseSubtract => GL_FUNC_REVERSE_SUBTRACT,
+            Equation::Add => glow::FUNC_ADD,
+            Equation::Subtract => glow::FUNC_SUBTRACT,
+            Equation::ReverseSubtract => glow::FUNC_REVERSE_SUBTRACT,
         }
     }
 }
 
-impl From<BlendFactor> for GLenum {
-    fn from(factor: BlendFactor) -> GLenum {
+impl From<BlendFactor> for u32 {
+    fn from(factor: BlendFactor) -> u32 {
         match factor {
-            BlendFactor::Zero => GL_ZERO,
-            BlendFactor::One => GL_ONE,
-            BlendFactor::Value(BlendValue::SourceColor) => GL_SRC_COLOR,
-            BlendFactor::Value(BlendValue::SourceAlpha) => GL_SRC_ALPHA,
-            BlendFactor::Value(BlendValue::DestinationColor) => GL_DST_COLOR,
-            BlendFactor::Value(BlendValue::DestinationAlpha) => GL_DST_ALPHA,
-            BlendFactor::OneMinusValue(BlendValue::SourceColor) => GL_ONE_MINUS_SRC_COLOR,
-            BlendFactor::OneMinusValue(BlendValue::SourceAlpha) => GL_ONE_MINUS_SRC_ALPHA,
-            BlendFactor::OneMinusValue(BlendValue::DestinationColor) => GL_ONE_MINUS_DST_COLOR,
-            BlendFactor::OneMinusValue(BlendValue::DestinationAlpha) => GL_ONE_MINUS_DST_ALPHA,
-            BlendFactor::SourceAlphaSaturate => GL_SRC_ALPHA_SATURATE,
+            BlendFactor::Zero => glow::ZERO,
+            BlendFactor::One => glow::ONE,
+            BlendFactor::Value(BlendValue::SourceColor) => glow::SRC_COLOR,
+            BlendFactor::Value(BlendValue::SourceAlpha) => glow::SRC_ALPHA,
+            BlendFactor::Value(BlendValue::DestinationColor) => glow::DST_COLOR,
+            BlendFactor::Value(BlendValue::DestinationAlpha) => glow::DST_ALPHA,
+            BlendFactor::OneMinusValue(BlendValue::SourceColor) => glow::ONE_MINUS_SRC_COLOR,
+            BlendFactor::OneMinusValue(BlendValue::SourceAlpha) => glow::ONE_MINUS_SRC_ALPHA,
+            BlendFactor::OneMinusValue(BlendValue::DestinationColor) => glow::ONE_MINUS_DST_COLOR,
+            BlendFactor::OneMinusValue(BlendValue::DestinationAlpha) => glow::ONE_MINUS_DST_ALPHA,
+            BlendFactor::SourceAlphaSaturate => glow::SRC_ALPHA_SATURATE,
         }
     }
 }
 
-impl From<StencilOp> for GLenum {
+impl From<StencilOp> for u32 {
     fn from(op: StencilOp) -> Self {
         match op {
-            StencilOp::Keep => GL_KEEP,
-            StencilOp::Zero => GL_ZERO,
-            StencilOp::Replace => GL_REPLACE,
-            StencilOp::IncrementClamp => GL_INCR,
-            StencilOp::DecrementClamp => GL_DECR,
-            StencilOp::Invert => GL_INVERT,
-            StencilOp::IncrementWrap => GL_INCR_WRAP,
-            StencilOp::DecrementWrap => GL_DECR_WRAP,
+            StencilOp::Keep => glow::KEEP,
+            StencilOp::Zero => glow::ZERO,
+            StencilOp::Replace => glow::REPLACE,
+            StencilOp::IncrementClamp => glow::INCR,
+            StencilOp::DecrementClamp => glow::DECR,
+            StencilOp::Invert => glow::INVERT,
+            StencilOp::IncrementWrap => glow::INCR_WRAP,
+            StencilOp::DecrementWrap => glow::DECR_WRAP,
         }
     }
 }
 
-impl From<CompareFunc> for GLenum {
+impl From<CompareFunc> for u32 {
     fn from(cf: CompareFunc) -> Self {
         match cf {
-            CompareFunc::Always => GL_ALWAYS,
-            CompareFunc::Never => GL_NEVER,
-            CompareFunc::Less => GL_LESS,
-            CompareFunc::Equal => GL_EQUAL,
-            CompareFunc::LessOrEqual => GL_LEQUAL,
-            CompareFunc::Greater => GL_GREATER,
-            CompareFunc::NotEqual => GL_NOTEQUAL,
-            CompareFunc::GreaterOrEqual => GL_GEQUAL,
+            CompareFunc::Always => glow::ALWAYS,
+            CompareFunc::Never => glow::NEVER,
+            CompareFunc::Less => glow::LESS,
+            CompareFunc::Equal => glow::EQUAL,
+            CompareFunc::LessOrEqual => glow::LEQUAL,
+            CompareFunc::Greater => glow::GREATER,
+            CompareFunc::NotEqual => glow::NOTEQUAL,
+            CompareFunc::GreaterOrEqual => glow::GEQUAL,
         }
+    }
+}
+
+fn gl_usage(usage: BufferUsage) -> u32 {
+    match usage {
+        BufferUsage::Immutable => glow::STATIC_DRAW,
+        BufferUsage::Dynamic => glow::DYNAMIC_DRAW,
+        BufferUsage::Stream => glow::STREAM_DRAW,
     }
 }
