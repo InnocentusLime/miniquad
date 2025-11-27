@@ -78,7 +78,5 @@ pub trait Clipboard: Send + Sync {
     fn set(&mut self, string: &str);
 }
 
-pub mod module;
-
 #[cfg(target_os = "windows")]
 pub mod windows;

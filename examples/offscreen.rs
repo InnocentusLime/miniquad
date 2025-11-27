@@ -140,7 +140,8 @@ impl EventHandler for Stage {
     fn update(&mut self) {}
 
     fn draw(&mut self) {
-        let (width, height) = window::screen_size();
+        let (width, height) = self.ctx.screen_size();
+        let (width, height) = (width as f32, height as f32);
         let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 10.0);
         let view = Mat4::look_at_rh(
             vec3(0.0, 1.5, 3.0),

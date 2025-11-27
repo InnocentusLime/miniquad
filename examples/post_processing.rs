@@ -39,13 +39,13 @@ struct Stage {
 
 impl Stage {
     pub fn new(ctx: Rc<GlContext>) -> Stage {
-        let (w, h) = window::screen_size();
+        let (width, height) = ctx.screen_size();
         let color_img = Texture::new(
             ctx.clone(),
             TextureSource::Empty,
             TextureParams {
-                width: w as _,
-                height: h as _,
+                width,
+                height,
                 format: TextureFormat::RGBA8,
                 ..Default::default()
             },
@@ -54,8 +54,8 @@ impl Stage {
             ctx.clone(),
             TextureSource::Empty,
             TextureParams {
-                width: w as _,
-                height: h as _,
+                width,
+                height,
                 format: TextureFormat::Depth,
                 ..Default::default()
             },
@@ -186,7 +186,8 @@ impl EventHandler for Stage {
     }
 
     fn draw(&mut self) {
-        let (width, height) = window::screen_size();
+        let (width, height) = self.ctx.screen_size();
+        let (width, height) = (width as f32, height as f32);
         let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 10.0);
         let view = Mat4::look_at_rh(
             vec3(0.0, 1.5, 3.0),
@@ -221,9 +222,8 @@ impl EventHandler for Stage {
                 .execute()
             });
 
-        let (w, h) = window::screen_size();
         let uniforms = post_processing_shader::Uniforms {
-            resolution: vec2(w, h),
+            resolution: vec2(width, height),
         };
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture

@@ -16,24 +16,12 @@ keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
 [dependencies]
+glutin-winit = "0.5.0"
+winit = { version = "0.30.12", features = ["rwh_06"] }
 glow = "0.16.0"
 glutin = "0.32.3"
 raw-window-handle = "0.6.2"
 bytemuck = "1.24.0"
-
-[target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = [
-    "wingdi",
-    "winuser",
-    "libloaderapi",
-    "windef",
-    "shellscalingapi",
-    "errhandlingapi",
-    "windowsx",
-    "winbase",
-    "hidusage",
-    "shellapi",
-] }
 
 [dev-dependencies]
 glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }

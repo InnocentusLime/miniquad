@@ -5,7 +5,6 @@ use glow::HasContext;
 use crate::graphics::gl::texture::Texture;
 use crate::graphics::gl::GlContext;
 use crate::graphics::PassAction;
-use crate::window;
 
 #[derive(Clone)]
 pub struct RenderPass(Rc<RenderPassInternal>);
@@ -96,7 +95,7 @@ impl RenderPass {
 
 impl GlContext {
     pub fn perform_default_render_pass(&self, pass_action: PassAction, code: impl FnOnce()) {
-        let (screen_width, screen_height) = window::screen_size();
+        let (screen_width, screen_height) = self.screen_size();
         let (w, h) = (screen_width as i32, screen_height as i32);
         unsafe {
             self.gl.bind_framebuffer(glow::FRAMEBUFFER, None);

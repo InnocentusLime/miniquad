@@ -5,7 +5,7 @@ mod pipeline;
 mod render_pass;
 mod texture;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use glow::HasContext;
 
@@ -19,13 +19,14 @@ pub use render_pass::RenderPass;
 pub use texture::Texture;
 
 pub struct GlContext {
+    pub(crate) client_area_size: Cell<(u32, u32)>,
     pub(crate) gl: glow::Context,
     pub(crate) vao: glow::VertexArray,
     pub(crate) cache: RefCell<GlCache>,
 }
 
 impl GlContext {
-    pub fn new(gl: glow::Context) -> GlContext {
+    pub fn new(gl: glow::Context, client_area_size: (u32, u32)) -> GlContext {
         let vao = unsafe { gl.create_vertex_array().unwrap() };
         unsafe {
             gl.bind_vertex_array(Some(vao));
@@ -44,10 +45,15 @@ impl GlContext {
         };
 
         GlContext {
+            client_area_size: Cell::new(client_area_size),
             gl,
             vao,
             cache: RefCell::new(cache),
         }
+    }
+
+    pub fn screen_size(&self) -> (u32, u32) {
+        self.client_area_size.get()
     }
 }
 

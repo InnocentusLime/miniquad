@@ -91,7 +91,8 @@ impl EventHandler for Stage {
     }
 
     fn mouse_motion_event(&mut self, x: f32, y: f32) {
-        let (w, h) = window::screen_size();
+        let (w, h) = self.ctx.screen_size();
+        let (w, h) = (w as f32, h as f32);
         let (x, y) = (x / w, 1. - y / h);
         self.uniforms.blobs_positions[0] = vec2(x, y);
     }
@@ -101,7 +102,8 @@ impl EventHandler for Stage {
             return;
         }
 
-        let (w, h) = window::screen_size();
+        let (w, h) = self.ctx.screen_size();
+        let (w, h) = (w as f32, h as f32);
         let (x, y) = (x / w, 1. - y / h);
         let (dx, dy) = (quad_rand::gen_range(-1., 1.), quad_rand::gen_range(-1., 1.));
 
