@@ -160,7 +160,7 @@ impl Default for Platform {
             linux_backend: LinuxBackend::default(),
             webgl_version: WebGLVersion::default(),
             blocking_event_loop: false,
-            swap_interval: None,
+            swap_interval: Some(1),
             framebuffer_alpha: false,
             wayland_decorations: WaylandDecorations::default(),
             linux_wm_class: "miniquad-application",

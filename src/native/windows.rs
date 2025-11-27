@@ -1,4 +1,4 @@
-use std::{ffi::OsString, os::windows::ffi::OsStringExt, path::PathBuf, rc::Rc};
+use std::{ffi::OsString, num::{NonZeroIsize, NonZeroU32}, os::windows::ffi::OsStringExt, path::PathBuf, rc::Rc};
 
 use crate::{
     conf::{Conf, Icon},
@@ -7,6 +7,12 @@ use crate::{
     CursorIcon, EventHandler, GlContext,
 };
 
+use glutin::{
+    config::{Api, ConfigTemplateBuilder}, 
+    context::ContextAttributesBuilder,
+    display::{Display, DisplayApiPreference}, prelude::{GlDisplay, NotCurrentGlContext, PossiblyCurrentGlContext}, surface::{GlSurface, SurfaceAttributesBuilder, SwapInterval, WindowSurface},
+};
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle, Win32WindowHandle, WindowsDisplayHandle};
 use winapi::{
     shared::{
         hidusage::{HID_USAGE_GENERIC_MOUSE, HID_USAGE_PAGE_GENERIC},
@@ -16,7 +22,7 @@ use winapi::{
         windowsx::{GET_X_LPARAM, GET_Y_LPARAM},
     },
     um::{
-        libloaderapi::{GetModuleHandleW, GetProcAddress},
+        libloaderapi::GetModuleHandleW,
         shellapi::{DragAcceptFiles, DragQueryFileW, HDROP},
         shellscalingapi::*,
         wingdi::*,
@@ -26,10 +32,6 @@ use winapi::{
 
 mod clipboard;
 mod keycodes;
-mod libopengl32;
-mod wgl;
-
-use libopengl32::LibOpengl32;
 
 pub(crate) struct WindowsDisplay {
     fullscreen: bool,
@@ -45,7 +47,6 @@ pub(crate) struct WindowsDisplay {
     mouse_x: f32,
     mouse_y: f32,
     cursor: HCURSOR,
-    libopengl32: LibOpengl32,
     _msg_wnd: HWND,
     msg_dc: HDC,
     wnd: HWND,
@@ -768,18 +769,6 @@ unsafe fn create_msg_window() -> (HWND, HDC) {
 }
 
 impl WindowsDisplay {
-    unsafe fn get_proc_address(&mut self, proc: &str) -> *const std::os::raw::c_void {
-        let proc = std::ffi::CString::new(proc).unwrap();
-        let mut proc_ptr = (self.libopengl32.wglGetProcAddress)(proc.as_ptr());
-        if proc_ptr.is_null() {
-            proc_ptr = GetProcAddress(self.libopengl32.module.0, proc.as_ptr());
-        }
-        if proc_ptr.is_null() {
-            eprintln!("Load GL func {:?} failed.", proc);
-        }
-        proc_ptr as _
-    }
-
     /// updates current window and framebuffer size from the window's client rect,
     /// and window position from the window's rect.
     /// returns true if size or position has changed
@@ -895,8 +884,6 @@ where
             set_icon(wnd, icon);
         }
 
-        let libopengl32 = LibOpengl32::try_load().expect("Failed to load opengl32.dll.");
-
         let (msg_wnd, msg_dc) = create_msg_window();
         let mut display = WindowsDisplay {
             fullscreen: false,
@@ -912,7 +899,6 @@ where
             show_cursor: true,
             user_cursor: false,
             cursor: std::ptr::null_mut(),
-            libopengl32,
             _msg_wnd: msg_wnd,
             msg_dc,
             wnd,
@@ -934,14 +920,57 @@ where
 
         display.update_dimensions(wnd);
 
-        let mut wgl = wgl::Wgl::new(&mut display);
-        let gl_ctx = wgl.create_context(
-            &mut display,
-            conf.sample_count,
-            conf.platform.swap_interval.unwrap_or(1),
+        let mut win_handle = Win32WindowHandle::new(
+            NonZeroIsize::new(wnd as _).unwrap(),
         );
+        win_handle.hinstance = Some(NonZeroIsize::new( 
+            GetWindowLongPtrW(wnd, GWLP_HINSTANCE) as _
+        ).unwrap());
+        let raw_window_handle = RawWindowHandle::Win32(win_handle);
+        // The context creation part.
+        let context_attributes = ContextAttributesBuilder::new().build(Some(raw_window_handle));
+        let context_config_template = ConfigTemplateBuilder::new()
+            .compatible_with_native_window(raw_window_handle)
+            .with_api(Api::OPENGL)
+            .with_alpha_size(8)
+            .build();
+        let glutin_display = Display::new(
+            RawDisplayHandle::Windows(WindowsDisplayHandle::new()), 
+            DisplayApiPreference::Wgl(Some(raw_window_handle)),
+        ).unwrap();
+        let glutin_config = glutin_display.find_configs(context_config_template)
+            .unwrap()
+            .next()
+            .unwrap();
+        let gl_context = glutin_display.create_context(
+            &glutin_config, 
+            &context_attributes,
+        ).unwrap()
+        .treat_as_possibly_current();
+        let surface_attributes = SurfaceAttributesBuilder::<WindowSurface>::new()
+            .build(
+                raw_window_handle, 
+                NonZeroU32::new(conf.window_width as u32).unwrap(), 
+                NonZeroU32::new(conf.window_height as u32).unwrap(), 
+            ); 
+        let gl_surface = glutin_display.create_window_surface(
+            &glutin_config, 
+            &surface_attributes,
+        ).unwrap();
+        let interval = match conf.platform.swap_interval {
+            Some(x) => SwapInterval::Wait(NonZeroU32::new(x as u32).unwrap()),
+            None => SwapInterval::DontWait,
+        };
 
-        let glow_gl = glow::Context::from_loader_function(|proc| display.get_proc_address(proc));
+        gl_context.make_current(&gl_surface).unwrap();
+        let glow_gl = glow::Context::from_loader_function(|proc| {
+            let cstr = std::ffi::CString::new(proc).unwrap();
+            glutin_display.get_proc_address(&cstr)
+        });
+        
+        gl_surface
+            .set_swap_interval(&gl_context, interval)
+            .unwrap();
         let ctx = Rc::new(GlContext::new(glow_gl));
         display.event_handler = Some(f(ctx));
 
@@ -998,8 +1027,6 @@ where
                 PostMessageW(display.wnd, WM_CLOSE, 0, 0);
             }
         }
-
-        (display.libopengl32.wglDeleteContext)(gl_ctx);
         DestroyWindow(wnd);
     }
 }
