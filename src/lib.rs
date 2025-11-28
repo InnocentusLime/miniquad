@@ -22,7 +22,6 @@ mod default_icon;
 pub use bytemuck::offset_of;
 
 pub mod date {
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn now() -> f64 {
         use std::time::SystemTime;
 
@@ -30,13 +29,6 @@ pub mod date {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_else(|e| panic!("{}", e));
         time.as_secs_f64()
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn now() -> f64 {
-        use crate::native;
-
-        unsafe { native::wasm::now() }
     }
 }
 
@@ -63,8 +55,5 @@ pub fn start<F>(conf: conf::Conf, f: F)
 where
     F: 'static + FnOnce(Rc<GlContext>) -> Box<dyn EventHandler>,
 {
-    #[cfg(target_os = "windows")]
-    {
-        native::windows::run(conf, f);
-    }
+    native::run(conf, f);
 }
