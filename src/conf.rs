@@ -7,27 +7,12 @@
 use std::num::NonZeroU32;
 
 use glutin::surface::SwapInterval;
+use winit::{dpi::PhysicalSize, window::WindowAttributes};
 
 /// Describes a hardware and platform-specific setup.
 #[derive(Debug)]
 pub struct Conf {
-    /// Window title. Defaults to an empty string.
-    pub window_title: String,
-
-    /// Preferred window width (ignored on WASM/Android).
-    /// Defaults to `800`.
-    pub window_width: i32,
-
-    /// Preferred window height (ignored on WASM/Android).
-    /// Defaults to `600`.
-    pub window_height: i32,
-
-    /// If `true`, create the window in fullscreen mode (ignored on WASM/Android).
-    /// Defaults to `false`.
-    pub fullscreen: bool,
-
-    /// If `true`, the user can resize the window.
-    pub window_resizable: bool,
+    pub window_attributes: WindowAttributes,
 
     /// Optional icon data used by the OS where applicable:
     /// - On Windows, taskbar/title bar icon
@@ -79,13 +64,16 @@ impl std::fmt::Debug for Icon {
 impl Default for Conf {
     fn default() -> Conf {
         Conf {
-            window_title: "".to_owned(),
-            window_width: 800,
-            window_height: 600,
-            fullscreen: false,
-            window_resizable: true,
+            window_attributes: default_window_attributes(),
             icon: Some(Icon::miniquad_logo()),
             swap_interval: SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
         }
     }
+}
+
+pub fn default_window_attributes() -> WindowAttributes {
+    WindowAttributes::default()
+        .with_inner_size(PhysicalSize::new(800, 600))
+        .with_resizable(true)
+        .with_title("Miniquad window")
 }

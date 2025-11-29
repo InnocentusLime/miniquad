@@ -10,10 +10,9 @@ use glutin::surface::{GlSurface, Surface, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler; 
-use winit::dpi::LogicalSize; 
 use winit::event::WindowEvent; 
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop}; 
-use winit::window::{Window, WindowAttributes};
+use winit::window::Window;
 
 pub fn run<Init, Handler>(conf: Conf, init: Init)
 where
@@ -140,9 +139,8 @@ enum AppState<Init, Handler> {
 }
 
 fn create_window_and_gl_config(event_loop: &ActiveEventLoop, conf: &Conf) -> (Window, Display, Config) {
-    let window_attributes = window_attributes(conf);
     let display_builder = DisplayBuilder::new()
-        .with_window_attributes(Some(window_attributes));
+        .with_window_attributes(Some(conf.window_attributes.clone()));
     let template_builder = ConfigTemplateBuilder::new()
         .with_api(Api::OPENGL)
         .with_alpha_size(8);
@@ -152,14 +150,6 @@ fn create_window_and_gl_config(event_loop: &ActiveEventLoop, conf: &Conf) -> (Wi
     let window = window.expect("No window has been created");
     
     (window, gl_config.display(), gl_config)
-}
-
-fn window_attributes(conf: &Conf) -> WindowAttributes {
-    let size = LogicalSize::new(conf.window_width, conf.window_height);
-    Window::default_attributes()
-        .with_inner_size(size)
-        .with_title(&conf.window_title)
-        .with_resizable(conf.window_resizable)
 }
 
 fn create_surface_and_context(

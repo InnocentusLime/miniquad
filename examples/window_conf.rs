@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 ///! Opens a fullscreen window with green screen.
 ///! The title of that should be "miniquad".
-use miniquad::*;
-use winit::event::WindowEvent;
+use miniquad::{conf::default_window_attributes, *};
+use winit::{dpi::PhysicalSize, event::WindowEvent};
 
 struct Stage {
     ctx: Rc<GlContext>,
@@ -22,10 +22,9 @@ impl EventHandler for Stage {
 fn main() {
     miniquad::start(
         conf::Conf {
-            window_title: "Miniquad".to_string(),
-            window_width: 1024,
-            window_height: 768,
-            fullscreen: true,
+            window_attributes: default_window_attributes()
+                .with_title("My custom window")
+                .with_inner_size(PhysicalSize::new(1024, 768)),
             ..Default::default()
         },
         |ctx| Stage { ctx },
