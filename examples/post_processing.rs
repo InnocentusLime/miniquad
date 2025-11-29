@@ -7,6 +7,7 @@ use bytemuck::{Pod, Zeroable};
 use miniquad::*;
 
 use glam::{vec2, vec3, vec4, Mat4, Vec2, Vec3, Vec4};
+use winit::{event::WindowEvent, window::Window};
 
 #[repr(C)]
 #[derive(Default, Pod, Zeroable, Clone, Copy)]
@@ -155,18 +156,14 @@ impl Stage {
             ctx,
         }
     }
-}
 
-impl EventHandler for Stage {
-    fn update(&mut self) {}
-
-    fn resize_event(&mut self, width: f32, height: f32) {
+    fn resize_event(&mut self, (width, height): (u32, u32)) {
         let color_img = Texture::new(
             self.ctx.clone(),
             TextureSource::Empty,
             TextureParams {
-                width: width as _,
-                height: height as _,
+                width,
+                height,
                 format: TextureFormat::RGBA8,
                 ..Default::default()
             },
@@ -175,8 +172,8 @@ impl EventHandler for Stage {
             self.ctx.clone(),
             TextureSource::Empty,
             TextureParams {
-                width: width as _,
-                height: height as _,
+                width,
+                height,
                 format: TextureFormat::Depth,
                 ..Default::default()
             },
@@ -196,8 +193,6 @@ impl EventHandler for Stage {
         );
         let view_proj = proj * view;
 
-        self.rx += 0.01;
-        self.ry += 0.03;
         let model = Mat4::from_rotation_y(self.ry) * Mat4::from_rotation_y(self.rx);
         let uniforms = offscreen_shader::Uniforms {
             mvp: view_proj * model,
@@ -247,8 +242,23 @@ impl EventHandler for Stage {
     }
 }
 
+impl EventHandler for Stage {
+    fn update(&mut self) {
+        self.rx += 0.01;
+        self.ry += 0.03;
+    }
+
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        match event {
+            WindowEvent::RedrawRequested => self.draw(),
+            WindowEvent::Resized(sz) => self.resize_event(sz.into()),
+            _ => (),
+        }        
+    }
+}
+
 fn main() {
-    miniquad::start(conf::Conf::default(), |ctx| Box::new(Stage::new(ctx)));
+    miniquad::start(conf::Conf::default(), Stage::new);
 }
 
 mod post_processing_shader {

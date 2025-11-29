@@ -2,10 +2,10 @@ use std::{num::NonZeroU32, rc::Rc};
 
 use crate::{ conf::Conf, EventHandler, GlContext};
 
-use glutin::config::{Api, ConfigTemplateBuilder};
+use glutin::config::{Api, Config, ConfigTemplateBuilder};
 use glutin::context::{ContextAttributesBuilder, PossiblyCurrentContext} ;
 use glutin::context::{NotCurrentGlContext, PossiblyCurrentGlContext};
-use glutin::display::{GetGlDisplay, GlDisplay};
+use glutin::display::{Display, GetGlDisplay, GlDisplay};
 use glutin::surface::{GlSurface, Surface, SwapInterval, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasWindowHandle;
@@ -15,68 +15,44 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop}; 
 use winit::window::{Window, WindowAttributes};
 
-struct App<F> {
-    conf: Conf,
-    window: Option<Window>,
-    maker: Option<F>,
-    surface: Option<Surface<WindowSurface>>,
-    handler: Option<Box<dyn EventHandler>>,
-    gl_context: Option<PossiblyCurrentContext>,
-    internal_ctx: Option<Rc<GlContext>>,
+pub fn run<Init, Handler>(conf: Conf, init: Init)
+where
+    Init: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    Handler: EventHandler,
+{
+    let event_loop = EventLoop::builder()
+        .build()
+        .unwrap();
+    event_loop.set_control_flow(ControlFlow::Poll);
+    return event_loop.run_app(&mut App {
+        conf,
+        state: AppState::Boot { init },
+    }).unwrap();
 }
 
-impl<F> ApplicationHandler for App<F> 
+struct App<Init, Handler> {
+    conf: Conf,
+    state: AppState<Init, Handler>,
+}
+
+impl<Init, Handler> ApplicationHandler for App<Init, Handler> 
 where 
-    F: 'static + FnOnce(Rc<GlContext>) -> Box<dyn EventHandler>, 
+    Init: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    Handler: EventHandler,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window_attributes = window_attributes(&self.conf);
-        let display_builder = DisplayBuilder::new()
-            .with_window_attributes(Some(window_attributes));
-        let template_builder = ConfigTemplateBuilder::new()
-            .with_api(Api::OPENGL)
-            .with_alpha_size(8);
-        let (window, gl_config) = display_builder.build(event_loop, template_builder, |mut conf| {
-            conf.next().unwrap()
-        }).unwrap();
-        let window = window.unwrap();
-
-        let gl_display = gl_config.display();
-        let raw_window_handle = window.window_handle().unwrap().as_raw();
-        let context_attributes = ContextAttributesBuilder::new().build(Some(raw_window_handle));
-        let gl_context = unsafe { gl_display.create_context(
-            &gl_config, 
-            &context_attributes,
-        ).unwrap()
-        .treat_as_possibly_current() };
-
-        let attrs = window.build_surface_attributes(Default::default()).unwrap();
-        let gl_surface = unsafe { gl_display
-            .create_window_surface(&gl_config, &attrs)
-            .unwrap() };
-        gl_context.make_current(&gl_surface).unwrap();
-        let glow_gl = unsafe { glow::Context::from_loader_function(|proc| {
-            let cstr = std::ffi::CString::new(proc).unwrap();
-            gl_display.get_proc_address(&cstr)
-        }) };
-        
-        let interval = match self.conf.platform.swap_interval {
-            Some(x) => SwapInterval::Wait(NonZeroU32::new(x as u32).unwrap()),
-            None => SwapInterval::DontWait,
-        };
-        gl_surface
-            .set_swap_interval(&gl_context, interval)
-            .unwrap();
-        let ctx = Rc::new(GlContext::new(
-            glow_gl,
-            window.inner_size().into(),
-        ));
-
-        self.window = Some(window);
-        self.handler = Some((self.maker.take().unwrap())(ctx.clone()));
-        self.surface = Some(gl_surface);
-        self.gl_context = Some(gl_context);
-        self.internal_ctx = Some(ctx);
+        match &mut self.state {
+            AppState::Boot { .. } => {
+                let init = match std::mem::replace(&mut self.state, AppState::Initing) {
+                    AppState::Boot { init } => init,
+                    AppState::Initing => unreachable!("Expected AppState to be \"Boot\", got \"Initing\""),
+                    AppState::Ready { .. } => unreachable!("Expected AppState to be \"Boot\", got \"Ready\""),
+                };
+                self.state = Self::prepare(event_loop, &self.conf, init);
+            },
+            AppState::Ready { .. } => unimplemented!("Restoring of applications is not supported"),
+            AppState::Initing => panic!("Resumed while initing"),
+        }
     }
 
     fn window_event(
@@ -85,58 +61,97 @@ where
         _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
-        match event {
-            WindowEvent::CloseRequested => {
-                event_loop.exit();
-                let Some(handler) = self.handler.as_mut() else {
-                    return;
-                };
-                handler.quit_requested_event();
-            },
-            WindowEvent::RedrawRequested => {
-                let Some(handler) = self.handler.as_mut() else {
-                    return;
-                };
-                handler.draw();
-                self.surface.as_ref().unwrap().swap_buffers(self.gl_context.as_ref().unwrap())
-                    .unwrap();
-            },
-            WindowEvent::Resized(new_size) => {
-                let ctx = self.internal_ctx.as_ref().unwrap();
-                ctx.client_area_size.set(new_size.into());
-                self.surface.as_ref().unwrap()
-                    .resize(
-                        self.gl_context.as_ref().unwrap(),
+        match (&event, &self.state) {
+            (WindowEvent::CloseRequested, _) => event_loop.exit(),
+            (
+                WindowEvent::Resized(new_size),
+                AppState::Ready { surface, gl_context, .. }
+            ) => {
+                gl_context.client_area_size.set((*new_size).into());
+                surface.resize(
+                        &gl_context.glutin_ctx,
                         NonZeroU32::new(new_size.width).unwrap(),
                         NonZeroU32::new(new_size.height).unwrap(),
                     );
             },
             _ => (),
         }
+        
+        let AppState::Ready { 
+            window, 
+            handler, 
+            surface, 
+            gl_context 
+        } = &mut self.state else {
+            return;
+        };
+        let swap_buffers = matches!(event, WindowEvent::RedrawRequested);
+        handler.window_event(event, window);
+        if swap_buffers {
+            surface.swap_buffers(&gl_context.glutin_ctx)
+                .expect("Failed to swap buffers");
+        }
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        self.window.as_ref().unwrap().request_redraw();
+        let AppState::Ready { window, handler, .. } = &mut self.state else {
+            return;
+        };
+        window.request_redraw();
+        handler.update();
     }
 }
 
-pub fn run<F>(conf: Conf, f: F)
-where
-    F: 'static + FnOnce(Rc<GlContext>) -> Box<dyn EventHandler>,
+impl<Init, Handler> App<Init, Handler> 
+where 
+    Init: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    Handler: EventHandler,
 {
-    let event_loop = EventLoop::builder()
-        .build()
-        .unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll);
-    return event_loop.run_app(&mut App {
-        conf,
-        window: None,
-        maker: Some(f),
-        handler: None,
-        surface: None,
-        gl_context: None,
-        internal_ctx: None,
-    }).unwrap();
+    fn prepare(event_loop: &ActiveEventLoop, conf: &Conf, init: Init) -> AppState<Init, Handler> {
+        let (window, display, gl_config) = create_window_and_gl_config(event_loop, conf);
+        let (gl_context, surface) = create_surface_and_context(&display, &gl_config, &window, conf);
+        
+        gl_context.make_current(&surface).unwrap();
+        let glow_gl = unsafe { 
+            glow::Context::from_loader_function_cstr(|proc| display.get_proc_address(proc)) 
+        };
+        let gl_context = Rc::new(GlContext::new(
+            gl_context,
+            glow_gl,
+            window.inner_size().into(),
+        ));
+        
+        let handler = init(gl_context.clone());
+        AppState::Ready { window, surface, gl_context, handler }
+    }
+}
+
+enum AppState<Init, Handler> {
+    Boot {
+        init: Init,
+    },
+    Initing,
+    Ready {
+        window: Window,
+        surface: Surface<WindowSurface>,
+        gl_context: Rc<GlContext>,
+        handler: Handler,
+    },
+}
+
+fn create_window_and_gl_config(event_loop: &ActiveEventLoop, conf: &Conf) -> (Window, Display, Config) {
+    let window_attributes = window_attributes(conf);
+    let display_builder = DisplayBuilder::new()
+        .with_window_attributes(Some(window_attributes));
+    let template_builder = ConfigTemplateBuilder::new()
+        .with_api(Api::OPENGL)
+        .with_alpha_size(8);
+    let (window, gl_config) = display_builder.build(event_loop, template_builder, |mut conf| {
+        conf.next().expect("No GL configuration found")
+    }).expect("Could not initialize the GL platform");
+    let window = window.expect("No window has been created");
+    
+    (window, gl_config.display(), gl_config)
 }
 
 fn window_attributes(conf: &Conf) -> WindowAttributes {
@@ -145,4 +160,35 @@ fn window_attributes(conf: &Conf) -> WindowAttributes {
         .with_inner_size(size)
         .with_title(&conf.window_title)
         .with_resizable(conf.window_resizable)
+}
+
+fn create_surface_and_context(
+    gl_display: &Display, 
+    gl_config: &Config, 
+    window: &Window,
+    conf: &Conf,
+) -> (PossiblyCurrentContext, Surface<WindowSurface>) {
+    let raw_window_handle = window.window_handle().expect("Window has not raw handle").as_raw();
+    let context_attributes = ContextAttributesBuilder::new().build(Some(raw_window_handle));
+    let gl_context = unsafe { gl_display.create_context(
+        &gl_config, 
+        &context_attributes,
+    ).expect("Failed to create GL context") };
+    let gl_context = gl_context.treat_as_possibly_current();
+    
+    let surface_attributes = window.build_surface_attributes(Default::default())
+        .expect("Failed to build surface attributes");
+    let surface = unsafe { gl_display
+        .create_window_surface(&gl_config, &surface_attributes)
+        .expect("Failed to create window surface") };
+    let interval = match conf.platform.swap_interval {
+        Some(x) => SwapInterval::Wait(NonZeroU32::new(x as u32).unwrap()),
+        None => SwapInterval::DontWait,
+    };
+    gl_context.make_current(&surface).expect("Failed to make the context current");
+    surface
+        .set_swap_interval(&gl_context, interval)
+        .expect("Failed to update window swap interval");
+
+    (gl_context, surface)
 }

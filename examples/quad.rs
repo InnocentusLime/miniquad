@@ -6,6 +6,7 @@ use glam::{vec2, Vec2};
 ///! and draws a few quads with it. The example should look as follows:
 ///! https://youtu.be/kksaeWrAT7E
 use miniquad::*;
+use winit::{event::WindowEvent, window::Window};
 
 #[repr(C)]
 #[derive(Default, Pod, Zeroable, Clone, Copy)]
@@ -76,11 +77,7 @@ impl Stage {
             ctx,
         }
     }
-}
-
-impl EventHandler for Stage {
-    fn update(&mut self) {}
-
+    
     fn draw(&mut self) {
         let t = date::now();
 
@@ -108,10 +105,22 @@ impl EventHandler for Stage {
                 }
             });
     }
+    
+}
+
+impl EventHandler for Stage {
+    fn update(&mut self) {}
+
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        match event {
+            WindowEvent::RedrawRequested => self.draw(),
+            _ => (),
+        }
+    }
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), move |ctx| Box::new(Stage::new(ctx)));
+    miniquad::start(conf::Conf::default(), Stage::new);
 }
 
 mod shader {

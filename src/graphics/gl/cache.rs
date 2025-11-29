@@ -10,12 +10,13 @@ pub struct VertexAttributeInternal {
     pub gl_pass_as_float: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CachedTexture {
     pub target: u32,
     pub texture: glow::Texture,
 }
 
+#[derive(Debug)]
 pub struct GlCache {
     pub index_buffer: Option<glow::Buffer>,
     pub vertex_buffer: Option<glow::Buffer>,

@@ -8,6 +8,7 @@ use glam::{vec2, vec4, Vec2, Vec4};
 ///! * right -- green
 ///! * top -- blue
 use miniquad::*;
+use winit::{event::WindowEvent, window::Window};
 
 #[repr(C)]
 #[derive(Default, Pod, Zeroable, Clone, Copy)]
@@ -56,30 +57,32 @@ impl Stage {
 
 impl EventHandler for Stage {
     fn update(&mut self) {}
-
-    fn draw(&mut self) {
-        self.ctx
-            .perform_default_render_pass(PassAction::default(), || {
-                DrawCall {
-                    ctx: &self.ctx,
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements: 3,
-                    vertex_buffers: &bind_buffers![
-                        (&self.vertices) as <Vertex>::pos,
-                        (&self.vertices) as <Vertex>::color,
-                    ],
-                    index_buffer: &self.indicies,
-                    textures: &[],
-                    uniform_data: &[],
-                }
-                .execute();
-            });
+    
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        if matches!(event, WindowEvent::RedrawRequested) {
+            self.ctx
+                .perform_default_render_pass(PassAction::default(), || {
+                    DrawCall {
+                        ctx: &self.ctx,
+                        pipeline: &self.pipeline,
+                        base_element: 0,
+                        num_elements: 3,
+                        vertex_buffers: &bind_buffers![
+                            (&self.vertices) as <Vertex>::pos,
+                            (&self.vertices) as <Vertex>::color,
+                        ],
+                        index_buffer: &self.indicies,
+                        textures: &[],
+                        uniform_data: &[],
+                    }
+                    .execute();
+                });
+        }
     }
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), move |ctx| Box::new(Stage::new(ctx)));
+    miniquad::start(conf::Conf::default(), Stage::new);
 }
 
 mod shader {

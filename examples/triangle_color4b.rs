@@ -5,6 +5,7 @@ use glam::{u8vec4, vec2, U8Vec4, Vec2};
 ///! Draws the same triangle as the `triangle` example, but
 ///! using the byte based colors.
 use miniquad::*;
+use winit::{event::WindowEvent, window::Window};
 
 #[repr(C)]
 #[derive(Default, Pod, Zeroable, Clone, Copy)]
@@ -49,10 +50,6 @@ impl Stage {
             ctx,
         }
     }
-}
-
-impl EventHandler for Stage {
-    fn update(&mut self) {}
 
     fn draw(&mut self) {
         self.ctx
@@ -75,8 +72,19 @@ impl EventHandler for Stage {
     }
 }
 
+impl EventHandler for Stage {
+    fn update(&mut self) {}
+    
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        match event {
+            WindowEvent::RedrawRequested => self.draw(),
+            _ => (),
+        }
+    }
+}
+
 fn main() {
-    miniquad::start(conf::Conf::default(), move |ctx| Box::new(Stage::new(ctx)));
+    miniquad::start(conf::Conf::default(), Stage::new);
 }
 
 mod shader {

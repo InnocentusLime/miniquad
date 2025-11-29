@@ -8,6 +8,7 @@ mod texture;
 use std::cell::{Cell, RefCell};
 
 use glow::HasContext;
+use glutin::context::PossiblyCurrentContext;
 
 use super::*;
 use cache::*;
@@ -18,7 +19,9 @@ pub use pipeline::Pipeline;
 pub use render_pass::RenderPass;
 pub use texture::Texture;
 
+#[derive(Debug)]
 pub struct GlContext {
+    pub(crate) glutin_ctx: PossiblyCurrentContext,
     pub(crate) client_area_size: Cell<(u32, u32)>,
     pub(crate) gl: glow::Context,
     pub(crate) vao: glow::VertexArray,
@@ -26,7 +29,11 @@ pub struct GlContext {
 }
 
 impl GlContext {
-    pub fn new(gl: glow::Context, client_area_size: (u32, u32)) -> GlContext {
+    pub fn new(
+        glutin_ctx: PossiblyCurrentContext,
+        gl: glow::Context, 
+        client_area_size: (u32, u32),
+    ) -> GlContext {
         let vao = unsafe { gl.create_vertex_array().unwrap() };
         unsafe {
             gl.bind_vertex_array(Some(vao));
@@ -45,6 +52,7 @@ impl GlContext {
         };
 
         GlContext {
+            glutin_ctx,
             client_area_size: Cell::new(client_area_size),
             gl,
             vao,

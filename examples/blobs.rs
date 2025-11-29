@@ -8,6 +8,7 @@ use glam::{vec2, Vec2};
 ///! Should look like this:
 ///! https://youtu.be/W52jTDKOzIk
 use miniquad::*;
+use winit::{event::{ElementState, MouseButton, WindowEvent}, window::Window};
 
 #[repr(C)]
 #[derive(Default, Zeroable, Pod, Clone, Copy)]
@@ -17,6 +18,7 @@ struct Vertex {
 }
 
 struct Stage {
+    mouse_pos: Vec2,
     pipeline: Pipeline,
     vertices: Buffer<Vertex>,
     indicies: IndexBuffer,
@@ -64,44 +66,28 @@ impl Stage {
             indicies,
             start_time: time,
             uniforms,
+            mouse_pos: Vec2::ZERO,
             blobs_velocities: [(0., 0.); 32],
             last_frame: time,
             ctx,
         }
     }
-}
-
-impl EventHandler for Stage {
-    fn update(&mut self) {
-        let time = miniquad::date::now();
-        let delta = (time - self.last_frame) as f32;
-        self.last_frame = time;
-
-        for i in 1..self.uniforms.blobs_count as usize {
-            self.uniforms.blobs_positions[i].x += self.blobs_velocities[i].0 * delta * 0.1;
-            self.uniforms.blobs_positions[i].y += self.blobs_velocities[i].1 * delta * 0.1;
-
-            if self.uniforms.blobs_positions[i].x < 0. || self.uniforms.blobs_positions[i].x > 1. {
-                self.blobs_velocities[i].0 *= -1.;
-            }
-            if self.uniforms.blobs_positions[i].y < 0. || self.uniforms.blobs_positions[i].y > 1. {
-                self.blobs_velocities[i].1 *= -1.;
-            }
-        }
-    }
-
-    fn mouse_motion_event(&mut self, x: f32, y: f32) {
+    
+    fn mouse_motion_event(&mut self, pos: Vec2) {
+        self.mouse_pos = pos;
+        let Vec2 {x , y} = self.mouse_pos;
         let (w, h) = self.ctx.screen_size();
         let (w, h) = (w as f32, h as f32);
         let (x, y) = (x / w, 1. - y / h);
         self.uniforms.blobs_positions[0] = vec2(x, y);
     }
 
-    fn mouse_button_down_event(&mut self, _button: MouseButton, x: f32, y: f32) {
+    fn on_click(&mut self) {
         if self.uniforms.blobs_count >= 32 {
             return;
         }
 
+        let Vec2 {x , y} = self.mouse_pos;
         let (w, h) = self.ctx.screen_size();
         let (w, h) = (w as f32, h as f32);
         let (x, y) = (x / w, 1. - y / h);
@@ -134,8 +120,39 @@ impl EventHandler for Stage {
     }
 }
 
+impl EventHandler for Stage {
+    fn update(&mut self) {
+        let time = miniquad::date::now();
+        let delta = (time - self.last_frame) as f32;
+        self.last_frame = time;
+
+        for i in 1..self.uniforms.blobs_count as usize {
+            self.uniforms.blobs_positions[i].x += self.blobs_velocities[i].0 * delta * 0.1;
+            self.uniforms.blobs_positions[i].y += self.blobs_velocities[i].1 * delta * 0.1;
+
+            if self.uniforms.blobs_positions[i].x < 0. || self.uniforms.blobs_positions[i].x > 1. {
+                self.blobs_velocities[i].0 *= -1.;
+            }
+            if self.uniforms.blobs_positions[i].y < 0. || self.uniforms.blobs_positions[i].y > 1. {
+                self.blobs_velocities[i].1 *= -1.;
+            }
+        }
+    }
+ 
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        match event {
+            WindowEvent::RedrawRequested => self.draw(),
+            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => self.on_click(),
+            WindowEvent::CursorMoved { position, .. } => {
+                self.mouse_motion_event(vec2(position.x as f32, position.y as f32));
+            },
+            _ => (),
+        }
+    }
+}
+
 fn main() {
-    miniquad::start(conf::Conf::default(), move |ctx| Box::new(Stage::new(ctx)));
+    miniquad::start(conf::Conf::default(), Stage::new);
 }
 
 // based on: https://www.shadertoy.com/view/XsS3DV

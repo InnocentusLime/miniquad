@@ -7,6 +7,7 @@ use bytemuck::{Pod, Zeroable};
 use miniquad::*;
 
 use glam::{vec2, vec3, vec4, Mat4, Vec2, Vec3, Vec4};
+use winit::{event::WindowEvent, window::Window};
 
 #[repr(C)]
 #[derive(Default, Pod, Zeroable, Clone, Copy)]
@@ -137,71 +138,74 @@ impl Stage {
 }
 
 impl EventHandler for Stage {
-    fn update(&mut self) {}
-
-    fn draw(&mut self) {
-        let (width, height) = self.ctx.screen_size();
-        let (width, height) = (width as f32, height as f32);
-        let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 10.0);
-        let view = Mat4::look_at_rh(
-            vec3(0.0, 1.5, 3.0),
-            vec3(0.0, 0.0, 0.0),
-            vec3(0.0, 1.0, 0.0),
-        );
-        let view_proj = proj * view;
-
+    fn update(&mut self) {
         self.rx += 0.01;
         self.ry += 0.03;
-        let model = Mat4::from_rotation_y(self.ry) * Mat4::from_rotation_x(self.rx);
+    }
 
-        let vs_params = display_shader::Uniforms {
-            mvp: view_proj * model,
-        };
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        if matches!(event, WindowEvent::RedrawRequested) {
+            let (width, height) = self.ctx.screen_size();
+            let (width, height) = (width as f32, height as f32);
+            let proj = Mat4::perspective_rh_gl(60.0f32.to_radians(), width / height, 0.01, 10.0);
+            let view = Mat4::look_at_rh(
+                vec3(0.0, 1.5, 3.0),
+                vec3(0.0, 0.0, 0.0),
+                vec3(0.0, 1.0, 0.0),
+            );
+            let view_proj = proj * view;
 
-        // the offscreen pass, rendering a rotating, untextured cube into a render target image
-        self.offscreen_pass
-            .perform(PassAction::clear_color(1.0, 1.0, 1.0, 1.0), || {
-                DrawCall {
-                    ctx: &self.ctx,
-                    pipeline: &self.offscreen_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffers: &bind_buffers![
-                        (&self.vertices_cube) as <CubeVert>::pos,
-                        (&self.vertices_cube) as <CubeVert>::color,
-                    ],
-                    index_buffer: &self.indicies_cube,
-                    textures: &[],
-                    uniform_data: bytemuck::bytes_of(&vs_params),
-                }
-                .execute();
-            });
+            let model = Mat4::from_rotation_y(self.ry) * Mat4::from_rotation_x(self.rx);
 
-        // and the display-pass, rendering a rotating, textured cube, using the
-        // previously rendered offscreen render-target as texture
-        self.ctx
-            .perform_default_render_pass(PassAction::clear_color(0.0, 0., 0.45, 1.), || {
-                DrawCall {
-                    ctx: &self.ctx,
-                    pipeline: &self.display_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffers: &bind_buffers![
-                        (&self.vertices_cube) as <CubeVert>::pos,
-                        (&self.vertices_cube) as <CubeVert>::color,
-                        (&self.vertices_cube) as <CubeVert>::uv,
-                    ],
-                    index_buffer: &self.indicies_cube,
-                    textures: &[&self.offscreen_pass.color_attachments()[0]],
-                    uniform_data: bytemuck::bytes_of(&vs_params),
-                }
-                .execute();
-            });
+            let vs_params = display_shader::Uniforms {
+                mvp: view_proj * model,
+            };
+
+            // the offscreen pass, rendering a rotating, untextured cube into a render target image
+            self.offscreen_pass
+                .perform(PassAction::clear_color(1.0, 1.0, 1.0, 1.0), || {
+                    DrawCall {
+                        ctx: &self.ctx,
+                        pipeline: &self.offscreen_pipeline,
+                        base_element: 0,
+                        num_elements: 36,
+                        vertex_buffers: &bind_buffers![
+                            (&self.vertices_cube) as <CubeVert>::pos,
+                            (&self.vertices_cube) as <CubeVert>::color,
+                        ],
+                        index_buffer: &self.indicies_cube,
+                        textures: &[],
+                        uniform_data: bytemuck::bytes_of(&vs_params),
+                    }
+                    .execute();
+                });
+
+            // and the display-pass, rendering a rotating, textured cube, using the
+            // previously rendered offscreen render-target as texture
+            self.ctx
+                .perform_default_render_pass(PassAction::clear_color(0.0, 0., 0.45, 1.), || {
+                    DrawCall {
+                        ctx: &self.ctx,
+                        pipeline: &self.display_pipeline,
+                        base_element: 0,
+                        num_elements: 36,
+                        vertex_buffers: &bind_buffers![
+                            (&self.vertices_cube) as <CubeVert>::pos,
+                            (&self.vertices_cube) as <CubeVert>::color,
+                            (&self.vertices_cube) as <CubeVert>::uv,
+                        ],
+                        index_buffer: &self.indicies_cube,
+                        textures: &[&self.offscreen_pass.color_attachments()[0]],
+                        uniform_data: bytemuck::bytes_of(&vs_params),
+                    }
+                    .execute();
+                });
+        }
     }
 }
 
 fn main() {
-    miniquad::start(conf::Conf::default(), move |ctx| Box::new(Stage::new(ctx)));
+    miniquad::start(conf::Conf::default(), Stage::new);
 }
 
 mod display_shader {

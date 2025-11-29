@@ -51,9 +51,10 @@ pub enum CursorIcon {
 }
 
 /// Start miniquad.
-pub fn start<F>(conf: conf::Conf, f: F)
+pub fn start<F, Handler>(conf: conf::Conf, f: F)
 where
-    F: 'static + FnOnce(Rc<GlContext>) -> Box<dyn EventHandler>,
+    F: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    Handler: EventHandler,
 {
     native::run(conf, f);
 }
