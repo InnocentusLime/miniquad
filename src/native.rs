@@ -6,7 +6,7 @@ use glutin::config::{Api, Config, ConfigTemplateBuilder};
 use glutin::context::{ContextAttributesBuilder, PossiblyCurrentContext} ;
 use glutin::context::{NotCurrentGlContext, PossiblyCurrentGlContext};
 use glutin::display::{Display, GetGlDisplay, GlDisplay};
-use glutin::surface::{GlSurface, Surface, SwapInterval, WindowSurface};
+use glutin::surface::{GlSurface, Surface, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler; 
@@ -181,13 +181,9 @@ fn create_surface_and_context(
     let surface = unsafe { gl_display
         .create_window_surface(&gl_config, &surface_attributes)
         .expect("Failed to create window surface") };
-    let interval = match conf.platform.swap_interval {
-        Some(x) => SwapInterval::Wait(NonZeroU32::new(x as u32).unwrap()),
-        None => SwapInterval::DontWait,
-    };
     gl_context.make_current(&surface).expect("Failed to make the context current");
     surface
-        .set_swap_interval(&gl_context, interval)
+        .set_swap_interval(&gl_context, conf.swap_interval)
         .expect("Failed to update window swap interval");
 
     (gl_context, surface)
