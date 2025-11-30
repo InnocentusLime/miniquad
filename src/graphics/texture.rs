@@ -1,17 +1,43 @@
-use std::cell::RefCell;
 use std::num::NonZeroU32;
 use std::rc::Rc;
+use std::{cell::Cell, marker::PhantomData};
 
 use glow::{HasContext, NativeFramebuffer, PixelPackData, PixelUnpackData};
 
-use crate::graphics::gl::GlContext;
-use crate::graphics::{
-    FilterMode, MipmapFilterMode, TextureFormat, TextureParams, TextureSource, TextureWrap,
-};
+use crate::graphics::GlContext;
+
+#[derive(Debug, Copy, Clone)]
+pub struct TextureParams {
+    pub format: TextureFormat,
+    pub wrap: TextureWrap,
+    pub min_filter: FilterMode,
+    pub mag_filter: FilterMode,
+    pub mipmap_filter: MipmapFilterMode,
+    pub width: u32,
+    pub height: u32,
+    pub allocate_mipmaps: bool,
+}
+
+impl Default for TextureParams {
+    fn default() -> Self {
+        TextureParams {
+            format: TextureFormat::RGBA8,
+            wrap: TextureWrap::Clamp,
+            min_filter: FilterMode::Linear,
+            mag_filter: FilterMode::Linear,
+            mipmap_filter: MipmapFilterMode::None,
+            width: 0,
+            height: 0,
+            allocate_mipmaps: false,
+        }
+    }
+}
 
 #[derive(Clone)]
-#[repr(transparent)]
-pub struct Texture(Rc<TextureInternal>);
+pub struct Texture {
+    internal: Rc<TextureInternal>,
+    pub(crate) gl_tex: glow::Texture,
+}
 
 impl Texture {
     pub fn new(ctx: Rc<GlContext>, source: TextureSource, params: TextureParams) -> Texture {
@@ -32,7 +58,7 @@ impl Texture {
             FilterMode::Nearest => glow::NEAREST,
             FilterMode::Linear => glow::LINEAR,
         };
-        let tex_internal = Rc::new(TextureInternal::new(ctx, params));
+        let tex_internal = TextureInternal::new(ctx, params);
         let mut cache = tex_internal.ctx.cache.borrow_mut();
         let gl = &tex_internal.ctx.gl;
 
@@ -106,18 +132,20 @@ impl Texture {
         }
 
         std::mem::drop(cache);
-        Texture(tex_internal)
+        Texture {
+            gl_tex: tex_internal.gl_tex,
+            internal: Rc::new(tex_internal),
+        }
     }
 
     pub fn resize(&self, width: u32, height: u32, source: Option<&[u8]>) {
-        let mut params = self.0.params.borrow_mut();
-        let mut cache = self.0.ctx.cache.borrow_mut();
-        let gl = &self.0.ctx.gl;
+        let mut cache = self.internal.ctx.cache.borrow_mut();
+        let gl = &self.internal.ctx.gl;
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex());
-        let (internal_format, format, pixel_type) = gl_texture_format(params.format);
-        params.width = width;
-        params.height = height;
+        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let (internal_format, format, pixel_type) = gl_texture_format(self.internal.format);
+        self.internal.width.set(width);
+        self.internal.height.set(height);
         unsafe {
             gl.tex_image_2d(
                 glow::TEXTURE_2D,
@@ -134,10 +162,10 @@ impl Texture {
     }
 
     pub fn set_wrap(&self, wrap_x: TextureWrap, wrap_y: TextureWrap) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
+        let gl = &self.internal.ctx.gl;
+        let mut cache = self.internal.ctx.cache.borrow_mut();
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex());
+        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let wrap_x = match wrap_x {
             TextureWrap::Repeat => glow::REPEAT,
             TextureWrap::Mirror => glow::MIRRORED_REPEAT,
@@ -157,10 +185,10 @@ impl Texture {
     }
 
     pub fn set_min_filter(&self, filter: FilterMode, mipmap_filter: MipmapFilterMode) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
+        let gl = &self.internal.ctx.gl;
+        let mut cache = self.internal.ctx.cache.borrow_mut();
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex());
+        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let filter = gl_filter(filter, mipmap_filter);
         unsafe {
             gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, filter as i32);
@@ -168,10 +196,10 @@ impl Texture {
     }
 
     pub fn set_mag_filter(&mut self, filter: FilterMode) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
+        let gl = &self.internal.ctx.gl;
+        let mut cache = self.internal.ctx.cache.borrow_mut();
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex());
+        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let filter = match filter {
             FilterMode::Nearest => glow::NEAREST,
             FilterMode::Linear => glow::LINEAR,
@@ -189,23 +217,22 @@ impl Texture {
         height: i32,
         source: &[u8],
     ) {
-        let gl = &self.0.ctx.gl;
-        let params = self.0.params.borrow_mut();
-        let mut cache = self.0.ctx.cache.borrow_mut();
+        let gl = &self.internal.ctx.gl;
+        let mut cache = self.internal.ctx.cache.borrow_mut();
 
         assert_eq!(self.size(width as _, height as _), source.len());
-        assert!(x_offset + width <= params.width as _);
-        assert!(y_offset + height <= params.height as _);
+        assert!(x_offset + width <= self.width() as _);
+        assert!(y_offset + height <= self.height() as _);
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex());
-        let (_, format, pixel_type) = gl_texture_format(params.format);
+        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let (_, format, pixel_type) = gl_texture_format(self.internal.format);
 
         unsafe {
             gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
 
             if cfg!(not(target_arch = "wasm32")) {
                 // if not WASM
-                if params.format == TextureFormat::Alpha {
+                if self.internal.format == TextureFormat::Alpha {
                     // if alpha miniquad texture, the value on non-WASM is stored in red channel
                     // swizzle red -> alpha
                     gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_SWIZZLE_A, glow::RED as _);
@@ -235,10 +262,9 @@ impl Texture {
 
     /// Read texture data into CPU memory
     pub fn read_pixels(&self, bytes: &mut [u8]) {
-        let gl = &self.0.ctx.gl;
-        let params = self.0.params.borrow_mut();
-        let (_, format, pixel_type) = gl_texture_format(params.format);
-        assert_eq!(bytes.len() as u32, params.width * params.height);
+        let gl = &self.internal.ctx.gl;
+        let (_, format, pixel_type) = gl_texture_format(self.internal.format);
+        assert_eq!(bytes.len() as u32, self.width() * self.height());
         unsafe {
             let curr_fbo = gl.get_parameter_i32(glow::DRAW_FRAMEBUFFER_BINDING);
             let curr_fbo = NativeFramebuffer(NonZeroU32::new(curr_fbo as u32).unwrap());
@@ -249,14 +275,14 @@ impl Texture {
                 glow::FRAMEBUFFER,
                 glow::COLOR_ATTACHMENT0,
                 glow::TEXTURE_2D,
-                Some(self.gl_tex()),
+                Some(self.gl_tex),
                 0,
             );
             gl.read_pixels(
                 0,
                 0,
-                params.width as _,
-                params.height as _,
+                self.width() as _,
+                self.height() as _,
                 format,
                 pixel_type,
                 PixelPackData::Slice(Some(bytes)),
@@ -267,32 +293,33 @@ impl Texture {
         }
     }
 
-    #[inline]
     pub fn size(&self, width: u32, height: u32) -> usize {
-        let params = self.0.params.borrow_mut();
-        params.format.size(width, height) as usize
+        self.internal.format.size(width, height) as usize
     }
 
     pub fn generate_mipmaps(&self) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
+        let gl = &self.internal.ctx.gl;
+        let mut cache = self.internal.ctx.cache.borrow_mut();
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex());
+        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
         unsafe {
             gl.generate_mipmap(glow::TEXTURE_2D);
         }
     }
 
-    pub fn gl_tex(&self) -> glow::Texture {
-        self.0.gl_tex()
-    }
-
     pub fn width(&self) -> u32 {
-        self.0.params.borrow().width
+        self.internal.width.get()
     }
 
     pub fn height(&self) -> u32 {
-        self.0.params.borrow().height
+        self.internal.height.get()
+    }
+
+    pub fn bind(&self) -> TextureBinding<'_> {
+        TextureBinding {
+            gl_tex: self.gl_tex,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -300,7 +327,9 @@ impl Texture {
 struct TextureInternal {
     ctx: Rc<GlContext>,
     gl_tex: glow::Texture,
-    params: RefCell<TextureParams>,
+    width: Cell<u32>,
+    height: Cell<u32>,
+    format: TextureFormat,
 }
 
 impl TextureInternal {
@@ -309,12 +338,10 @@ impl TextureInternal {
         TextureInternal {
             ctx,
             gl_tex,
-            params: RefCell::new(params),
+            width: Cell::new(params.width),
+            height: Cell::new(params.height),
+            format: params.format,
         }
-    }
-
-    pub fn gl_tex(&self) -> glow::Texture {
-        self.gl_tex
     }
 }
 
@@ -324,6 +351,66 @@ impl Drop for TextureInternal {
             self.ctx.gl.delete_texture(self.gl_tex);
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct TextureBinding<'a> {
+    pub(crate) gl_tex: glow::Texture,
+    _phantom: PhantomData<&'a TextureInternal>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum TextureFormat {
+    RGB8,
+    RGBA8,
+    RGBA16F,
+    Depth,
+    Depth32,
+    Alpha,
+}
+
+impl TextureFormat {
+    /// Returns the size in bytes of texture with `dimensions`.
+    pub fn size(self, width: u32, height: u32) -> u32 {
+        let square = width * height;
+        match self {
+            TextureFormat::RGB8 => 3 * square,
+            TextureFormat::RGBA8 => 4 * square,
+            TextureFormat::RGBA16F => 8 * square,
+            TextureFormat::Depth => 2 * square,
+            TextureFormat::Depth32 => 4 * square,
+            TextureFormat::Alpha => square,
+        }
+    }
+}
+
+/// Sets the wrap parameter for texture.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum TextureWrap {
+    /// Samples at coord x + 1 map to coord x.
+    Repeat,
+    /// Samples at coord x + 1 map to coord 1 - x.
+    Mirror,
+    /// Samples at coord x + 1 map to coord 1.
+    Clamp,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Hash)]
+pub enum FilterMode {
+    Linear,
+    Nearest,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Hash)]
+pub enum MipmapFilterMode {
+    None,
+    Linear,
+    Nearest,
+}
+
+pub enum TextureSource<'a> {
+    Empty,
+    Bytes(&'a [u8]),
 }
 
 fn gl_texture_format(format: TextureFormat) -> (u32, u32, u32) {

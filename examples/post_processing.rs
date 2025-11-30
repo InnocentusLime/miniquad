@@ -1,27 +1,14 @@
-use std::rc::Rc;
-
 use bytemuck::{Pod, Zeroable};
+use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
+use miniquad::*;
 ///! A post processing example. Draws a rotating cube with
 ///! differently colored sides. Should look like this:
 ///! https://youtu.be/hdWWe-TkkfM
-use miniquad::*;
-
-use glam::{vec2, vec3, vec4, Mat4, Vec2, Vec3, Vec4};
+use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
-#[repr(C)]
-#[derive(Default, Pod, Zeroable, Clone, Copy)]
-pub struct CubeVert {
-    pub pos: Vec3,
-    pub color: Vec4,
-    pub uv: Vec2,
-}
-
-#[repr(C)]
-#[derive(Default, Pod, Zeroable, Clone, Copy)]
-pub struct QuadVert {
-    pub pos: Vec2,
-    pub uv: Vec2,
+fn main() {
+    miniquad::start(Conf::default(), Stage::new);
 }
 
 struct Stage {
@@ -38,11 +25,25 @@ struct Stage {
     ctx: Rc<GlContext>,
 }
 
+impl EventHandler for Stage {
+    fn update(&mut self) {
+        self.rx += 0.01;
+        self.ry += 0.03;
+    }
+
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        match event {
+            WindowEvent::RedrawRequested => self.draw(),
+            WindowEvent::Resized(sz) => self.resize_event(sz.into()),
+            _ => (),
+        }
+    }
+}
+
 impl Stage {
     pub fn new(ctx: Rc<GlContext>) -> Stage {
         let (width, height) = ctx.screen_size();
-        let color_img = Texture::new(
-            ctx.clone(),
+        let color_img = ctx.new_texture(
             TextureSource::Empty,
             TextureParams {
                 width,
@@ -51,8 +52,7 @@ impl Stage {
                 ..Default::default()
             },
         );
-        let depth_img = Texture::new(
-            ctx.clone(),
+        let depth_img = ctx.new_texture(
             TextureSource::Empty,
             TextureParams {
                 width,
@@ -62,14 +62,14 @@ impl Stage {
             },
         );
 
-        let offscreen_pass = RenderPass::new(ctx.clone(), vec![color_img], Some(depth_img));
+        let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
 
         #[rustfmt::skip]
         let vertices_cube = &[
             CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 0.0) },
             CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0),  uv: vec2(1.0, 0.0) },
             CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0, -1.0),  color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 1.0) }, 
+            CubeVert { pos: vec3(-1.0,  1.0, -1.0),  color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 1.0) },
 
             CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
             CubeVert { pos: vec3(1.0, -1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
@@ -116,32 +116,42 @@ impl Stage {
             QuadVert { pos: vec2(1.0,  1.0), uv: vec2(1.0, 1.0) },
             QuadVert { pos: vec2(-1.0,  1.0), uv: vec2(0.0, 1.0) },
         ];
-        let vertices_quad = Buffer::new(ctx.clone(), BufferUsage::Immutable, vertices_quad);
+        let vertices_quad = ctx.new_buffer(BufferUsage::Immutable, vertices_quad);
 
         let indicies_quad = &[0, 1, 2, 0, 2, 3];
-        let indicies_quad = IndexBuffer::new(ctx.clone(), BufferUsage::Immutable, indicies_quad);
+        let indicies_quad = ctx.new_index_buffer(BufferUsage::Immutable, indicies_quad);
 
-        let post_processing_pipeline = Pipeline::new(
-            ctx.clone(),
-            post_processing_shader::VERTEX,
-            post_processing_shader::FRAGMENT,
-            post_processing_shader::meta(),
-            PipelineParams::default(),
-        )
-        .unwrap();
+        let post_processing_pipeline = ctx
+            .new_pipeline(
+                post_processing_shader::VERTEX,
+                post_processing_shader::FRAGMENT,
+                PipelineParams::default(),
+                [
+                    VertexAttribute::new("pos", VertexFormat::F32x2),
+                    VertexAttribute::new("uv", VertexFormat::F32x2),
+                ],
+                [UniformDesc::new_scalar("resolution", UniformType::F32x2)],
+                ["tex"],
+            )
+            .unwrap();
 
-        let offscreen_pipeline = Pipeline::new(
-            ctx.clone(),
-            offscreen_shader::VERTEX,
-            offscreen_shader::FRAGMENT,
-            offscreen_shader::meta(),
-            PipelineParams {
-                depth_test: Comparison::LessOrEqual,
-                depth_write: true,
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        let offscreen_pipeline = ctx
+            .new_pipeline::<&'static str>(
+                offscreen_shader::VERTEX,
+                offscreen_shader::FRAGMENT,
+                PipelineParams {
+                    depth_test: Comparison::LessOrEqual,
+                    depth_write: true,
+                    ..Default::default()
+                },
+                [
+                    VertexAttribute::new("pos", VertexFormat::F32x3),
+                    VertexAttribute::new("color0", VertexFormat::F32x4),
+                ],
+                [UniformDesc::new_scalar("mvp", UniformType::F32x4x4)],
+                [],
+            )
+            .unwrap();
 
         Stage {
             vertices_cube,
@@ -200,7 +210,7 @@ impl Stage {
 
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
         self.offscreen_pass
-            .perform(PassAction::clear_color(1.0, 1.0, 1.0, 1.0), || {
+            .perform(PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0), || {
                 DrawCall {
                     ctx: &self.ctx,
                     pipeline: &self.offscreen_pipeline,
@@ -210,7 +220,7 @@ impl Stage {
                         (&self.vertices_cube) as <CubeVert>::pos,
                         (&self.vertices_cube) as <CubeVert>::color,
                     ],
-                    index_buffer: &self.indicies_cube,
+                    index_buffer: self.indicies_cube.bind(),
                     textures: &[],
                     uniform_data: bytemuck::bytes_of(&uniforms),
                 }
@@ -222,8 +232,9 @@ impl Stage {
         };
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
-        self.ctx
-            .perform_default_render_pass(PassAction::clear_color(1.0, 1.0, 1.0, 1.0), || {
+        self.ctx.perform_default_render_pass(
+            PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0),
+            || {
                 DrawCall {
                     ctx: &self.ctx,
                     pipeline: &self.post_processing_pipeline,
@@ -233,37 +244,33 @@ impl Stage {
                         (&self.vertices_quad) as <QuadVert>::pos,
                         (&self.vertices_quad) as <QuadVert>::uv,
                     ],
-                    index_buffer: &self.indicies_quad,
-                    textures: &[&self.offscreen_pass.color_attachments()[0]],
+                    index_buffer: self.indicies_quad.bind(),
+                    textures: &[self.offscreen_pass.color_attachments()[0].bind()],
                     uniform_data: bytemuck::bytes_of(&uniforms),
                 }
                 .execute()
-            });
+            },
+        );
     }
 }
 
-impl EventHandler for Stage {
-    fn update(&mut self) {
-        self.rx += 0.01;
-        self.ry += 0.03;
-    }
-
-    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
-        match event {
-            WindowEvent::RedrawRequested => self.draw(),
-            WindowEvent::Resized(sz) => self.resize_event(sz.into()),
-            _ => (),
-        }        
-    }
+#[repr(C)]
+#[derive(Default, Pod, Zeroable, Clone, Copy)]
+pub struct CubeVert {
+    pub pos: Vec3,
+    pub color: Vec4,
+    pub uv: Vec2,
 }
 
-fn main() {
-    miniquad::start(conf::Conf::default(), Stage::new);
+#[repr(C)]
+#[derive(Default, Pod, Zeroable, Clone, Copy)]
+pub struct QuadVert {
+    pub pos: Vec2,
+    pub uv: Vec2,
 }
 
 mod post_processing_shader {
     use bytemuck::{Pod, Zeroable};
-    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec2 pos;
@@ -302,17 +309,6 @@ mod post_processing_shader {
     }
     "#;
 
-    pub fn meta() -> ShaderMeta {
-        ShaderMeta {
-            images: vec!["tex".to_string()],
-            uniforms: vec![UniformDesc::new("resolution", UniformType::Float2)],
-            attributes: vec![
-                VertexAttribute::new("pos", VertexFormat::Float2),
-                VertexAttribute::new("uv", VertexFormat::Float2),
-            ],
-        }
-    }
-
     #[repr(C)]
     #[derive(Pod, Zeroable, Clone, Copy)]
     pub struct Uniforms {
@@ -322,7 +318,6 @@ mod post_processing_shader {
 
 mod offscreen_shader {
     use bytemuck::{Pod, Zeroable};
-    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec4 pos;
@@ -346,17 +341,6 @@ mod offscreen_shader {
         gl_FragColor = color;
     }
     "#;
-
-    pub fn meta() -> ShaderMeta {
-        ShaderMeta {
-            images: vec![],
-            uniforms: vec![UniformDesc::new("mvp", UniformType::Mat4)],
-            attributes: vec![
-                VertexAttribute::new("pos", VertexFormat::Float3),
-                VertexAttribute::new("color0", VertexFormat::Float4),
-            ],
-        }
-    }
 
     #[repr(C)]
     #[derive(Pod, Zeroable, Clone, Copy)]

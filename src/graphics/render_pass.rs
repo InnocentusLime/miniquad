@@ -2,9 +2,8 @@ use std::rc::Rc;
 
 use glow::HasContext;
 
-use crate::graphics::gl::texture::Texture;
-use crate::graphics::gl::GlContext;
-use crate::graphics::PassAction;
+use crate::graphics::GlContext;
+use crate::graphics::texture::Texture;
 
 #[derive(Clone)]
 pub struct RenderPass(Rc<RenderPassInternal>);
@@ -28,7 +27,7 @@ impl RenderPass {
                     glow::FRAMEBUFFER,
                     glow::COLOR_ATTACHMENT0 + i as u32,
                     glow::TEXTURE_2D,
-                    Some(color_img.gl_tex()),
+                    Some(color_img.gl_tex),
                     0,
                 );
             }
@@ -37,7 +36,7 @@ impl RenderPass {
                     glow::FRAMEBUFFER,
                     glow::DEPTH_ATTACHMENT,
                     glow::TEXTURE_2D,
-                    Some(depth_img.gl_tex()),
+                    Some(depth_img.gl_tex),
                     0,
                 );
             }
@@ -88,8 +87,6 @@ impl RenderPass {
         gl_clear(gl, pass_action);
 
         code();
-
-        // TODO: add "resolves"
     }
 }
 
@@ -147,6 +144,23 @@ fn gl_clear(gl: &glow::Context, pass_action: PassAction) {
     if bits != 0 {
         unsafe {
             gl.clear(bits);
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct PassAction {
+    color: Option<(f32, f32, f32, f32)>,
+    depth: Option<f32>,
+    stencil: Option<i32>,
+}
+
+impl PassAction {
+    pub const fn clear_depth_color(r: f32, g: f32, b: f32, a: f32) -> PassAction {
+        PassAction {
+            color: Some((r, g, b, a)),
+            depth: Some(1.),
+            stencil: None,
         }
     }
 }

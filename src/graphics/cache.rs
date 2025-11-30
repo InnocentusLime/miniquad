@@ -2,26 +2,12 @@ use glow::HasContext;
 
 use crate::graphics::*;
 
-#[derive(Clone, Copy, Debug, PartialEq, Default)]
-pub struct VertexAttributeInternal {
-    pub attr_loc: u32,
-    pub size: i32,
-    pub type_: u32,
-    pub gl_pass_as_float: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CachedTexture {
-    pub target: u32,
-    pub texture: glow::Texture,
-}
-
 #[derive(Debug)]
 pub struct GlCache {
-    pub index_buffer: Option<glow::Buffer>,
-    pub vertex_buffer: Option<glow::Buffer>,
-    pub textures: [Option<CachedTexture>; MAX_SHADERSTAGE_IMAGES],
-    pub cur_pipeline: Option<PipelineId>,
+    index_buffer: Option<glow::Buffer>,
+    vertex_buffer: Option<glow::Buffer>,
+    textures: [Option<CachedTexture>; MAX_SHADERSTAGE_IMAGES],
+    program: Option<glow::Program>,
 
     pub color_blend: Option<BlendState>,
     pub alpha_blend: Option<BlendState>,
@@ -31,6 +17,21 @@ pub struct GlCache {
 }
 
 impl GlCache {
+    pub fn new() -> GlCache {
+        GlCache {
+            index_buffer: None,
+            vertex_buffer: None,
+            textures: [None; MAX_SHADERSTAGE_IMAGES],
+            program: None,
+
+            color_blend: None,
+            alpha_blend: None,
+            stencil: None,
+            color_write: (true, true, true, true),
+            cull_face: CullFace::Nothing,
+        }
+    }
+
     pub fn bind_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
         if self.vertex_buffer != Some(buffer) {
             self.vertex_buffer = Some(buffer);
@@ -65,4 +66,21 @@ impl GlCache {
             self.textures[slot_index as usize] = Some(store);
         }
     }
+
+    pub fn bind_program(&mut self, gl: &glow::Context, program: glow::Program) {
+        if self.program != Some(program) {
+            self.program = Some(program);
+            unsafe {
+                gl.use_program(Some(program));
+            }
+        }
+    }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CachedTexture {
+    target: u32,
+    texture: glow::Texture,
+}
+
+const MAX_SHADERSTAGE_IMAGES: usize = 12;

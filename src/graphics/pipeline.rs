@@ -1,42 +1,73 @@
+use std::error::Error;
+use std::fmt::Display;
 use std::rc::Rc;
 
-use crate::graphics::gl::buffer::BufferBinding;
-use crate::graphics::gl::cache::VertexAttributeInternal;
-use crate::graphics::gl::texture::Texture;
-use crate::graphics::gl::GlContext;
-use crate::graphics::{
-    ColorMask, FrontFaceOrder, PipelineParams, ShaderError, ShaderMeta, ShaderType, UniformType,
-    MAX_VERTEX_ATTRIBUTES,
-};
-use crate::{BlendState, CullFace, IndexBuffer, IndexBufferElement, PrimitiveType, StencilState};
+use crate::graphics::buffer::BufferBinding;
+use crate::graphics::{ColorMask, Comparison, CullFace, FrontFaceOrder, GlContext, PrimitiveType};
+use crate::{BlendState, IndexBufferBinding, StencilState, TextureBinding};
 
 use glow::HasContext;
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct PipelineParams {
+    pub cull_face: CullFace,
+    pub front_face_order: FrontFaceOrder,
+    pub depth_test: Comparison,
+    pub depth_write: bool,
+    pub depth_write_offset: Option<(f32, f32)>,
+    pub color_blend: Option<BlendState>,
+    pub alpha_blend: Option<BlendState>,
+    pub stencil_test: Option<StencilState>,
+    pub color_write: ColorMask,
+    pub primitive_type: PrimitiveType,
+}
+
+impl Default for PipelineParams {
+    fn default() -> PipelineParams {
+        PipelineParams {
+            cull_face: CullFace::Nothing,
+            front_face_order: FrontFaceOrder::CounterClockwise,
+            depth_test: Comparison::Always, // no depth test,
+            depth_write: false,             // no depth write,
+            depth_write_offset: None,
+            color_blend: None,
+            alpha_blend: None,
+            stencil_test: None,
+            color_write: (true, true, true, true),
+            primitive_type: PrimitiveType::Triangles,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Pipeline(Rc<PipelineInternal>);
 
 impl Pipeline {
-    pub fn new(
+    pub fn new<S: Into<String>>(
         ctx: Rc<GlContext>,
-        vertex: &str,
-        fragment: &str,
-        meta: ShaderMeta,
+        vertex_shader_source: &str,
+        fragment_shader_source: &str,
         params: PipelineParams,
+        attributes: impl IntoIterator<Item = VertexAttribute>,
+        uniforms: impl IntoIterator<Item = UniformDesc>,
+        image_uniforms: impl IntoIterator<Item = S>,
     ) -> Result<Pipeline, ShaderError> {
-        let vertex = load_shader(&ctx.gl, glow::VERTEX_SHADER, vertex)?;
-        let fragment = load_shader(&ctx.gl, glow::FRAGMENT_SHADER, fragment)?;
+        let mut cache = ctx.cache.borrow_mut();
+
+        let vertex = load_shader(&ctx.gl, ShaderType::Vertex, vertex_shader_source)?;
+        let fragment = load_shader(&ctx.gl, ShaderType::Fragment, fragment_shader_source)?;
         let program = create_program(&ctx.gl, vertex, fragment)?;
 
-        unsafe {
-            ctx.gl.use_program(Some(program));
-        }
-        let attributes = get_pipeline_attributes(&ctx.gl, program, &meta)?;
-        let images = get_pipeline_images(&ctx.gl, program, &meta)?;
-        let uniforms = get_pipeline_uniforms(&ctx.gl, program, &meta)?;
+        cache.bind_program(&ctx.gl, program);
+        let attributes = get_pipeline_attributes(&ctx.gl, program, attributes)?;
+        let uniforms = get_pipeline_uniforms(&ctx.gl, program, uniforms)?;
+        let images = get_pipeline_images(&ctx.gl, program, image_uniforms)?;
+
+        std::mem::drop(cache);
         let internal = PipelineInternal {
             ctx,
             gl_prog: program,
-            images,
+            image_uniforms: images,
             uniforms,
             attributes,
             params,
@@ -49,16 +80,17 @@ impl Pipeline {
         self.0.params.primitive_type
     }
 
-    pub(crate) fn apply<I: IndexBufferElement>(
+    pub(crate) fn apply(
         &self,
         vertex_buffers: &[BufferBinding],
-        index_buffer: &IndexBuffer<I>,
-        textures: &[&Texture],
+        index_buffer: IndexBufferBinding,
+        textures: &[TextureBinding],
         uniform_data: &[u8],
     ) {
-        unsafe {
-            self.0.ctx.gl.use_program(Some(self.0.gl_prog));
-        }
+        let gl = &self.0.ctx.gl;
+        let mut cache = self.0.ctx.cache.borrow_mut();
+        cache.bind_program(gl, self.0.gl_prog);
+        std::mem::drop(cache);
 
         self.apply_parameters(&self.0.params);
         self.apply_uniforms(uniform_data);
@@ -74,39 +106,39 @@ impl Pipeline {
             let data = &uniform_data[offset..(offset + sz)];
 
             match uniform.uniform_type {
-                UniformType::Float1 => unsafe {
+                UniformType::F32 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_1_f32_slice(Some(&location), value);
                 },
-                UniformType::Float2 => unsafe {
+                UniformType::F32x2 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_2_f32_slice(Some(&location), value);
                 },
-                UniformType::Float3 => unsafe {
+                UniformType::F32x3 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_3_f32_slice(Some(&location), value);
                 },
-                UniformType::Float4 => unsafe {
+                UniformType::F32x4 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_4_f32_slice(Some(&location), value);
                 },
-                UniformType::Int1 => unsafe {
+                UniformType::I32 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_1_i32_slice(Some(&location), value);
                 },
-                UniformType::Int2 => unsafe {
+                UniformType::I32x2 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_2_i32_slice(Some(&location), value);
                 },
-                UniformType::Int3 => unsafe {
+                UniformType::I32x3 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_3_i32_slice(Some(&location), value);
                 },
-                UniformType::Int4 => unsafe {
+                UniformType::I32x4 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_4_i32_slice(Some(&location), value);
                 },
-                UniformType::Mat4 => unsafe {
+                UniformType::F32x4x4 => unsafe {
                     let value = bytemuck::cast_slice(data);
                     gl.uniform_matrix_4_f32_slice(Some(&location), false, value);
                 },
@@ -115,63 +147,62 @@ impl Pipeline {
         }
     }
 
-    fn apply_bindings<I: IndexBufferElement>(
+    fn apply_bindings(
         &self,
         vertex_buffers: &[BufferBinding],
-        index_buffer: &IndexBuffer<I>,
-        textures: &[&Texture],
+        index_buffer: IndexBufferBinding,
+        textures: &[TextureBinding],
     ) {
         let gl = &self.0.ctx.gl;
         let mut cache = self.0.ctx.cache.borrow_mut();
 
-        for (n, (shader_image, texture)) in self.0.images.iter().zip(textures).enumerate() {
+        for (n, (image_loc, texture)) in self.0.image_uniforms.iter().zip(textures).enumerate() {
             unsafe {
-                cache.bind_texture(gl, n as u32, glow::TEXTURE_2D, texture.gl_tex());
-                gl.uniform_1_i32(Some(&shader_image.gl_loc), n as i32);
+                cache.bind_texture(gl, n as u32, glow::TEXTURE_2D, texture.gl_tex);
+                gl.uniform_1_i32(Some(image_loc), n as i32);
             }
         }
 
-        cache.bind_index_buffer(gl, index_buffer.gl_buf());
-
+        cache.bind_index_buffer(gl, index_buffer.gl_buf);
         for attr_index in 0..MAX_VERTEX_ATTRIBUTES {
-            let Some(attribute) = self.0.attributes.get(attr_index) else {
-                unsafe {
-                    gl.disable_vertex_attrib_array(attr_index as u32);
-                }
-                continue;
-            };
-
-            let vb = vertex_buffers.get(attr_index).unwrap();
-            cache.bind_buffer(gl, vb.gl_buf);
             unsafe {
-                gl.enable_vertex_attrib_array(attr_index as u32);
-                match attribute.type_ {
-                    glow::INT
-                    | glow::UNSIGNED_INT
+                gl.disable_vertex_attrib_array(attr_index as u32);
+            }
+        }
+
+        for ((attr_index, attr), vb) in self.0.attributes.iter().zip(vertex_buffers) {
+            let (gl_type, component_count) = attr.format.gl_info();
+            let is_integer = matches!(
+                gl_type,
+                glow::INT
                     | glow::SHORT
+                    | glow::BYTE
+                    | glow::UNSIGNED_INT
                     | glow::UNSIGNED_SHORT
                     | glow::UNSIGNED_BYTE
-                    | glow::BYTE
-                        if !attribute.gl_pass_as_float =>
-                    {
-                        gl.vertex_attrib_pointer_i32(
-                            attr_index as u32,
-                            attribute.size,
-                            attribute.type_,
-                            vb.stride as i32,
-                            vb.offset as i32,
-                        )
-                    }
-                    _ => gl.vertex_attrib_pointer_f32(
-                        attr_index as u32,
-                        attribute.size,
-                        attribute.type_,
+            );
+
+            cache.bind_buffer(gl, vb.gl_buf);
+            unsafe {
+                if is_integer {
+                    gl.vertex_attrib_pointer_i32(
+                        *attr_index,
+                        component_count,
+                        gl_type,
+                        vb.stride as i32,
+                        vb.offset as i32,
+                    )
+                } else {
+                    gl.vertex_attrib_pointer_f32(
+                        *attr_index,
+                        component_count,
+                        gl_type,
                         false,
                         vb.stride as i32,
                         vb.offset as i32,
-                    ),
+                    )
                 }
-                gl.enable_vertex_attrib_array(attr_index as u32);
+                gl.enable_vertex_attrib_array(*attr_index);
             }
         }
     }
@@ -343,28 +374,35 @@ impl Pipeline {
 
 fn load_shader(
     gl: &glow::Context,
-    shader_type: u32,
+    shader_type: ShaderType,
     source: &str,
 ) -> Result<glow::Shader, ShaderError> {
+    let (shader_type_name, gl_type) = match shader_type {
+        ShaderType::Vertex => ("Vertex", glow::VERTEX_SHADER),
+        ShaderType::Fragment => ("Fragment", glow::FRAGMENT_SHADER),
+    };
+
     unsafe {
-        let shader = gl.create_shader(shader_type).unwrap();
+        let shader = gl.create_shader(gl_type).unwrap();
         gl.shader_source(shader, source);
         gl.compile_shader(shader);
 
         if !gl.get_shader_compile_status(shader) {
             let error_message = gl.get_shader_info_log(shader);
             return Err(ShaderError::CompilationError {
-                shader_type: match shader_type {
-                    glow::VERTEX_SHADER => ShaderType::Vertex,
-                    glow::FRAGMENT_SHADER => ShaderType::Fragment,
-                    _ => unreachable!(),
-                },
+                shader_type_name,
                 error_message,
             });
         }
 
         Ok(shader)
     }
+}
+
+#[derive(Clone, Copy)]
+enum ShaderType {
+    Vertex,
+    Fragment,
 }
 
 fn create_program(
@@ -378,7 +416,6 @@ fn create_program(
         gl.attach_shader(program, fragment_shader);
         gl.link_program(program);
 
-        // delete no longer used shaders
         gl.detach_shader(program, vertex_shader);
         gl.delete_shader(vertex_shader);
         gl.detach_shader(program, fragment_shader);
@@ -396,53 +433,45 @@ fn create_program(
 fn get_pipeline_attributes(
     gl: &glow::Context,
     program: glow::Program,
-    meta: &ShaderMeta,
-) -> Result<Vec<VertexAttributeInternal>, ShaderError> {
+    attributes: impl IntoIterator<Item = VertexAttribute>,
+) -> Result<Vec<(u32, VertexAttribute)>, ShaderError> {
     let mut vertex_layout = Vec::new();
-    for attr in meta.attributes.iter() {
+    for attr in attributes.into_iter() {
         let Some(attr_loc) = (unsafe { gl.get_attrib_location(program, attr.name) }) else {
             return Err(ShaderError::MissingAttribute {
                 attribute: attr.name.to_string(),
             });
         };
-        vertex_layout.push(VertexAttributeInternal {
-            attr_loc: attr_loc as u32,
-            size: attr.format.components(),
-            type_: attr.format.type_(),
-            gl_pass_as_float: attr.gl_pass_as_float,
-        });
+        vertex_layout.push((attr_loc, attr));
     }
 
     Ok(vertex_layout)
 }
 
-fn get_pipeline_images(
+fn get_pipeline_images<S: Into<String>>(
     gl: &glow::Context,
     program: glow::Program,
-    meta: &ShaderMeta,
-) -> Result<Vec<ShaderImage>, ShaderError> {
-    meta.images
-        .iter()
-        .map(|name| {
-            Ok(ShaderImage {
-                gl_loc: get_uniform_location(gl, program, &name)?,
-            })
-        })
+    image_uniforms: impl IntoIterator<Item = S>,
+) -> Result<Vec<glow::UniformLocation>, ShaderError> {
+    image_uniforms
+        .into_iter()
+        .map(|x| x.into())
+        .map(|name| get_uniform_location(gl, program, &name))
         .collect::<Result<Vec<_>, ShaderError>>()
 }
 
 fn get_pipeline_uniforms(
     gl: &glow::Context,
     program: glow::Program,
-    meta: &ShaderMeta,
+    uniforms: impl IntoIterator<Item = UniformDesc>,
 ) -> Result<Vec<ShaderUniform>, ShaderError> {
-    meta.uniforms
-        .iter()
+    uniforms
+        .into_iter()
         .map(|uniform| {
             Ok(ShaderUniform {
                 gl_loc: get_uniform_location(gl, program, &uniform.name)?,
                 uniform_type: uniform.uniform_type,
-                array_count: uniform.array_count as _,
+                array_count: uniform.array_len as _,
             })
         })
         .collect::<Result<Vec<_>, ShaderError>>()
@@ -458,21 +487,129 @@ fn get_uniform_location(
     })
 }
 
-pub struct PipelineInternal {
+#[derive(Debug, Clone)]
+pub struct UniformDesc {
+    pub name: String,
+    pub uniform_type: UniformType,
+    pub array_len: usize,
+}
+
+impl UniformDesc {
+    pub fn new_scalar(name: &str, uniform_type: UniformType) -> UniformDesc {
+        UniformDesc {
+            name: name.to_string(),
+            uniform_type,
+            array_len: 1,
+        }
+    }
+
+    pub fn new_array(name: &str, uniform_type: UniformType, array_len: usize) -> UniformDesc {
+        UniformDesc {
+            name: name.to_string(),
+            uniform_type,
+            array_len,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum UniformType {
+    F32,
+    F32x2,
+    F32x3,
+    F32x4,
+    I32,
+    I32x2,
+    I32x3,
+    I32x4,
+    F32x4x4,
+}
+
+impl UniformType {
+    /// Byte size for a given UniformType
+    pub fn size(&self) -> usize {
+        match self {
+            UniformType::F32 => 4,
+            UniformType::F32x2 => 8,
+            UniformType::F32x3 => 12,
+            UniformType::F32x4 => 16,
+            UniformType::I32 => 4,
+            UniformType::I32x2 => 8,
+            UniformType::I32x3 => 12,
+            UniformType::I32x4 => 16,
+            UniformType::F32x4x4 => 64,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct VertexAttribute {
+    pub name: &'static str,
+    pub format: VertexFormat,
+}
+
+impl VertexAttribute {
+    pub const fn new(name: &'static str, format: VertexFormat) -> VertexAttribute {
+        VertexAttribute { name, format }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum VertexFormat {
+    F32,
+    F32x2,
+    F32x3,
+    F32x4,
+    U8,
+    U8x2,
+    U8x3,
+    U8x4,
+    U16,
+    U16x2,
+    U16x3,
+    U16x4,
+    U32,
+    U32x2,
+    U32x3,
+    U32x4,
+}
+
+impl VertexFormat {
+    // (GL_TYPE, components)
+    pub fn gl_info(self) -> (u32, i32) {
+        match self {
+            VertexFormat::F32 => (glow::FLOAT, 1),
+            VertexFormat::F32x2 => (glow::FLOAT, 2),
+            VertexFormat::F32x3 => (glow::FLOAT, 3),
+            VertexFormat::F32x4 => (glow::FLOAT, 4),
+            VertexFormat::U8 => (glow::UNSIGNED_BYTE, 1),
+            VertexFormat::U8x2 => (glow::UNSIGNED_BYTE, 2),
+            VertexFormat::U8x3 => (glow::UNSIGNED_BYTE, 3),
+            VertexFormat::U8x4 => (glow::UNSIGNED_BYTE, 4),
+            VertexFormat::U16 => (glow::UNSIGNED_SHORT, 1),
+            VertexFormat::U16x2 => (glow::UNSIGNED_SHORT, 2),
+            VertexFormat::U16x3 => (glow::UNSIGNED_SHORT, 3),
+            VertexFormat::U16x4 => (glow::UNSIGNED_SHORT, 4),
+            VertexFormat::U32 => (glow::UNSIGNED_INT, 1),
+            VertexFormat::U32x2 => (glow::UNSIGNED_INT, 2),
+            VertexFormat::U32x3 => (glow::UNSIGNED_INT, 3),
+            VertexFormat::U32x4 => (glow::UNSIGNED_INT, 4),
+        }
+    }
+}
+
+struct PipelineInternal {
     ctx: Rc<GlContext>,
     gl_prog: glow::Program,
-    images: Vec<ShaderImage>,
+    image_uniforms: Vec<glow::UniformLocation>,
     uniforms: Vec<ShaderUniform>,
-    attributes: Vec<VertexAttributeInternal>,
+    attributes: Vec<(u32, VertexAttribute)>,
     params: PipelineParams,
 }
 
 impl Drop for PipelineInternal {
     fn drop(&mut self) {
-        let mut cache = self.ctx.cache.borrow_mut();
-
         unsafe { self.ctx.gl.delete_program(self.gl_prog) };
-        cache.cur_pipeline = None;
     }
 }
 
@@ -483,6 +620,35 @@ struct ShaderUniform {
     array_count: i32,
 }
 
-struct ShaderImage {
-    gl_loc: glow::UniformLocation,
+const MAX_VERTEX_ATTRIBUTES: usize = 16;
+
+#[derive(Clone, Debug)]
+pub enum ShaderError {
+    MissingUniform {
+        uniform: String,
+    },
+    MissingAttribute {
+        attribute: String,
+    },
+    CompilationError {
+        shader_type_name: &'static str,
+        error_message: String,
+    },
+    LinkError(String),
 }
+
+impl Display for ShaderError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingUniform { uniform } => write!(f, "No such uniform:{uniform}"),
+            Self::MissingAttribute { attribute } => write!(f, "No such attribute:{attribute}"),
+            Self::CompilationError {
+                shader_type_name,
+                error_message,
+            } => write!(f, "{shader_type_name} shader error:\n{error_message}"),
+            Self::LinkError(msg) => write!(f, "Link shader error:\n{msg}"),
+        }
+    }
+}
+
+impl Error for ShaderError {}

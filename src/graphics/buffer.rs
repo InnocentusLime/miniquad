@@ -1,12 +1,10 @@
-use std::cell::Cell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use bytemuck::{Pod, Zeroable};
+use bytemuck::Pod;
 use glow::HasContext;
 
-use crate::graphics::gl::GlContext;
-use crate::graphics::BufferUsage;
+use crate::graphics::{BufferUsage, GlContext};
 
 #[macro_export]
 macro_rules! bind_buffers {
@@ -32,12 +30,13 @@ macro_rules! bind_buffer {
 }
 
 #[derive(Clone)]
-pub struct Buffer<T: Default + Zeroable + Pod + 'static> {
+pub struct Buffer<T: Pod + Default> {
     internal: Rc<BufferInternal>,
+    pub(crate) gl_buf: glow::Buffer,
     _phantom: PhantomData<&'static [T]>,
 }
 
-impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
+impl<T: Pod + Default> Buffer<T> {
     pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> Buffer<T> {
         assert_eq!(size % std::mem::size_of::<T>(), 0, "size must be aligned");
 
@@ -50,13 +49,10 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         }
 
         std::mem::drop(cache);
-        let buffer = BufferInternal {
-            ctx,
-            gl_buf,
-            size: Cell::new(size),
-        };
+        let internal = BufferInternal { ctx, gl_buf, size };
         Buffer {
-            internal: Rc::new(buffer),
+            gl_buf,
+            internal: Rc::new(internal),
             _phantom: PhantomData,
         }
     }
@@ -73,19 +69,16 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         }
 
         std::mem::drop(cache);
-        let buffer = BufferInternal {
-            ctx,
-            gl_buf,
-            size: Cell::new(size),
-        };
+        let internal = BufferInternal { ctx, gl_buf, size };
         Buffer {
-            internal: Rc::new(buffer),
+            gl_buf,
+            internal: Rc::new(internal),
             _phantom: PhantomData,
         }
     }
 
     pub fn size(&self) -> usize {
-        self.internal.size.get()
+        self.internal.size
     }
 
     pub fn update(&self, data: &[T]) {
@@ -94,7 +87,7 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
         let size = data.len();
         assert!(size <= self.size());
 
-        cache.bind_buffer(&self.internal.ctx.gl, self.internal.gl_buf);
+        cache.bind_buffer(&self.internal.ctx.gl, self.gl_buf());
         unsafe {
             self.internal
                 .ctx
@@ -104,23 +97,24 @@ impl<T: Default + Zeroable + Pod + 'static> Buffer<T> {
     }
 
     pub fn gl_buf(&self) -> glow::Buffer {
-        self.internal.gl_buf
+        self.gl_buf
     }
 
-    pub fn binding(&self, offset: u32) -> BufferBinding {
+    pub fn binding(&self, offset: u32) -> BufferBinding<'_> {
         BufferBinding {
             gl_buf: self.gl_buf(),
             offset,
             stride: std::mem::size_of::<T>() as u32,
+            _phantom: PhantomData,
         }
     }
 }
 
 #[derive(Clone)]
-pub struct BufferInternal {
+struct BufferInternal {
     ctx: Rc<GlContext>,
     gl_buf: glow::Buffer,
-    size: Cell<usize>,
+    size: usize,
 }
 
 impl Drop for BufferInternal {
@@ -131,9 +125,10 @@ impl Drop for BufferInternal {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct BufferBinding {
+#[derive(Debug, Clone, Copy)]
+pub struct BufferBinding<'a> {
     pub(crate) gl_buf: glow::Buffer,
     pub(crate) offset: u32,
     pub(crate) stride: u32,
+    _phantom: PhantomData<&'a BufferInternal>,
 }

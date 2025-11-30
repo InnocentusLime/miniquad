@@ -1,20 +1,19 @@
-use std::rc::Rc;
-
 use bytemuck::{Pod, Zeroable};
-use glam::{vec2, Vec2};
+use glam::{Vec2, vec2};
+use miniquad::*;
 ///! A rendering example. You can spawn entities by
 ///! clicking. They should bounce around the screen
 ///! and visually interact with each other.
 ///! Should look like this:
 ///! https://youtu.be/W52jTDKOzIk
-use miniquad::*;
-use winit::{event::{ElementState, MouseButton, WindowEvent}, window::Window};
+use std::rc::Rc;
+use winit::{
+    event::{ElementState, MouseButton, WindowEvent},
+    window::Window,
+};
 
-#[repr(C)]
-#[derive(Default, Zeroable, Pod, Clone, Copy)]
-struct Vertex {
-    pos: Vec2,
-    uv: Vec2,
+fn main() {
+    miniquad::start(Conf::default(), Stage::new);
 }
 
 struct Stage {
@@ -29,6 +28,41 @@ struct Stage {
     ctx: Rc<GlContext>,
 }
 
+impl EventHandler for Stage {
+    fn update(&mut self) {
+        let time = miniquad::date::now();
+        let delta = (time - self.last_frame) as f32;
+        self.last_frame = time;
+
+        for i in 1..self.uniforms.blobs_count as usize {
+            self.uniforms.blobs_positions[i].x += self.blobs_velocities[i].0 * delta * 0.1;
+            self.uniforms.blobs_positions[i].y += self.blobs_velocities[i].1 * delta * 0.1;
+
+            if self.uniforms.blobs_positions[i].x < 0. || self.uniforms.blobs_positions[i].x > 1. {
+                self.blobs_velocities[i].0 *= -1.;
+            }
+            if self.uniforms.blobs_positions[i].y < 0. || self.uniforms.blobs_positions[i].y > 1. {
+                self.blobs_velocities[i].1 *= -1.;
+            }
+        }
+    }
+
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        match event {
+            WindowEvent::RedrawRequested => self.draw(),
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } => self.on_click(),
+            WindowEvent::CursorMoved { position, .. } => {
+                self.mouse_motion_event(vec2(position.x as f32, position.y as f32));
+            }
+            _ => (),
+        }
+    }
+}
+
 impl Stage {
     pub fn new(ctx: Rc<GlContext>) -> Stage {
         #[rustfmt::skip]
@@ -38,19 +72,28 @@ impl Stage {
             Vertex { pos : Vec2 { x:  1.0, y:  1.0 }, uv: Vec2 { x: 1., y: 1. } },
             Vertex { pos : Vec2 { x: -1.0, y:  1.0 }, uv: Vec2 { x: 0., y: 1. } },
         ];
-        let vertices = Buffer::new(ctx.clone(), BufferUsage::Immutable, &vertices);
+        let vertices = ctx.new_buffer(BufferUsage::Immutable, &vertices);
 
         let indicies = [0, 1, 2, 0, 2, 3];
-        let indicies = IndexBuffer::new(ctx.clone(), BufferUsage::Immutable, &indicies);
+        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
 
-        let pipeline = Pipeline::new(
-            ctx.clone(),
-            shader::VERTEX,
-            shader::FRAGMENT,
-            shader::meta(),
-            PipelineParams::default(),
-        )
-        .unwrap();
+        let pipeline = ctx
+            .new_pipeline::<&'static str>(
+                shader::VERTEX,
+                shader::FRAGMENT,
+                PipelineParams::default(),
+                [
+                    VertexAttribute::new("in_pos", VertexFormat::F32x2),
+                    VertexAttribute::new("in_uv", VertexFormat::F32x2),
+                ],
+                [
+                    UniformDesc::new_scalar("time", UniformType::F32),
+                    UniformDesc::new_scalar("blobs_count", UniformType::I32),
+                    UniformDesc::new_array("blobs_positions", UniformType::F32x2, 32),
+                ],
+                [],
+            )
+            .unwrap();
 
         let uniforms = shader::Uniforms {
             time: 0.,
@@ -72,10 +115,10 @@ impl Stage {
             ctx,
         }
     }
-    
+
     fn mouse_motion_event(&mut self, pos: Vec2) {
         self.mouse_pos = pos;
-        let Vec2 {x , y} = self.mouse_pos;
+        let Vec2 { x, y } = self.mouse_pos;
         let (w, h) = self.ctx.screen_size();
         let (w, h) = (w as f32, h as f32);
         let (x, y) = (x / w, 1. - y / h);
@@ -87,7 +130,7 @@ impl Stage {
             return;
         }
 
-        let Vec2 {x , y} = self.mouse_pos;
+        let Vec2 { x, y } = self.mouse_pos;
         let (w, h) = self.ctx.screen_size();
         let (w, h) = (w as f32, h as f32);
         let (x, y) = (x / w, 1. - y / h);
@@ -100,8 +143,9 @@ impl Stage {
 
     fn draw(&mut self) {
         self.uniforms.time = (miniquad::date::now() - self.start_time) as f32;
-        self.ctx
-            .perform_default_render_pass(PassAction::default(), || {
+        self.ctx.perform_default_render_pass(
+            PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
+            || {
                 DrawCall {
                     ctx: &self.ctx,
                     pipeline: &self.pipeline,
@@ -111,55 +155,27 @@ impl Stage {
                         (&self.vertices) as <Vertex>::pos,
                         (&self.vertices) as <Vertex>::uv,
                     ],
-                    index_buffer: &self.indicies,
+                    index_buffer: self.indicies.bind(),
                     textures: &[],
                     uniform_data: bytemuck::bytes_of(&self.uniforms),
                 }
                 .execute()
-            });
-    }
-}
-
-impl EventHandler for Stage {
-    fn update(&mut self) {
-        let time = miniquad::date::now();
-        let delta = (time - self.last_frame) as f32;
-        self.last_frame = time;
-
-        for i in 1..self.uniforms.blobs_count as usize {
-            self.uniforms.blobs_positions[i].x += self.blobs_velocities[i].0 * delta * 0.1;
-            self.uniforms.blobs_positions[i].y += self.blobs_velocities[i].1 * delta * 0.1;
-
-            if self.uniforms.blobs_positions[i].x < 0. || self.uniforms.blobs_positions[i].x > 1. {
-                self.blobs_velocities[i].0 *= -1.;
-            }
-            if self.uniforms.blobs_positions[i].y < 0. || self.uniforms.blobs_positions[i].y > 1. {
-                self.blobs_velocities[i].1 *= -1.;
-            }
-        }
-    }
- 
-    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
-        match event {
-            WindowEvent::RedrawRequested => self.draw(),
-            WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => self.on_click(),
-            WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_motion_event(vec2(position.x as f32, position.y as f32));
             },
-            _ => (),
-        }
+        );
     }
 }
 
-fn main() {
-    miniquad::start(conf::Conf::default(), Stage::new);
+#[repr(C)]
+#[derive(Default, Zeroable, Pod, Clone, Copy)]
+struct Vertex {
+    pos: Vec2,
+    uv: Vec2,
 }
 
 // based on: https://www.shadertoy.com/view/XsS3DV
 mod shader {
     use bytemuck::{Pod, Zeroable};
     use glam::Vec2;
-    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec2 in_pos;
@@ -232,21 +248,6 @@ mod shader {
         
         gl_FragColor = vec4( gradient(shade), 1.0 );
     }"#;
-
-    pub fn meta() -> ShaderMeta {
-        ShaderMeta {
-            images: vec![],
-            uniforms: vec![
-                UniformDesc::new("time", UniformType::Float1),
-                UniformDesc::new("blobs_count", UniformType::Int1),
-                UniformDesc::new("blobs_positions", UniformType::Float2).array(32),
-            ],
-            attributes: vec![
-                VertexAttribute::new("in_pos", VertexFormat::Float2),
-                VertexAttribute::new("in_uv", VertexFormat::Float2),
-            ],
-        }
-    }
 
     #[repr(C)]
     #[derive(Zeroable, Pod, Clone, Copy)]

@@ -1,16 +1,15 @@
-use std::cell::Cell;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
 use bytemuck::Pod;
 use glow::HasContext;
 
-use crate::graphics::gl::GlContext;
-use crate::graphics::BufferUsage;
+use crate::graphics::{BufferUsage, GlContext};
 
 #[derive(Clone)]
 pub struct IndexBuffer<T: IndexBufferElement = u16> {
     internal: Rc<IndexBufferInternal>,
+    pub(crate) gl_buf: glow::Buffer,
     _phantom: PhantomData<&'static [T]>,
 }
 
@@ -30,12 +29,9 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         }
 
         std::mem::drop(cache);
-        let buffer = IndexBufferInternal {
-            ctx,
-            gl_buf,
-            size: Cell::new(size),
-        };
+        let buffer = IndexBufferInternal { ctx, gl_buf, size };
         IndexBuffer {
+            gl_buf,
             internal: Rc::new(buffer),
             _phantom: PhantomData,
         }
@@ -53,19 +49,16 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         }
 
         std::mem::drop(cache);
-        let buffer = IndexBufferInternal {
-            ctx,
-            gl_buf,
-            size: Cell::new(size),
-        };
+        let internal = IndexBufferInternal { ctx, gl_buf, size };
         IndexBuffer {
-            internal: Rc::new(buffer),
+            gl_buf,
+            internal: Rc::new(internal),
             _phantom: PhantomData,
         }
     }
 
     pub fn size(&self) -> usize {
-        self.internal.size.get()
+        self.internal.size
     }
 
     pub fn update(&self, data: &[T]) {
@@ -74,7 +67,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         let size = data.len();
         assert!(size <= self.size());
 
-        cache.bind_index_buffer(&self.internal.ctx.gl, self.internal.gl_buf);
+        cache.bind_index_buffer(&self.internal.ctx.gl, self.gl_buf);
         unsafe {
             self.internal
                 .ctx
@@ -83,16 +76,21 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         };
     }
 
-    pub fn gl_buf(&self) -> glow::Buffer {
-        self.internal.gl_buf
+    pub fn bind(&self) -> IndexBufferBinding<'_> {
+        IndexBufferBinding {
+            sz_elem: std::mem::size_of::<T>() as i32,
+            gl_type: T::GL_TYPE,
+            gl_buf: self.gl_buf,
+            _phantom: PhantomData,
+        }
     }
 }
 
 #[derive(Clone)]
-pub struct IndexBufferInternal {
+struct IndexBufferInternal {
     ctx: Rc<GlContext>,
     gl_buf: glow::Buffer,
-    size: Cell<usize>,
+    size: usize,
 }
 
 impl Drop for IndexBufferInternal {
@@ -101,7 +99,15 @@ impl Drop for IndexBufferInternal {
     }
 }
 
-pub trait IndexBufferElement: 'static + Copy + Pod {
+#[derive(Debug, Clone, Copy)]
+pub struct IndexBufferBinding<'a> {
+    pub(crate) sz_elem: i32,
+    pub(crate) gl_type: u32,
+    pub(crate) gl_buf: glow::Buffer,
+    _phantom: PhantomData<&'a IndexBufferInternal>,
+}
+
+pub trait IndexBufferElement: Pod {
     const GL_TYPE: u32;
 }
 
