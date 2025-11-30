@@ -34,22 +34,6 @@ pub mod date {
 
 use std::rc::Rc;
 
-#[derive(Debug, Copy, Clone, PartialEq, Hash, Eq)]
-pub enum CursorIcon {
-    Default,
-    Help,
-    Pointer,
-    Wait,
-    Crosshair,
-    Text,
-    Move,
-    NotAllowed,
-    EWResize,
-    NSResize,
-    NESWResize,
-    NWSEResize,
-}
-
 /// Start miniquad.
 pub fn start<F, Handler>(conf: conf::Conf, f: F)
 where
