@@ -87,7 +87,7 @@ impl<T: Pod + Default> Buffer<T> {
         let size = data.len();
         assert!(size <= self.size());
 
-        cache.bind_buffer(&self.internal.ctx.gl, self.gl_buf());
+        cache.bind_buffer(&self.internal.ctx.gl, self.gl_buf);
         unsafe {
             self.internal
                 .ctx
@@ -96,13 +96,9 @@ impl<T: Pod + Default> Buffer<T> {
         };
     }
 
-    pub fn gl_buf(&self) -> glow::Buffer {
-        self.gl_buf
-    }
-
     pub fn binding(&self, offset: u32) -> BufferBinding<'_> {
         BufferBinding {
-            gl_buf: self.gl_buf(),
+            gl_buf: self.gl_buf,
             offset,
             stride: std::mem::size_of::<T>() as u32,
             _phantom: PhantomData,
