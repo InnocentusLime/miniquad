@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use miniquad::{fs::FsServerHandle, *};
+use miniquad::*;
 ///! A simple rendering example. This example loads a texture from memory
 ///! and draws a few quads with it. The example should look as follows:
 ///! https://youtu.be/kksaeWrAT7E
@@ -8,7 +8,7 @@ use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {
-    miniquad::start(Conf::default(), Stage::new);
+    miniquad::run::<Stage>(Conf::default());
 }
 
 struct Stage {
@@ -29,17 +29,17 @@ impl EventHandler for Stage {
             _ => (),
         }
     }
-}
 
-impl Stage {
-    pub fn new(ctx: Rc<GlContext>, fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, fs: FsServerHandle) -> Stage {
         let handle = fs.submit_task("./examples/assets/ferris.png", |img_bytes| {
             let img = image::load_from_memory(&img_bytes)?.flipv();
             let parsed_bytes = img.to_rgba8().into_vec();
             Ok((img.width(), img.height(), parsed_bytes))
         });
         let (width, height, img) = loop {
-            let Some(x) = handle.is_done() else { continue; };
+            let Some(x) = handle.is_done() else {
+                continue;
+            };
             break x.unwrap();
         };
 
@@ -98,7 +98,9 @@ impl Stage {
             ctx,
         }
     }
+}
 
+impl Stage {
     fn draw(&mut self) {
         let t = date::now();
 

@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
-use miniquad::{fs::FsServerHandle, *};
+use miniquad::*;
 ///! A post processing example. Draws a rotating cube with
 ///! differently colored sides. Should look like this:
 ///! https://youtu.be/hdWWe-TkkfM
@@ -8,7 +8,7 @@ use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {
-    miniquad::start(Conf::default(), Stage::new);
+    miniquad::run::<Stage>(Conf::default());
 }
 
 struct Stage {
@@ -38,10 +38,8 @@ impl EventHandler for Stage {
             _ => (),
         }
     }
-}
 
-impl Stage {
-    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         let (width, height) = ctx.screen_size();
         let color_img = ctx.new_texture(
             TextureSource::Empty,
@@ -166,7 +164,9 @@ impl Stage {
             ctx,
         }
     }
+}
 
+impl Stage {
     fn resize_event(&mut self, (width, height): (u32, u32)) {
         let color_img = Texture::new(
             self.ctx.clone(),

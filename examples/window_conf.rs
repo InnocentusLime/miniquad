@@ -5,6 +5,15 @@ use std::rc::Rc;
 use miniquad::*;
 use winit::{dpi::PhysicalSize, event::WindowEvent};
 
+fn main() {
+    miniquad::run::<Stage>(Conf {
+        window_attributes: default_window_attributes()
+            .with_title("My custom window")
+            .with_inner_size(PhysicalSize::new(1024, 768)),
+        ..Default::default()
+    });
+}
+
 struct Stage {
     ctx: Rc<GlContext>,
 }
@@ -19,16 +28,8 @@ impl EventHandler for Stage {
             );
         }
     }
-}
 
-fn main() {
-    miniquad::start(
-        Conf {
-            window_attributes: default_window_attributes()
-                .with_title("My custom window")
-                .with_inner_size(PhysicalSize::new(1024, 768)),
-            ..Default::default()
-        },
-        |ctx, _| Stage { ctx },
-    );
+    fn init(ctx: Rc<GlContext>, _fs_server: FsServerHandle) -> Self {
+        Stage { ctx }
+    }
 }

@@ -1,4 +1,7 @@
-use std::{sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender, TryRecvError}, thread::{spawn, JoinHandle}};
+use std::{
+    sync::mpsc::{Receiver, Sender, SyncSender, TryRecvError, channel, sync_channel},
+    thread::{JoinHandle, spawn},
+};
 
 pub struct FsServerHandle(Sender<FsTask>);
 
@@ -9,15 +12,17 @@ impl FsServerHandle {
         handler: impl FnOnce(Vec<u8>) -> anyhow::Result<T> + Send + 'static,
     ) -> FsTaskHandle<T> {
         let (snd, rcv) = sync_channel(1);
-        self.0.send(FsTask{
-            path: path.to_string(),
-            response: Box::new(move |data| {
-                fs_task_response(data, snd, handler);
+        self.0
+            .send(FsTask {
+                path: path.to_string(),
+                response: Box::new(move |data| {
+                    fs_task_response(data, snd, handler);
+                }),
             })
-        }).expect("Worker thread terminated");
+            .expect("Worker thread terminated");
         FsTaskHandle(rcv)
     }
-} 
+}
 
 // TODO: this works only for native
 pub(crate) struct FsServer {
@@ -31,7 +36,10 @@ impl FsServer {
         let worker_thread = spawn(move || {
             fs_server_worker(rcv);
         });
-        FsServer { _worker_thread: worker_thread, task_queue: snd }
+        FsServer {
+            _worker_thread: worker_thread,
+            task_queue: snd,
+        }
     }
 
     pub fn get_handle(&self) -> FsServerHandle {
@@ -41,8 +49,7 @@ impl FsServer {
 
 fn fs_server_worker(task_queue: Receiver<FsTask>) {
     while let Ok(task) = task_queue.recv() {
-        let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path)
-            .map_err(Into::into);
+        let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path).map_err(Into::into);
         (task.response)(file_content);
     }
 }

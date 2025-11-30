@@ -1,13 +1,13 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{U8Vec4, Vec2, u8vec4, vec2};
-use miniquad::{fs::FsServerHandle, *};
+use miniquad::*;
 ///! Draws the same triangle as the `triangle` example, but
 ///! using the byte based colors.
 use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {
-    miniquad::start(Conf::default(), Stage::new);
+    miniquad::run::<Stage>(Conf::default());
 }
 
 struct Stage {
@@ -26,10 +26,8 @@ impl EventHandler for Stage {
             _ => (),
         }
     }
-}
 
-impl Stage {
-    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
         let vertices = [
             Vertex { pos: vec2(-0.5, -0.5), color: u8vec4(0xFF, 0, 0, 0xFF) },
@@ -62,7 +60,9 @@ impl Stage {
             ctx,
         }
     }
+}
 
+impl Stage {
     fn draw(&mut self) {
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),

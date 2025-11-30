@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use miniquad::{fs::FsServerHandle, *};
+use miniquad::*;
 ///! A rendering example. You can spawn entities by
 ///! clicking. They should bounce around the screen
 ///! and visually interact with each other.
@@ -13,7 +13,7 @@ use winit::{
 };
 
 fn main() {
-    miniquad::start(Conf::default(), Stage::new);
+    miniquad::run::<Stage>(Conf::default());
 }
 
 struct Stage {
@@ -61,10 +61,8 @@ impl EventHandler for Stage {
             _ => (),
         }
     }
-}
 
-impl Stage {
-    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
         let vertices = [
             Vertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },
@@ -115,7 +113,9 @@ impl Stage {
             ctx,
         }
     }
+}
 
+impl Stage {
     fn mouse_motion_event(&mut self, pos: Vec2) {
         self.mouse_pos = pos;
         let Vec2 { x, y } = self.mouse_pos;

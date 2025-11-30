@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
-use miniquad::{fs::FsServerHandle, *};
+use miniquad::*;
 ///! An offscreen render example. Draws a cube that has
 ///! images of rotating cubes on each side. Should look like this:
 ///! https://youtu.be/isKW3nQ-jW4
@@ -8,7 +8,7 @@ use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {
-    miniquad::start(Conf::default(), Stage::new);
+    miniquad::run::<Stage>(Conf::default());
 }
 
 struct Stage {
@@ -34,10 +34,8 @@ impl EventHandler for Stage {
             _ => (),
         }
     }
-}
 
-impl Stage {
-    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         let color_img = ctx.new_texture(
             TextureSource::Empty,
             TextureParams {
@@ -151,7 +149,9 @@ impl Stage {
             ctx,
         }
     }
+}
 
+impl Stage {
     pub fn draw(&mut self) {
         let (width, height) = self.ctx.screen_size();
         let (width, height) = (width as f32, height as f32);
