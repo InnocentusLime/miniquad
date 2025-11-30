@@ -1,26 +1,16 @@
-use std::{
-    sync::mpsc::{Receiver, Sender, SyncSender, TryRecvError, channel, sync_channel},
-    thread::{JoinHandle, spawn},
-};
+use std::sync::mpsc::{Receiver, Sender, channel};
+use std::thread::{JoinHandle, spawn};
+
+use winit::event_loop::EventLoopProxy;
 
 pub struct FsServerHandle(Sender<FsTask>);
 
 impl FsServerHandle {
-    pub fn submit_task<T: Send + 'static>(
-        &self,
-        path: &str,
-        handler: impl FnOnce(Vec<u8>) -> anyhow::Result<T> + Send + 'static,
-    ) -> FsTaskHandle<T> {
-        let (snd, rcv) = sync_channel(1);
+    pub fn submit_task(&self, path: &str, user_id: u64) {
+        let path = path.to_string();
         self.0
-            .send(FsTask {
-                path: path.to_string(),
-                response: Box::new(move |data| {
-                    fs_task_response(data, snd, handler);
-                }),
-            })
+            .send(FsTask { path, user_id })
             .expect("Worker thread terminated");
-        FsTaskHandle(rcv)
     }
 }
 
@@ -31,10 +21,10 @@ pub(crate) struct FsServer {
 }
 
 impl FsServer {
-    pub(crate) fn start() -> FsServer {
+    pub(crate) fn start(event_loop_proxy: EventLoopProxy<FileReady>) -> FsServer {
         let (snd, rcv) = channel();
         let worker_thread = spawn(move || {
-            fs_server_worker(rcv);
+            fs_server_worker(rcv, event_loop_proxy);
         });
         FsServer {
             _worker_thread: worker_thread,
@@ -47,40 +37,25 @@ impl FsServer {
     }
 }
 
-fn fs_server_worker(task_queue: Receiver<FsTask>) {
+fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<FileReady>) {
     while let Ok(task) = task_queue.recv() {
         let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path).map_err(Into::into);
-        (task.response)(file_content);
+        proxy
+            .send_event(FileReady {
+                user_id: task.user_id,
+                bytes_result: file_content,
+            })
+            .expect("Client terminated")
     }
-}
-
-fn fs_task_response<T>(
-    data: anyhow::Result<Vec<u8>>,
-    snd: SyncSender<anyhow::Result<T>>,
-    handler: impl FnOnce(Vec<u8>) -> anyhow::Result<T> + Send,
-) {
-    let result = match data {
-        Ok(x) => handler(x),
-        Err(e) => Err(e),
-    };
-    // TODO: log that the user dropped their handle
-    let _ = snd.send(result);
 }
 
 struct FsTask {
     path: String,
-    response: Box<dyn FnOnce(anyhow::Result<Vec<u8>>) + Send>,
+    user_id: u64,
 }
 
-pub struct FsTaskHandle<T>(Receiver<anyhow::Result<T>>);
-
-impl<T: Send + 'static> FsTaskHandle<T> {
-    pub fn is_done(&self) -> Option<anyhow::Result<T>> {
-        match self.0.try_recv() {
-            Ok(x) => Some(x),
-            Err(TryRecvError::Empty) => None,
-            // FS worker terminating is an unrecoverable scenario
-            Err(TryRecvError::Disconnected) => panic!("FS worker terminated"),
-        }
-    }
+#[derive(Debug)]
+pub struct FileReady {
+    pub user_id: u64,
+    pub bytes_result: anyhow::Result<Vec<u8>>,
 }

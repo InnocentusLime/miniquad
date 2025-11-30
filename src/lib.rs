@@ -24,14 +24,16 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Icon, Window, WindowAttributes};
 
 pub fn run<T: EventHandler>(conf: Conf) {
+    let event_loop = EventLoop::<FileReady>::with_user_event().build().unwrap();
+    let proxy = event_loop.create_proxy();
+    event_loop.set_control_flow(ControlFlow::Poll);
+
     let mut app = App::<T> {
-        fs_server: FsServer::start(),
+        fs_server: FsServer::start(proxy),
         conf,
         state: AppState::Boot,
     };
 
-    let event_loop = EventLoop::builder().build().unwrap();
-    event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.run_app(&mut app).unwrap();
 }
 
@@ -41,12 +43,19 @@ struct App<T> {
     state: AppState<T>,
 }
 
-impl<T: EventHandler> ApplicationHandler for App<T> {
+impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         match &mut self.state {
             AppState::Boot => self.init(event_loop),
             AppState::Ready { .. } => unimplemented!("Restoring of applications is not supported"),
         }
+    }
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: FileReady) {
+        let AppState::Ready { handler, .. } = &mut self.state else {
+            return;
+        };
+        handler.file_ready(event);
     }
 
     fn window_event(
@@ -237,6 +246,8 @@ pub fn default_window_attributes() -> WindowAttributes {
 /// A trait defining event callbacks.
 pub trait EventHandler {
     fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Self;
+
+    fn file_ready(&mut self, _event: FileReady) {}
 
     /// On most platforms update() and draw() are called each frame, sequentially,
     /// draw right after update.

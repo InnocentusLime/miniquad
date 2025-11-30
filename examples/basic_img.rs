@@ -13,11 +13,12 @@ fn main() {
 
 struct Stage {
     ctx: Rc<GlContext>,
+    _fs_server: FsServerHandle,
 
     pipeline: Pipeline,
     vertices: Buffer<Vertex>,
     indicies: IndexBuffer,
-    texture: Texture,
+    texture: Option<Texture>,
 }
 
 impl EventHandler for Stage {
@@ -30,18 +31,29 @@ impl EventHandler for Stage {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, fs: FsServerHandle) -> Stage {
-        let handle = fs.submit_task("./examples/assets/ferris.png", |img_bytes| {
-            let img = image::load_from_memory(&img_bytes)?.flipv();
-            let parsed_bytes = img.to_rgba8().into_vec();
-            Ok((img.width(), img.height(), parsed_bytes))
-        });
-        let (width, height, img) = loop {
-            let Some(x) = handle.is_done() else {
-                continue;
-            };
-            break x.unwrap();
-        };
+    fn file_ready(&mut self, event: FileReady) {
+        let bytes = event.bytes_result.expect("Load failed");
+        let img = image::load_from_memory(&bytes)
+            .expect("Image load failed")
+            .flipv();
+        let img_byte = img.to_rgba8().into_vec();
+        self.texture = Some(self.ctx.new_texture(
+            TextureSource::Bytes(&img_byte),
+            TextureParams {
+                format: TextureFormat::RGBA8,
+                width: img.width(),
+                height: img.height(),
+                wrap: TextureWrap::Clamp,
+                min_filter: FilterMode::Linear,
+                mag_filter: FilterMode::Linear,
+                mipmap_filter: MipmapFilterMode::None,
+                allocate_mipmaps: false,
+            },
+        ));
+    }
+
+    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Stage {
+        fs_server.submit_task("./examples/assets/ferris.png", 0);
 
         #[rustfmt::skip]
         let vertices = [
@@ -54,20 +66,6 @@ impl EventHandler for Stage {
 
         let indicies = [0, 1, 2, 0, 2, 3];
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
-
-        let texture = ctx.new_texture(
-            TextureSource::Bytes(&img),
-            TextureParams {
-                format: TextureFormat::RGBA8,
-                width,
-                height,
-                wrap: TextureWrap::Clamp,
-                min_filter: FilterMode::Linear,
-                mag_filter: FilterMode::Linear,
-                mipmap_filter: MipmapFilterMode::None,
-                allocate_mipmaps: false,
-            },
-        );
 
         let pipeline = ctx
             .new_pipeline(
@@ -92,9 +90,10 @@ impl EventHandler for Stage {
 
         Stage {
             pipeline,
+            _fs_server: fs_server,
             vertices,
             indicies,
-            texture,
+            texture: None,
             ctx,
         }
     }
@@ -103,6 +102,9 @@ impl EventHandler for Stage {
 impl Stage {
     fn draw(&mut self) {
         let t = date::now();
+        let Some(texture) = self.texture.as_ref() else {
+            return;
+        };
 
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
@@ -122,7 +124,7 @@ impl Stage {
                             (&self.vertices) as <Vertex>::uv,
                         ],
                         index_buffer: self.indicies.bind(),
-                        textures: &[self.texture.bind()],
+                        textures: &[texture.bind()],
                         uniform_data: bytemuck::bytes_of(&uniforms),
                     }
                     .execute();
