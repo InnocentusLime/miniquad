@@ -7,21 +7,14 @@
 use std::num::NonZeroU32;
 
 use glutin::surface::SwapInterval;
-use winit::{dpi::PhysicalSize, window::WindowAttributes};
+use winit::{dpi::PhysicalSize, window::{Icon, WindowAttributes}};
+
+use crate::default_icon;
 
 /// Describes a hardware and platform-specific setup.
 #[derive(Debug)]
 pub struct Conf {
     pub window_attributes: WindowAttributes,
-
-    /// Optional icon data used by the OS where applicable:
-    /// - On Windows, taskbar/title bar icon
-    /// - On macOS, Dock/title bar icon
-    /// - TODO: Favicon on HTML5
-    /// - TODO: Taskbar/title bar icon on Linux (depends on WM)
-    /// - Note: on gnome, icon is determined using `WM_CLASS` (can be set under [`Platform`]) and
-    ///   an external `.desktop` file
-    pub icon: Option<Icon>,
 
     /// Optional swap interval (vertical sync).
     ///
@@ -33,47 +26,25 @@ pub struct Conf {
 
 }
 
-/// Icon image in three levels of detail.
-#[derive(Clone)]
-pub struct Icon {
-    /// 16 * 16 image of RGBA pixels (each 4 * u8) in row-major order.
-    pub small: [u8; 16 * 16 * 4],
-    /// 32 x 32 image of RGBA pixels (each 4 * u8) in row-major order.
-    pub medium: [u8; 32 * 32 * 4],
-    /// 64 x 64 image of RGBA pixels (each 4 * u8) in row-major order.
-    pub big: [u8; 64 * 64 * 4],
-}
-
-impl Icon {
-    pub fn miniquad_logo() -> Icon {
-        Icon {
-            small: crate::default_icon::SMALL,
-            medium: crate::default_icon::MEDIUM,
-            big: crate::default_icon::BIG,
-        }
-    }
-}
-// Printing 64x64 array with a default formatter is not meaningfull,
-// so debug will skip the data fields of an Icon
-impl std::fmt::Debug for Icon {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Icon").finish()
-    }
-}
-
 impl Default for Conf {
     fn default() -> Conf {
         Conf {
             window_attributes: default_window_attributes(),
-            icon: Some(Icon::miniquad_logo()),
             swap_interval: SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
         }
     }
 }
 
 pub fn default_window_attributes() -> WindowAttributes {
+    let default_icon = Icon::from_rgba(
+        default_icon::BIG.to_vec(), 
+        64, 
+        64,
+    ).unwrap();
+
     WindowAttributes::default()
         .with_inner_size(PhysicalSize::new(800, 600))
         .with_resizable(true)
         .with_title("Miniquad window")
+        .with_window_icon(Some(default_icon))
 }
