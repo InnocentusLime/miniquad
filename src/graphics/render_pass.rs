@@ -5,7 +5,7 @@ use glow::HasContext;
 use crate::graphics::GlContext;
 use crate::graphics::texture::Texture;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RenderPass(Rc<RenderPassInternal>);
 
 impl RenderPass {
@@ -105,6 +105,7 @@ impl GlContext {
     }
 }
 
+#[derive(Debug)]
 struct RenderPassInternal {
     ctx: Rc<GlContext>,
     gl_fb: glow::Framebuffer,

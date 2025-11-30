@@ -29,7 +29,7 @@ macro_rules! bind_buffer {
     }};
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Buffer<T: Pod + Default> {
     internal: Rc<BufferInternal>,
     pub(crate) gl_buf: glow::Buffer,
@@ -110,7 +110,7 @@ impl<T: Pod + Default> Buffer<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug)]
 struct BufferInternal {
     ctx: Rc<GlContext>,
     gl_buf: glow::Buffer,

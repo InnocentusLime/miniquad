@@ -6,7 +6,7 @@ use glow::HasContext;
 
 use crate::graphics::{BufferUsage, GlContext};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct IndexBuffer<T: IndexBufferElement = u16> {
     internal: Rc<IndexBufferInternal>,
     pub(crate) gl_buf: glow::Buffer,
@@ -86,7 +86,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug)]
 struct IndexBufferInternal {
     ctx: Rc<GlContext>,
     gl_buf: glow::Buffer,

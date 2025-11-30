@@ -39,7 +39,7 @@ impl Default for PipelineParams {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Pipeline(Rc<PipelineInternal>);
 
 impl Pipeline {
@@ -598,6 +598,7 @@ impl VertexFormat {
     }
 }
 
+#[derive(Debug)]
 struct PipelineInternal {
     ctx: Rc<GlContext>,
     gl_prog: glow::Program,

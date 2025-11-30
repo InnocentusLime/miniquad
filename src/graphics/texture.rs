@@ -33,7 +33,7 @@ impl Default for TextureParams {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Texture {
     internal: Rc<TextureInternal>,
     pub(crate) gl_tex: glow::Texture,
@@ -323,7 +323,7 @@ impl Texture {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug)]
 struct TextureInternal {
     ctx: Rc<GlContext>,
     gl_tex: glow::Texture,
