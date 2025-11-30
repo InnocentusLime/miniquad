@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec4, vec2, vec4};
-use miniquad::*;
+use miniquad::{fs::FsServerHandle, *};
 ///! Just draws a static triangle with different vertex colors assigned
 ///! to each corner:
 ///! * left -- red
@@ -32,7 +32,7 @@ impl EventHandler for Stage {
 }
 
 impl Stage {
-    pub fn new(ctx: Rc<GlContext>) -> Stage {
+    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
         let vertices = [
             Vertex { pos: vec2(-0.5, -0.5), color: vec4(1., 0., 0., 1.) },

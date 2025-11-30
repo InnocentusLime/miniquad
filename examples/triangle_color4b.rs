@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{U8Vec4, Vec2, u8vec4, vec2};
-use miniquad::*;
+use miniquad::{fs::FsServerHandle, *};
 ///! Draws the same triangle as the `triangle` example, but
 ///! using the byte based colors.
 use std::rc::Rc;
@@ -29,7 +29,7 @@ impl EventHandler for Stage {
 }
 
 impl Stage {
-    pub fn new(ctx: Rc<GlContext>) -> Stage {
+    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
         let vertices = [
             Vertex { pos: vec2(-0.5, -0.5), color: u8vec4(0xFF, 0, 0, 0xFF) },

@@ -15,10 +15,12 @@ use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::window::{Icon, Window, WindowAttributes};
 
+use crate::fs::FsServerHandle;
+
 /// Start miniquad.
 pub fn start<F, Handler>(conf: Conf, f: F)
 where
-    F: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    F: 'static + FnOnce(Rc<GlContext>, FsServerHandle) -> Handler,
     Handler: EventHandler,
 {
     native::run(conf, f);

@@ -1,5 +1,6 @@
 use std::{num::NonZeroU32, rc::Rc};
 
+use crate::fs::{FsServer, FsServerHandle};
 use crate::{Conf, EventHandler, GlContext};
 
 use glutin::config::{Api, Config, ConfigTemplateBuilder};
@@ -16,13 +17,14 @@ use winit::window::Window;
 
 pub fn run<Init, Handler>(conf: Conf, init: Init)
 where
-    Init: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    Init: 'static + FnOnce(Rc<GlContext>, FsServerHandle) -> Handler,
     Handler: EventHandler,
 {
     let event_loop = EventLoop::builder().build().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);
     event_loop
         .run_app(&mut App {
+            fs_server: FsServer::start(),
             conf,
             state: AppState::Boot { init },
         })
@@ -31,12 +33,13 @@ where
 
 struct App<Init, Handler> {
     conf: Conf,
+    fs_server: FsServer,
     state: AppState<Init, Handler>,
 }
 
 impl<Init, Handler> ApplicationHandler for App<Init, Handler>
 where
-    Init: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    Init: 'static + FnOnce(Rc<GlContext>, FsServerHandle) -> Handler,
     Handler: EventHandler,
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -51,7 +54,7 @@ where
                         unreachable!("Expected AppState to be \"Boot\", got \"Ready\"")
                     }
                 };
-                self.state = Self::prepare(event_loop, &self.conf, init);
+                self.state = Self::prepare(event_loop, &self.conf, init, self.fs_server.get_handle());
             }
             AppState::Ready { .. } => unimplemented!("Restoring of applications is not supported"),
             AppState::Initing => panic!("Resumed while initing"),
@@ -116,10 +119,10 @@ where
 
 impl<Init, Handler> App<Init, Handler>
 where
-    Init: 'static + FnOnce(Rc<GlContext>) -> Handler,
+    Init: 'static + FnOnce(Rc<GlContext>, FsServerHandle) -> Handler,
     Handler: EventHandler,
 {
-    fn prepare(event_loop: &ActiveEventLoop, conf: &Conf, init: Init) -> AppState<Init, Handler> {
+    fn prepare(event_loop: &ActiveEventLoop, conf: &Conf, init: Init, fs_handle: FsServerHandle) -> AppState<Init, Handler> {
         let (window, display, gl_config) = create_window_and_gl_config(event_loop, conf);
         let (gl_context, surface) = create_surface_and_context(&display, &gl_config, &window, conf);
 
@@ -133,7 +136,7 @@ where
             window.inner_size().into(),
         ));
 
-        let handler = init(gl_context.clone());
+        let handler = init(gl_context.clone(), fs_handle);
         AppState::Ready {
             window,
             surface,

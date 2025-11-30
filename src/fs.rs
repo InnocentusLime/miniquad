@@ -1,53 +1,79 @@
-#[derive(Debug)]
-pub enum Error {
-    IOError(std::io::Error),
-    DownloadFailed,
-    AndroidAssetLoadingError,
-    /// MainBundle pathForResource returned null
-    IOSAssetNoSuchFile,
-    /// NSData dataWithContentsOfFile or data.bytes are null
-    IOSAssetNoData,
+use std::{sync::mpsc::{channel, sync_channel, Receiver, Sender, SyncSender, TryRecvError}, thread::{spawn, JoinHandle}};
+
+pub struct FsServerHandle(Sender<FsTask>);
+
+impl FsServerHandle {
+    pub fn submit_task<T: Send + 'static>(
+        &self,
+        path: &str,
+        handler: impl FnOnce(Vec<u8>) -> anyhow::Result<T> + Send + 'static,
+    ) -> FsTaskHandle<T> {
+        let (snd, rcv) = sync_channel(1);
+        self.0.send(FsTask{
+            path: path.to_string(),
+            response: Box::new(move |data| {
+                fs_task_response(data, snd, handler);
+            })
+        }).expect("Worker thread terminated");
+        FsTaskHandle(rcv)
+    }
+} 
+
+// TODO: this works only for native
+pub(crate) struct FsServer {
+    _worker_thread: JoinHandle<()>,
+    task_queue: Sender<FsTask>,
 }
 
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Error {
-        Error::IOError(e)
+impl FsServer {
+    pub(crate) fn start() -> FsServer {
+        let (snd, rcv) = channel();
+        let worker_thread = spawn(move || {
+            fs_server_worker(rcv);
+        });
+        FsServer { _worker_thread: worker_thread, task_queue: snd }
+    }
+
+    pub fn get_handle(&self) -> FsServerHandle {
+        FsServerHandle(self.task_queue.clone())
     }
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::IOError(e) => write!(f, "I/O error: {e}"),
-            Self::DownloadFailed => write!(f, "Download failed"),
-            Self::AndroidAssetLoadingError => write!(f, "[android] Failed to load asset"),
-            Self::IOSAssetNoSuchFile => write!(f, "[ios] No such asset file"),
-            Self::IOSAssetNoData => write!(f, "[ios] No data in asset file"),
+fn fs_server_worker(task_queue: Receiver<FsTask>) {
+    while let Ok(task) = task_queue.recv() {
+        let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path)
+            .map_err(Into::into);
+        (task.response)(file_content);
+    }
+}
+
+fn fs_task_response<T>(
+    data: anyhow::Result<Vec<u8>>,
+    snd: SyncSender<anyhow::Result<T>>,
+    handler: impl FnOnce(Vec<u8>) -> anyhow::Result<T> + Send,
+) {
+    let result = match data {
+        Ok(x) => handler(x),
+        Err(e) => Err(e),
+    };
+    // TODO: log that the user dropped their handle
+    let _ = snd.send(result);
+}
+
+struct FsTask {
+    path: String,
+    response: Box<dyn FnOnce(anyhow::Result<Vec<u8>>) + Send>,
+}
+
+pub struct FsTaskHandle<T>(Receiver<anyhow::Result<T>>);
+
+impl<T: Send + 'static> FsTaskHandle<T> {
+    pub fn is_done(&self) -> Option<anyhow::Result<T>> {
+        match self.0.try_recv() {
+            Ok(x) => Some(x),
+            Err(TryRecvError::Empty) => None,
+            // FS worker terminating is an unrecoverable scenario
+            Err(TryRecvError::Disconnected) => panic!("FS worker terminated"),
         }
     }
-}
-
-impl std::error::Error for Error {}
-
-pub type Response = Result<Vec<u8>, Error>;
-
-/// Filesystem path on desktops or HTTP URL in WASM
-pub fn load_file<F: Fn(Response) + 'static>(path: &str, on_loaded: F) {
-    load_file_desktop(path, on_loaded);
-}
-
-fn load_file_desktop<F: Fn(Response)>(path: &str, on_loaded: F) {
-    fn load_file_sync(path: &str) -> Response {
-        use std::fs::File;
-        use std::io::Read;
-
-        let mut response = vec![];
-        let mut file = File::open(path)?;
-        file.read_to_end(&mut response)?;
-        Ok(response)
-    }
-
-    let response = load_file_sync(path);
-
-    on_loaded(response);
 }

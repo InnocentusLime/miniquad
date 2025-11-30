@@ -32,7 +32,17 @@ impl EventHandler for Stage {
 }
 
 impl Stage {
-    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    pub fn new(ctx: Rc<GlContext>, fs: FsServerHandle) -> Stage {
+        let handle = fs.submit_task("./examples/assets/ferris.png", |img_bytes| {
+            let img = image::load_from_memory(&img_bytes)?.flipv();
+            let parsed_bytes = img.to_rgba8().into_vec();
+            Ok((img.width(), img.height(), parsed_bytes))
+        });
+        let (width, height, img) = loop {
+            let Some(x) = handle.is_done() else { continue; };
+            break x.unwrap();
+        };
+
         #[rustfmt::skip]
         let vertices = [
             Vertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },
@@ -45,19 +55,12 @@ impl Stage {
         let indicies = [0, 1, 2, 0, 2, 3];
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
 
-        let pixels: [u8; 4 * 4 * 4] = [
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
-            0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF,
-            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-            0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-            0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        ];
         let texture = ctx.new_texture(
-            TextureSource::Bytes(&pixels),
+            TextureSource::Bytes(&img),
             TextureParams {
                 format: TextureFormat::RGBA8,
-                width: 4,
-                height: 4,
+                width,
+                height,
                 wrap: TextureWrap::Clamp,
                 min_filter: FilterMode::Linear,
                 mag_filter: FilterMode::Linear,
@@ -70,7 +73,14 @@ impl Stage {
             .new_pipeline(
                 shader::VERTEX,
                 shader::FRAGMENT,
-                PipelineParams::default(),
+                PipelineParams {
+                    color_blend: Some(BlendState::new(
+                        Equation::Add,
+                        BlendFactor::Value(BlendValue::SourceAlpha),
+                        BlendFactor::OneMinusValue(BlendValue::SourceAlpha),
+                    )),
+                    ..Default::default()
+                },
                 [
                     VertexAttribute::new("in_pos", VertexFormat::F32x2),
                     VertexAttribute::new("in_uv", VertexFormat::F32x2),

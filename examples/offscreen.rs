@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
-use miniquad::*;
+use miniquad::{fs::FsServerHandle, *};
 ///! An offscreen render example. Draws a cube that has
 ///! images of rotating cubes on each side. Should look like this:
 ///! https://youtu.be/isKW3nQ-jW4
@@ -37,7 +37,7 @@ impl EventHandler for Stage {
 }
 
 impl Stage {
-    pub fn new(ctx: Rc<GlContext>) -> Stage {
+    pub fn new(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         let color_img = ctx.new_texture(
             TextureSource::Empty,
             TextureParams {

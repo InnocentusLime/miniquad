@@ -29,6 +29,6 @@ fn main() {
                 .with_inner_size(PhysicalSize::new(1024, 768)),
             ..Default::default()
         },
-        |ctx| Stage { ctx },
+        |ctx, _| Stage { ctx },
     );
 }
