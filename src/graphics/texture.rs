@@ -33,10 +33,13 @@ impl Default for TextureParams {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Texture {
-    internal: Rc<TextureInternal>,
+    ctx: Rc<GlContext>,
     pub(crate) gl_tex: glow::Texture,
+    width: Cell<u32>,
+    height: Cell<u32>,
+    format: TextureFormat,
 }
 
 impl Texture {
@@ -58,27 +61,26 @@ impl Texture {
             FilterMode::Nearest => glow::NEAREST,
             FilterMode::Linear => glow::LINEAR,
         };
-        let tex_internal = TextureInternal::new(ctx, params);
-        let mut cache = tex_internal.ctx.cache.borrow_mut();
-        let gl = &tex_internal.ctx.gl;
+        let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
+        let mut cache = ctx.cache.borrow_mut();
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, tex_internal.gl_tex);
+        cache.bind_texture(&ctx.gl, 0, glow::TEXTURE_2D, gl_tex);
         unsafe {
-            gl.pixel_store_i32(glow::PACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
+            ctx.gl.pixel_store_i32(glow::PACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
 
             if cfg!(not(target_arch = "wasm32")) {
                 // if not WASM
                 if params.format == TextureFormat::Alpha {
                     // if alpha miniquad texture, the value on non-WASM is stored in red channel
                     // swizzle red -> alpha
-                    gl.tex_parameter_i32(
+                    ctx.gl.tex_parameter_i32(
                         glow::TEXTURE_2D,
                         glow::TEXTURE_SWIZZLE_A,
                         glow::RED as i32,
                     );
                 } else {
                     // keep alpha -> alpha
-                    gl.tex_parameter_i32(
+                    ctx.gl.tex_parameter_i32(
                         glow::TEXTURE_2D,
                         glow::TEXTURE_SWIZZLE_A,
                         glow::ALPHA as i32,
@@ -90,7 +92,7 @@ impl Texture {
                 TextureSource::Empty => {
                     // not quite sure if glTexImage2D(null) is really a requirement
                     // but it was like this for quite a while and apparantly it works?
-                    gl.tex_image_2d(
+                    ctx.gl.tex_image_2d(
                         glow::TEXTURE_2D,
                         0,
                         internal_format as i32,
@@ -103,7 +105,7 @@ impl Texture {
                     );
                 }
                 TextureSource::Bytes(source) => {
-                    gl.tex_image_2d(
+                    ctx.gl.tex_image_2d(
                         glow::TEXTURE_2D,
                         0,
                         internal_format as i32,
@@ -117,14 +119,14 @@ impl Texture {
                 }
             }
 
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap as i32);
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap as i32);
-            gl.tex_parameter_i32(
+            ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap as i32);
+            ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap as i32);
+            ctx.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
                 min_filter as i32,
             );
-            gl.tex_parameter_i32(
+            ctx.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
                 mag_filter as i32,
@@ -133,21 +135,22 @@ impl Texture {
 
         std::mem::drop(cache);
         Texture {
-            gl_tex: tex_internal.gl_tex,
-            internal: Rc::new(tex_internal),
+            ctx,
+            gl_tex,
+            width: Cell::new(params.width),
+            height: Cell::new(params.height),
+            format: params.format,
         }
     }
 
     pub fn resize(&self, width: u32, height: u32, source: Option<&[u8]>) {
-        let mut cache = self.internal.ctx.cache.borrow_mut();
-        let gl = &self.internal.ctx.gl;
-
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let (internal_format, format, pixel_type) = gl_texture_format(self.internal.format);
-        self.internal.width.set(width);
-        self.internal.height.set(height);
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let (internal_format, format, pixel_type) = gl_texture_format(self.format);
+        self.width.set(width);
+        self.height.set(height);
         unsafe {
-            gl.tex_image_2d(
+            self.ctx.gl.tex_image_2d(
                 glow::TEXTURE_2D,
                 0,
                 internal_format as i32,
@@ -162,10 +165,8 @@ impl Texture {
     }
 
     pub fn set_wrap(&self, wrap_x: TextureWrap, wrap_y: TextureWrap) {
-        let gl = &self.internal.ctx.gl;
-        let mut cache = self.internal.ctx.cache.borrow_mut();
-
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let wrap_x = match wrap_x {
             TextureWrap::Repeat => glow::REPEAT,
             TextureWrap::Mirror => glow::MIRRORED_REPEAT,
@@ -179,33 +180,29 @@ impl Texture {
         };
 
         unsafe {
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap_x as i32);
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap_y as i32);
+            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap_x as i32);
+            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap_y as i32);
         }
     }
 
     pub fn set_min_filter(&self, filter: FilterMode, mipmap_filter: MipmapFilterMode) {
-        let gl = &self.internal.ctx.gl;
-        let mut cache = self.internal.ctx.cache.borrow_mut();
-
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let filter = gl_filter(filter, mipmap_filter);
         unsafe {
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, filter as i32);
+            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, filter as i32);
         }
     }
 
     pub fn set_mag_filter(&mut self, filter: FilterMode) {
-        let gl = &self.internal.ctx.gl;
-        let mut cache = self.internal.ctx.cache.borrow_mut();
-
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let filter = match filter {
             FilterMode::Nearest => glow::NEAREST,
             FilterMode::Linear => glow::LINEAR,
         };
         unsafe {
-            gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, filter as i32);
+            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, filter as i32);
         }
     }
 
@@ -217,28 +214,26 @@ impl Texture {
         height: i32,
         source: &[u8],
     ) {
-        let gl = &self.internal.ctx.gl;
-        let mut cache = self.internal.ctx.cache.borrow_mut();
-
+        let mut cache = self.ctx.cache.borrow_mut();
         assert_eq!(self.size(width as _, height as _), source.len());
         assert!(x_offset + width <= self.width() as _);
         assert!(y_offset + height <= self.height() as _);
 
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let (_, format, pixel_type) = gl_texture_format(self.internal.format);
+        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let (_, format, pixel_type) = gl_texture_format(self.format);
 
         unsafe {
-            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
+            self.ctx.gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
 
             if cfg!(not(target_arch = "wasm32")) {
                 // if not WASM
-                if self.internal.format == TextureFormat::Alpha {
+                if self.format == TextureFormat::Alpha {
                     // if alpha miniquad texture, the value on non-WASM is stored in red channel
                     // swizzle red -> alpha
-                    gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_SWIZZLE_A, glow::RED as _);
+                    self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_SWIZZLE_A, glow::RED as _);
                 } else {
                     // keep alpha -> alpha
-                    gl.tex_parameter_i32(
+                    self.ctx.gl.tex_parameter_i32(
                         glow::TEXTURE_2D,
                         glow::TEXTURE_SWIZZLE_A,
                         glow::ALPHA as _,
@@ -246,7 +241,7 @@ impl Texture {
                 }
             }
 
-            gl.tex_sub_image_2d(
+            self.ctx.gl.tex_sub_image_2d(
                 glow::TEXTURE_2D,
                 0,
                 x_offset as _,
@@ -262,23 +257,22 @@ impl Texture {
 
     /// Read texture data into CPU memory
     pub fn read_pixels(&self, bytes: &mut [u8]) {
-        let gl = &self.internal.ctx.gl;
-        let (_, format, pixel_type) = gl_texture_format(self.internal.format);
+        let (_, format, pixel_type) = gl_texture_format(self.format);
         assert_eq!(bytes.len() as u32, self.width() * self.height());
         unsafe {
-            let curr_fbo = gl.get_parameter_i32(glow::DRAW_FRAMEBUFFER_BINDING);
+            let curr_fbo = self.ctx.gl.get_parameter_i32(glow::DRAW_FRAMEBUFFER_BINDING);
             let curr_fbo = NativeFramebuffer(NonZeroU32::new(curr_fbo as u32).unwrap());
-            let temp_fbo = gl.create_framebuffer().unwrap();
+            let temp_fbo = self.ctx.gl.create_framebuffer().unwrap();
 
-            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(temp_fbo));
-            gl.framebuffer_texture_2d(
+            self.ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(temp_fbo));
+            self.ctx.gl.framebuffer_texture_2d(
                 glow::FRAMEBUFFER,
                 glow::COLOR_ATTACHMENT0,
                 glow::TEXTURE_2D,
                 Some(self.gl_tex),
                 0,
             );
-            gl.read_pixels(
+            self.ctx.gl.read_pixels(
                 0,
                 0,
                 self.width() as _,
@@ -288,31 +282,29 @@ impl Texture {
                 PixelPackData::Slice(Some(bytes)),
             );
 
-            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(curr_fbo));
-            gl.delete_framebuffer(temp_fbo);
+            self.ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(curr_fbo));
+            self.ctx.gl.delete_framebuffer(temp_fbo);
         }
     }
 
     pub fn size(&self, width: u32, height: u32) -> usize {
-        self.internal.format.size(width, height) as usize
+        self.format.size(width, height) as usize
     }
 
     pub fn generate_mipmaps(&self) {
-        let gl = &self.internal.ctx.gl;
-        let mut cache = self.internal.ctx.cache.borrow_mut();
-
-        cache.bind_texture(gl, 0, glow::TEXTURE_2D, self.gl_tex);
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
         unsafe {
-            gl.generate_mipmap(glow::TEXTURE_2D);
+            self.ctx.gl.generate_mipmap(glow::TEXTURE_2D);
         }
     }
 
     pub fn width(&self) -> u32 {
-        self.internal.width.get()
+        self.width.get()
     }
 
     pub fn height(&self) -> u32 {
-        self.internal.height.get()
+        self.height.get()
     }
 
     pub fn bind(&self) -> TextureBinding<'_> {
@@ -323,29 +315,7 @@ impl Texture {
     }
 }
 
-#[derive(Debug)]
-struct TextureInternal {
-    ctx: Rc<GlContext>,
-    gl_tex: glow::Texture,
-    width: Cell<u32>,
-    height: Cell<u32>,
-    format: TextureFormat,
-}
-
-impl TextureInternal {
-    pub fn new(ctx: Rc<GlContext>, params: TextureParams) -> TextureInternal {
-        let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
-        TextureInternal {
-            ctx,
-            gl_tex,
-            width: Cell::new(params.width),
-            height: Cell::new(params.height),
-            format: params.format,
-        }
-    }
-}
-
-impl Drop for TextureInternal {
+impl Drop for Texture {
     fn drop(&mut self) {
         unsafe {
             self.ctx.gl.delete_texture(self.gl_tex);
@@ -356,7 +326,7 @@ impl Drop for TextureInternal {
 #[derive(Debug, Clone, Copy)]
 pub struct TextureBinding<'a> {
     pub(crate) gl_tex: glow::Texture,
-    _phantom: PhantomData<&'a TextureInternal>,
+    _phantom: PhantomData<&'a glow::Texture>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]

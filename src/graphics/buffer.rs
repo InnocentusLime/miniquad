@@ -29,10 +29,11 @@ macro_rules! bind_buffer {
     }};
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Buffer<T: Pod + Default> {
-    internal: Rc<BufferInternal>,
+    ctx: Rc<GlContext>,
     pub(crate) gl_buf: glow::Buffer,
+    size: usize,
     _phantom: PhantomData<&'static [T]>,
 }
 
@@ -49,18 +50,18 @@ impl<T: Pod + Default> Buffer<T> {
         }
 
         std::mem::drop(cache);
-        let internal = BufferInternal { ctx, gl_buf, size };
         Buffer {
+            ctx,
             gl_buf,
-            internal: Rc::new(internal),
+            size,
             _phantom: PhantomData,
         }
     }
 
     pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> Buffer<T> {
-        let mut cache = ctx.cache.borrow_mut();
         let data: &[u8] = bytemuck::cast_slice(data);
-        let size = data.len();
+        
+        let mut cache = ctx.cache.borrow_mut();
         let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
         cache.bind_buffer(&ctx.gl, gl_buf);
         unsafe {
@@ -69,28 +70,26 @@ impl<T: Pod + Default> Buffer<T> {
         }
 
         std::mem::drop(cache);
-        let internal = BufferInternal { ctx, gl_buf, size };
         Buffer {
+            ctx,
             gl_buf,
-            internal: Rc::new(internal),
+            size: data.len(),
             _phantom: PhantomData,
         }
     }
 
     pub fn size(&self) -> usize {
-        self.internal.size
+        self.size
     }
 
     pub fn update(&self, data: &[T]) {
-        let mut cache = self.internal.ctx.cache.borrow_mut();
         let data: &[u8] = bytemuck::cast_slice(data);
-        let size = data.len();
-        assert!(size <= self.size());
-
-        cache.bind_buffer(&self.internal.ctx.gl, self.gl_buf);
+        assert!(data.len() <= self.size());
+        
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_buffer(&self.ctx.gl, self.gl_buf);
         unsafe {
-            self.internal
-                .ctx
+            self.ctx
                 .gl
                 .buffer_sub_data_u8_slice(glow::ARRAY_BUFFER, 0, data)
         };
@@ -106,14 +105,7 @@ impl<T: Pod + Default> Buffer<T> {
     }
 }
 
-#[derive(Debug)]
-struct BufferInternal {
-    ctx: Rc<GlContext>,
-    gl_buf: glow::Buffer,
-    size: usize,
-}
-
-impl Drop for BufferInternal {
+impl<T: Pod + Default> Drop for Buffer<T> {
     fn drop(&mut self) {
         unsafe {
             self.ctx.gl.delete_buffer(self.gl_buf);
@@ -126,5 +118,5 @@ pub struct BufferBinding<'a> {
     pub(crate) gl_buf: glow::Buffer,
     pub(crate) offset: u32,
     pub(crate) stride: u32,
-    _phantom: PhantomData<&'a BufferInternal>,
+    _phantom: PhantomData<&'a glow::Buffer  >,
 }

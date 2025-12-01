@@ -5,8 +5,13 @@ use glow::HasContext;
 use crate::graphics::GlContext;
 use crate::graphics::texture::Texture;
 
-#[derive(Debug, Clone)]
-pub struct RenderPass(Rc<RenderPassInternal>);
+#[derive(Debug)]
+pub struct RenderPass {
+    ctx: Rc<GlContext>,
+    pub(crate) gl_fb: glow::Framebuffer,
+    color_textures: Vec<Texture>,
+    depth_texture: Option<Texture>,
+}
 
 impl RenderPass {
     pub fn new(
@@ -50,43 +55,46 @@ impl RenderPass {
             }
         }
 
-        let pass = RenderPassInternal {
+        RenderPass {
             ctx,
             gl_fb,
-            color_textures: color_img.to_vec(),
+            color_textures: color_img,
             depth_texture: depth_img,
-        };
-        RenderPass(Rc::new(pass))
+        }
     }
 
     pub fn color_attachments(&self) -> &[Texture] {
-        &self.0.color_textures
+        &self.color_textures
     }
 
     pub fn perform(&self, pass_action: PassAction, code: impl FnOnce()) {
-        let gl = &self.0.ctx.gl;
         // new_render_pass will panic with both color and depth components none
         // so unwrap is safe here
         let texture = self
-            .0
             .color_textures
             .first()
-            .or(self.0.depth_texture.as_ref())
+            .or(self.depth_texture.as_ref())
             .unwrap();
         let (framebuffer, w, h) = (
-            self.0.gl_fb,
+            self.gl_fb,
             texture.width() as i32,
             texture.height() as i32,
         );
 
         unsafe {
-            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(framebuffer));
-            gl.viewport(0, 0, w, h);
-            gl.scissor(0, 0, w, h);
+            self.ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(framebuffer));
+            self.ctx.gl.viewport(0, 0, w, h);
+            self.ctx.gl.scissor(0, 0, w, h);
         }
-        gl_clear(gl, pass_action);
+        gl_clear(&self.ctx.gl, pass_action);
 
         code();
+    }
+}
+
+impl Drop for RenderPass {
+    fn drop(&mut self) {
+        unsafe { self.ctx.gl.delete_framebuffer(self.gl_fb) }
     }
 }
 
@@ -102,20 +110,6 @@ impl GlContext {
         gl_clear(&self.gl, pass_action);
 
         code();
-    }
-}
-
-#[derive(Debug)]
-struct RenderPassInternal {
-    ctx: Rc<GlContext>,
-    gl_fb: glow::Framebuffer,
-    color_textures: Vec<Texture>,
-    depth_texture: Option<Texture>,
-}
-
-impl Drop for RenderPassInternal {
-    fn drop(&mut self) {
-        unsafe { self.ctx.gl.delete_framebuffer(self.gl_fb) }
     }
 }
 

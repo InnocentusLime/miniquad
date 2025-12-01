@@ -6,10 +6,11 @@ use glow::HasContext;
 
 use crate::graphics::{BufferUsage, GlContext};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct IndexBuffer<T: IndexBufferElement = u16> {
-    internal: Rc<IndexBufferInternal>,
+    ctx: Rc<GlContext>,
     pub(crate) gl_buf: glow::Buffer,
+    size: usize,
     _phantom: PhantomData<&'static [T]>,
 }
 
@@ -29,18 +30,18 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         }
 
         std::mem::drop(cache);
-        let buffer = IndexBufferInternal { ctx, gl_buf, size };
         IndexBuffer {
+            ctx,
             gl_buf,
-            internal: Rc::new(buffer),
+            size,
             _phantom: PhantomData,
         }
     }
 
     pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> IndexBuffer<T> {
-        let mut cache = ctx.cache.borrow_mut();
         let data: &[u8] = bytemuck::cast_slice(data);
-        let size = data.len();
+        
+        let mut cache = ctx.cache.borrow_mut();
         let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
         cache.bind_index_buffer(&ctx.gl, gl_buf);
         unsafe {
@@ -49,28 +50,26 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
         }
 
         std::mem::drop(cache);
-        let internal = IndexBufferInternal { ctx, gl_buf, size };
         IndexBuffer {
+            ctx,
             gl_buf,
-            internal: Rc::new(internal),
+            size: data.len(),
             _phantom: PhantomData,
         }
     }
 
     pub fn size(&self) -> usize {
-        self.internal.size
+        self.size
     }
 
     pub fn update(&self, data: &[T]) {
-        let mut cache = self.internal.ctx.cache.borrow_mut();
         let data: &[u8] = bytemuck::cast_slice(data);
-        let size = data.len();
-        assert!(size <= self.size());
-
-        cache.bind_index_buffer(&self.internal.ctx.gl, self.gl_buf);
+        assert!(data.len() <= self.size());
+        
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_index_buffer(&self.ctx.gl, self.gl_buf);
         unsafe {
-            self.internal
-                .ctx
+            self.ctx
                 .gl
                 .buffer_sub_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, 0, data)
         };
@@ -86,14 +85,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
     }
 }
 
-#[derive(Debug)]
-struct IndexBufferInternal {
-    ctx: Rc<GlContext>,
-    gl_buf: glow::Buffer,
-    size: usize,
-}
-
-impl Drop for IndexBufferInternal {
+impl<T: IndexBufferElement> Drop for IndexBuffer<T> {
     fn drop(&mut self) {
         unsafe { self.ctx.gl.delete_buffer(self.gl_buf) }
     }
@@ -104,7 +96,7 @@ pub struct IndexBufferBinding<'a> {
     pub(crate) sz_elem: i32,
     pub(crate) gl_type: u32,
     pub(crate) gl_buf: glow::Buffer,
-    _phantom: PhantomData<&'a IndexBufferInternal>,
+    _phantom: PhantomData<&'a glow::Buffer>,
 }
 
 pub trait IndexBufferElement: Pod {

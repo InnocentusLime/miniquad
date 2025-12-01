@@ -39,8 +39,15 @@ impl Default for PipelineParams {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Pipeline(Rc<PipelineInternal>);
+#[derive(Debug)]
+pub struct Pipeline {
+    ctx: Rc<GlContext>,
+    gl_prog: glow::Program,
+    image_uniforms: Vec<glow::UniformLocation>,
+    uniforms: Vec<ShaderUniform>,
+    attributes: Vec<(u32, VertexAttribute)>,
+    params: PipelineParams,
+}
 
 impl Pipeline {
     pub fn new<S: Into<String>>(
@@ -64,20 +71,18 @@ impl Pipeline {
         let images = get_pipeline_images(&ctx.gl, program, image_uniforms)?;
 
         std::mem::drop(cache);
-        let internal = PipelineInternal {
+        Ok(Pipeline {
             ctx,
             gl_prog: program,
             image_uniforms: images,
             uniforms,
             attributes,
             params,
-        };
-
-        Ok(Pipeline(Rc::new(internal)))
+        })
     }
 
     pub(crate) fn primitive_type(&self) -> PrimitiveType {
-        self.0.params.primitive_type
+        self.params.primitive_type
     }
 
     pub(crate) fn apply(
@@ -87,20 +92,18 @@ impl Pipeline {
         textures: &[TextureBinding],
         uniform_data: &[u8],
     ) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
-        cache.bind_program(gl, self.0.gl_prog);
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_program(&self.ctx.gl, self.gl_prog);
         std::mem::drop(cache);
 
-        self.apply_parameters(&self.0.params);
+        self.apply_parameters(&self.params);
         self.apply_uniforms(uniform_data);
         self.apply_bindings(vertex_buffers, index_buffer, textures);
     }
 
     fn apply_uniforms(&self, uniform_data: &[u8]) {
-        let gl = &self.0.ctx.gl;
         let mut offset = 0;
-        for uniform in self.0.uniforms.iter() {
+        for uniform in self.uniforms.iter() {
             let location = uniform.gl_loc;
             let sz = uniform.uniform_type.size() * (uniform.array_count as usize);
             let data = &uniform_data[offset..(offset + sz)];
@@ -108,39 +111,39 @@ impl Pipeline {
             match uniform.uniform_type {
                 UniformType::F32 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_1_f32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_1_f32_slice(Some(&location), value);
                 },
                 UniformType::F32x2 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_2_f32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_2_f32_slice(Some(&location), value);
                 },
                 UniformType::F32x3 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_3_f32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_3_f32_slice(Some(&location), value);
                 },
                 UniformType::F32x4 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_4_f32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_4_f32_slice(Some(&location), value);
                 },
                 UniformType::I32 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_1_i32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_1_i32_slice(Some(&location), value);
                 },
                 UniformType::I32x2 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_2_i32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_2_i32_slice(Some(&location), value);
                 },
                 UniformType::I32x3 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_3_i32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_3_i32_slice(Some(&location), value);
                 },
                 UniformType::I32x4 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_4_i32_slice(Some(&location), value);
+                    self.ctx.gl.uniform_4_i32_slice(Some(&location), value);
                 },
                 UniformType::F32x4x4 => unsafe {
                     let value = bytemuck::cast_slice(data);
-                    gl.uniform_matrix_4_f32_slice(Some(&location), false, value);
+                    self.ctx.gl.uniform_matrix_4_f32_slice(Some(&location), false, value);
                 },
             }
             offset += sz;
@@ -153,24 +156,23 @@ impl Pipeline {
         index_buffer: IndexBufferBinding,
         textures: &[TextureBinding],
     ) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
+        let mut cache = self.ctx.cache.borrow_mut();
 
-        for (n, (image_loc, texture)) in self.0.image_uniforms.iter().zip(textures).enumerate() {
+        for (n, (image_loc, texture)) in self.image_uniforms.iter().zip(textures).enumerate() {
             unsafe {
-                cache.bind_texture(gl, n as u32, glow::TEXTURE_2D, texture.gl_tex);
-                gl.uniform_1_i32(Some(image_loc), n as i32);
+                cache.bind_texture(&self.ctx.gl, n as u32, glow::TEXTURE_2D, texture.gl_tex);
+                self.ctx.gl.uniform_1_i32(Some(image_loc), n as i32);
             }
         }
 
-        cache.bind_index_buffer(gl, index_buffer.gl_buf);
+        cache.bind_index_buffer(&self.ctx.gl, index_buffer.gl_buf);
         for attr_index in 0..MAX_VERTEX_ATTRIBUTES {
             unsafe {
-                gl.disable_vertex_attrib_array(attr_index as u32);
+                self.ctx.gl.disable_vertex_attrib_array(attr_index as u32);
             }
         }
 
-        for ((attr_index, attr), vb) in self.0.attributes.iter().zip(vertex_buffers) {
+        for ((attr_index, attr), vb) in self.attributes.iter().zip(vertex_buffers) {
             let (gl_type, component_count) = attr.format.gl_info();
             let is_integer = matches!(
                 gl_type,
@@ -182,10 +184,10 @@ impl Pipeline {
                     | glow::UNSIGNED_BYTE
             );
 
-            cache.bind_buffer(gl, vb.gl_buf);
+            cache.bind_buffer(&self.ctx.gl, vb.gl_buf);
             unsafe {
                 if is_integer {
-                    gl.vertex_attrib_pointer_i32(
+                    self.ctx.gl.vertex_attrib_pointer_i32(
                         *attr_index,
                         component_count,
                         gl_type,
@@ -193,7 +195,7 @@ impl Pipeline {
                         vb.offset as i32,
                     )
                 } else {
-                    gl.vertex_attrib_pointer_f32(
+                    self.ctx.gl.vertex_attrib_pointer_f32(
                         *attr_index,
                         component_count,
                         gl_type,
@@ -202,31 +204,29 @@ impl Pipeline {
                         vb.offset as i32,
                     )
                 }
-                gl.enable_vertex_attrib_array(*attr_index);
+                self.ctx.gl.enable_vertex_attrib_array(*attr_index);
             }
         }
     }
 
     fn apply_parameters(&self, params: &PipelineParams) {
-        let gl = &self.0.ctx.gl;
-
         if params.depth_write {
             unsafe {
-                gl.enable(glow::DEPTH_TEST);
-                gl.depth_func(params.depth_test.into())
+                self.ctx.gl.enable(glow::DEPTH_TEST);
+                self.ctx.gl.depth_func(params.depth_test.into())
             }
         } else {
             unsafe {
-                gl.disable(glow::DEPTH_TEST);
+                self.ctx.gl.disable(glow::DEPTH_TEST);
             }
         }
 
         match params.front_face_order {
             FrontFaceOrder::Clockwise => unsafe {
-                gl.front_face(glow::CW);
+                self.ctx.gl.front_face(glow::CW);
             },
             FrontFaceOrder::CounterClockwise => unsafe {
-                gl.front_face(glow::CCW);
+                self.ctx.gl.front_face(glow::CCW);
             },
         }
 
@@ -237,8 +237,7 @@ impl Pipeline {
     }
 
     fn set_blend(&self, color_blend: Option<BlendState>, alpha_blend: Option<BlendState>) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
+        let mut cache = self.ctx.cache.borrow_mut();
 
         if color_blend.is_none() && alpha_blend.is_some() {
             panic!("AlphaBlend without ColorBlend");
@@ -250,7 +249,7 @@ impl Pipeline {
         unsafe {
             if let Some(color_blend) = color_blend {
                 if cache.color_blend.is_none() {
-                    gl.enable(glow::BLEND);
+                    self.ctx.gl.enable(glow::BLEND);
                 }
 
                 let BlendState {
@@ -265,19 +264,19 @@ impl Pipeline {
                     dfactor: dst_alpha,
                 }) = alpha_blend
                 {
-                    gl.blend_func_separate(
+                    self.ctx.gl.blend_func_separate(
                         src_rgb.into(),
                         dst_rgb.into(),
                         src_alpha.into(),
                         dst_alpha.into(),
                     );
-                    gl.blend_equation_separate(eq_rgb.into(), eq_alpha.into());
+                    self.ctx.gl.blend_equation_separate(eq_rgb.into(), eq_alpha.into());
                 } else {
-                    gl.blend_func(src_rgb.into(), dst_rgb.into());
-                    gl.blend_equation_separate(eq_rgb.into(), eq_rgb.into());
+                    self.ctx.gl.blend_func(src_rgb.into(), dst_rgb.into());
+                    self.ctx.gl.blend_equation_separate(eq_rgb.into(), eq_rgb.into());
                 }
             } else if cache.color_blend.is_some() {
-                gl.disable(glow::BLEND);
+                self.ctx.gl.disable(glow::BLEND);
             }
         }
 
@@ -286,49 +285,47 @@ impl Pipeline {
     }
 
     fn set_stencil(&self, stencil_test: Option<StencilState>) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
-
+        let mut cache = self.ctx.cache.borrow_mut();
         if cache.stencil == stencil_test {
             return;
         }
         unsafe {
             if let Some(stencil) = stencil_test {
                 if cache.stencil.is_none() {
-                    gl.enable(glow::STENCIL_TEST);
+                    self.ctx.gl.enable(glow::STENCIL_TEST);
                 }
 
                 let front = &stencil.front;
-                gl.stencil_op_separate(
+                self.ctx.gl.stencil_op_separate(
                     glow::FRONT,
                     front.fail_op.into(),
                     front.depth_fail_op.into(),
                     front.pass_op.into(),
                 );
-                gl.stencil_func_separate(
+                self.ctx.gl.stencil_func_separate(
                     glow::FRONT,
                     front.test_func.into(),
                     front.test_ref,
                     front.test_mask,
                 );
-                gl.stencil_mask_separate(glow::FRONT, front.write_mask);
+                self.ctx.gl.stencil_mask_separate(glow::FRONT, front.write_mask);
 
                 let back = &stencil.back;
-                gl.stencil_op_separate(
+                self.ctx.gl.stencil_op_separate(
                     glow::BACK,
                     back.fail_op.into(),
                     back.depth_fail_op.into(),
                     back.pass_op.into(),
                 );
-                gl.stencil_func_separate(
+                self.ctx.gl.stencil_func_separate(
                     glow::BACK,
                     back.test_func.into(),
                     back.test_ref,
                     back.test_mask,
                 );
-                gl.stencil_mask_separate(glow::BACK, back.write_mask);
+                self.ctx.gl.stencil_mask_separate(glow::BACK, back.write_mask);
             } else if cache.stencil.is_some() {
-                gl.disable(glow::STENCIL_TEST);
+                self.ctx.gl.disable(glow::STENCIL_TEST);
             }
         }
 
@@ -336,39 +333,41 @@ impl Pipeline {
     }
 
     fn set_cull_face(&self, cull_face: CullFace) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
-
+        let mut cache = self.ctx.cache.borrow_mut();
         if cache.cull_face == cull_face {
             return;
         }
 
         match cull_face {
             CullFace::Nothing => unsafe {
-                gl.disable(glow::CULL_FACE);
+                self.ctx.gl.disable(glow::CULL_FACE);
             },
             CullFace::Front => unsafe {
-                gl.enable(glow::CULL_FACE);
-                gl.cull_face(glow::FRONT);
+                self.ctx.gl.enable(glow::CULL_FACE);
+                self.ctx.gl.cull_face(glow::FRONT);
             },
             CullFace::Back => unsafe {
-                gl.enable(glow::CULL_FACE);
-                gl.cull_face(glow::BACK);
+                self.ctx.gl.enable(glow::CULL_FACE);
+                self.ctx.gl.cull_face(glow::BACK);
             },
         }
         cache.cull_face = cull_face;
     }
 
     fn set_color_write(&self, color_write: ColorMask) {
-        let gl = &self.0.ctx.gl;
-        let mut cache = self.0.ctx.cache.borrow_mut();
-
+        let mut cache = self.ctx.cache.borrow_mut();
         if cache.color_write == color_write {
             return;
         }
         let (r, g, b, a) = color_write;
-        unsafe { gl.color_mask(r as _, g as _, b as _, a as _) }
+        unsafe { self.ctx.gl.color_mask(r as _, g as _, b as _, a as _) }
         cache.color_write = color_write;
+    }
+}
+
+impl Drop for Pipeline {
+    fn drop(&mut self) {
+        unsafe { self.ctx.gl.delete_program(self.gl_prog) };
     }
 }
 
@@ -595,22 +594,6 @@ impl VertexFormat {
             VertexFormat::U32x3 => (glow::UNSIGNED_INT, 3),
             VertexFormat::U32x4 => (glow::UNSIGNED_INT, 4),
         }
-    }
-}
-
-#[derive(Debug)]
-struct PipelineInternal {
-    ctx: Rc<GlContext>,
-    gl_prog: glow::Program,
-    image_uniforms: Vec<glow::UniformLocation>,
-    uniforms: Vec<ShaderUniform>,
-    attributes: Vec<(u32, VertexAttribute)>,
-    params: PipelineParams,
-}
-
-impl Drop for PipelineInternal {
-    fn drop(&mut self) {
-        unsafe { self.ctx.gl.delete_program(self.gl_prog) };
     }
 }
 
