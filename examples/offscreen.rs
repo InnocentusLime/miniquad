@@ -12,7 +12,7 @@ fn main() {
 }
 
 struct Stage {
-    vertices_cube: Buffer<CubeVert>,
+    vertices_cube: VertexBuffer<CubeVert>,
     indicies_cube: IndexBuffer,
     display_pipeline: Pipeline,
     offscreen_pipeline: Pipeline,
@@ -88,7 +88,7 @@ impl EventHandler for Stage {
             CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 1.0) },
             CubeVert { pos: vec3(1.0,  1.0, -1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
         ];
-        let vertices_cube = Buffer::new(ctx.clone(), BufferUsage::Immutable, vertices_cube);
+        let vertices_cube = VertexBuffer::new(ctx.clone(), BufferUsage::Immutable, vertices_cube);
 
         #[rustfmt::skip]
         let indicies_cube = &[
@@ -177,7 +177,7 @@ impl Stage {
                     pipeline: &self.offscreen_pipeline,
                     base_element: 0,
                     num_elements: 36,
-                    vertex_buffers: &bind_buffers![
+                    vertex_buffers: &bind_vertex_buffers![
                         (&self.vertices_cube) as <CubeVert>::pos,
                         (&self.vertices_cube) as <CubeVert>::color,
                     ],
@@ -198,7 +198,7 @@ impl Stage {
                     pipeline: &self.display_pipeline,
                     base_element: 0,
                     num_elements: 36,
-                    vertex_buffers: &bind_buffers![
+                    vertex_buffers: &bind_vertex_buffers![
                         (&self.vertices_cube) as <CubeVert>::pos,
                         (&self.vertices_cube) as <CubeVert>::color,
                         (&self.vertices_cube) as <CubeVert>::uv,

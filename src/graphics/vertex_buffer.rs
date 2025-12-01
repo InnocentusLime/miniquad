@@ -7,7 +7,7 @@ use glow::HasContext;
 use crate::graphics::{BufferUsage, GlContext};
 
 #[macro_export]
-macro_rules! bind_buffers {
+macro_rules! bind_vertex_buffers {
     (
         $(
             ($buf:expr) as <$Type:path>::$field:tt
@@ -15,30 +15,30 @@ macro_rules! bind_buffers {
         $(,)?
     ) => {
         [$(
-            $crate::bind_buffer!($buf, $Type, $field)
+            $crate::bind_vertex_buffer!($buf, $Type, $field)
         ),+]
     };
     () => { [] }
 }
 
 #[macro_export]
-macro_rules! bind_buffer {
+macro_rules! bind_vertex_buffer {
     ($buf:expr, $Type:path, $field:tt) => {{
-        let local: &Buffer<$Type> = $buf;
+        let local: &VertexBuffer<$Type> = $buf;
         local.binding($crate::offset_of!($Type, $field) as u32)
     }};
 }
 
 #[derive(Debug)]
-pub struct Buffer<T: Pod + Default> {
+pub struct VertexBuffer<T: Pod + Default> {
     ctx: Rc<GlContext>,
     pub(crate) gl_buf: glow::Buffer,
     size: usize,
     _phantom: PhantomData<&'static [T]>,
 }
 
-impl<T: Pod + Default> Buffer<T> {
-    pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> Buffer<T> {
+impl<T: Pod + Default> VertexBuffer<T> {
+    pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> VertexBuffer<T> {
         assert_eq!(size % std::mem::size_of::<T>(), 0, "size must be aligned");
 
         let mut cache = ctx.cache.borrow_mut();
@@ -50,7 +50,7 @@ impl<T: Pod + Default> Buffer<T> {
         }
 
         std::mem::drop(cache);
-        Buffer {
+        VertexBuffer {
             ctx,
             gl_buf,
             size,
@@ -58,7 +58,7 @@ impl<T: Pod + Default> Buffer<T> {
         }
     }
 
-    pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> Buffer<T> {
+    pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> VertexBuffer<T> {
         let data: &[u8] = bytemuck::cast_slice(data);
         
         let mut cache = ctx.cache.borrow_mut();
@@ -70,7 +70,7 @@ impl<T: Pod + Default> Buffer<T> {
         }
 
         std::mem::drop(cache);
-        Buffer {
+        VertexBuffer {
             ctx,
             gl_buf,
             size: data.len(),
@@ -95,8 +95,8 @@ impl<T: Pod + Default> Buffer<T> {
         };
     }
 
-    pub fn binding(&self, offset: u32) -> BufferBinding<'_> {
-        BufferBinding {
+    pub fn binding(&self, offset: u32) -> VertexBufferBinding<'_> {
+        VertexBufferBinding {
             gl_buf: self.gl_buf,
             offset,
             stride: std::mem::size_of::<T>() as u32,
@@ -105,7 +105,7 @@ impl<T: Pod + Default> Buffer<T> {
     }
 }
 
-impl<T: Pod + Default> Drop for Buffer<T> {
+impl<T: Pod + Default> Drop for VertexBuffer<T> {
     fn drop(&mut self) {
         unsafe {
             self.ctx.gl.delete_buffer(self.gl_buf);
@@ -114,7 +114,7 @@ impl<T: Pod + Default> Drop for Buffer<T> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct BufferBinding<'a> {
+pub struct VertexBufferBinding<'a> {
     pub(crate) gl_buf: glow::Buffer,
     pub(crate) offset: u32,
     pub(crate) stride: u32,

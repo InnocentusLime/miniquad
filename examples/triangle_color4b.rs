@@ -12,7 +12,7 @@ fn main() {
 
 struct Stage {
     pipeline: Pipeline,
-    vertices: Buffer<Vertex>,
+    vertices: VertexBuffer<Vertex>,
     indicies: IndexBuffer,
     ctx: Rc<GlContext>,
 }
@@ -34,7 +34,7 @@ impl EventHandler for Stage {
             Vertex { pos: vec2(0.5, -0.5), color: u8vec4(0, 0xFF, 0, 0xFF) },
             Vertex { pos: vec2(0.0,  0.5), color: u8vec4(0, 0, 0xFF, 0xFF) },
         ];
-        let vertices = ctx.new_buffer(BufferUsage::Immutable, &vertices);
+        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices);
 
         let indicies = [0, 1, 2];
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
@@ -72,7 +72,7 @@ impl Stage {
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 3,
-                    vertex_buffers: &bind_buffers![
+                    vertex_buffers: &bind_vertex_buffers![
                         (&self.vertices) as <Vertex>::pos,
                         (&self.vertices) as <Vertex>::color,
                     ],

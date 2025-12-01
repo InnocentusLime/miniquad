@@ -1,4 +1,4 @@
-mod buffer;
+mod vertex_buffer;
 mod cache;
 mod index_buffer;
 mod pipeline;
@@ -15,7 +15,7 @@ use cache::GlCache;
 use glow::HasContext;
 use glutin::context::PossiblyCurrentContext;
 
-pub use buffer::*;
+pub use vertex_buffer::*;
 pub use index_buffer::*;
 pub use pipeline::*;
 pub use render_pass::*;
@@ -60,20 +60,20 @@ impl GlContext {
         self.client_area_size.get()
     }
 
-    pub fn new_empty_buffer<T: Pod + Default>(
+    pub fn new_empty_vertex_buffer<T: Pod + Default>(
         self: &Rc<Self>,
         usage: BufferUsage,
         size: usize,
-    ) -> Buffer<T> {
-        Buffer::new_empty(self.clone(), usage, size)
+    ) -> VertexBuffer<T> {
+        VertexBuffer::new_empty(self.clone(), usage, size)
     }
 
-    pub fn new_buffer<T: Pod + Default>(
+    pub fn new_vertex_buffer<T: Pod + Default>(
         self: &Rc<Self>,
         usage: BufferUsage,
         data: &[T],
-    ) -> Buffer<T> {
-        Buffer::new(self.clone(), usage, data)
+    ) -> VertexBuffer<T> {
+        VertexBuffer::new(self.clone(), usage, data)
     }
 
     pub fn new_empty_index_buffer<I: IndexBufferElement>(
@@ -138,7 +138,7 @@ pub struct DrawCall<'a> {
     pub pipeline: &'a Pipeline,
     pub base_element: i32,
     pub num_elements: i32,
-    pub vertex_buffers: &'a [BufferBinding<'a>],
+    pub vertex_buffers: &'a [VertexBufferBinding<'a>],
     pub index_buffer: IndexBufferBinding<'a>,
     pub textures: &'a [TextureBinding<'a>],
     pub uniform_data: &'a [u8],

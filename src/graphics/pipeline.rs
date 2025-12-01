@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::Display;
 use std::rc::Rc;
 
-use crate::graphics::buffer::BufferBinding;
+use crate::graphics::vertex_buffer::VertexBufferBinding;
 use crate::graphics::{ColorMask, Comparison, CullFace, FrontFaceOrder, GlContext, PrimitiveType};
 use crate::{BlendState, IndexBufferBinding, StencilState, TextureBinding};
 
@@ -87,7 +87,7 @@ impl Pipeline {
 
     pub(crate) fn apply(
         &self,
-        vertex_buffers: &[BufferBinding],
+        vertex_buffers: &[VertexBufferBinding],
         index_buffer: IndexBufferBinding,
         textures: &[TextureBinding],
         uniform_data: &[u8],
@@ -152,7 +152,7 @@ impl Pipeline {
 
     fn apply_bindings(
         &self,
-        vertex_buffers: &[BufferBinding],
+        vertex_buffers: &[VertexBufferBinding],
         index_buffer: IndexBufferBinding,
         textures: &[TextureBinding],
     ) {
