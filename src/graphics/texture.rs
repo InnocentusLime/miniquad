@@ -6,6 +6,8 @@ use glow::{HasContext, NativeFramebuffer, PixelPackData, PixelUnpackData};
 
 use crate::graphics::GlContext;
 
+static TARGET_NAME: &str = "gl.texture";
+
 #[derive(Debug, Copy, Clone)]
 pub struct TextureParams {
     pub format: TextureFormat,
@@ -61,9 +63,14 @@ impl Texture {
             FilterMode::Nearest => glow::NEAREST,
             FilterMode::Linear => glow::LINEAR,
         };
+        
         let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
+        tracing::debug!(
+            target: TARGET_NAME, 
+            params=?params,
+            "new: {gl_tex:?}",
+        );
         let mut cache = ctx.cache.borrow_mut();
-
         cache.bind_texture(&ctx.gl, 0, glow::TEXTURE_2D, gl_tex);
         unsafe {
             ctx.gl.pixel_store_i32(glow::PACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
@@ -317,6 +324,11 @@ impl Texture {
 
 impl Drop for Texture {
     fn drop(&mut self) {
+        tracing::debug!(
+            target: TARGET_NAME, 
+            "dropping: {:?}", 
+            self.gl_tex,
+        );
         unsafe {
             self.ctx.gl.delete_texture(self.gl_tex);
         }

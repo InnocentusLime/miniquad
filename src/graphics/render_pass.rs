@@ -5,6 +5,8 @@ use glow::HasContext;
 use crate::graphics::GlContext;
 use crate::graphics::texture::Texture;
 
+static TARGET_NAME: &str = "gl.render_pass";
+
 #[derive(Debug)]
 pub struct RenderPass {
     ctx: Rc<GlContext>,
@@ -24,10 +26,19 @@ impl RenderPass {
         }
 
         let gl_fb = unsafe { ctx.gl.create_framebuffer().unwrap() };
+        tracing::debug!(
+            target: TARGET_NAME, 
+            "new: {gl_fb:?}",
+        );
 
         unsafe {
             ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(gl_fb));
             for (i, color_img) in color_img.iter().enumerate() {
+                tracing::debug!(
+                    target: TARGET_NAME, 
+                    "{gl_fb:?}: color_attachment[{i}]={:?}",
+                    color_img.gl_tex,
+                );
                 ctx.gl.framebuffer_texture_2d(
                     glow::FRAMEBUFFER,
                     glow::COLOR_ATTACHMENT0 + i as u32,
@@ -37,6 +48,11 @@ impl RenderPass {
                 );
             }
             if let Some(depth_img) = &depth_img {
+                tracing::debug!(
+                    target: TARGET_NAME, 
+                    "{gl_fb:?}: depth_attachment={:?}",
+                    depth_img.gl_tex,
+                );
                 ctx.gl.framebuffer_texture_2d(
                     glow::FRAMEBUFFER,
                     glow::DEPTH_ATTACHMENT,
@@ -68,6 +84,13 @@ impl RenderPass {
     }
 
     pub fn perform(&self, pass_action: PassAction, code: impl FnOnce()) {
+        let span = tracing::debug_span!(
+            target: TARGET_NAME,
+            "perform_render_pass",
+            fb = ?self.gl_fb,
+        );
+        let _entered = span.enter();
+
         // new_render_pass will panic with both color and depth components none
         // so unwrap is safe here
         let texture = self
@@ -75,18 +98,13 @@ impl RenderPass {
             .first()
             .or(self.depth_texture.as_ref())
             .unwrap();
-        let (framebuffer, w, h) = (
-            self.gl_fb,
+        bind_and_setup_fb(
+            &self.ctx.gl, 
+            pass_action, 
+            Some(self.gl_fb), 
             texture.width() as i32,
             texture.height() as i32,
         );
-
-        unsafe {
-            self.ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(framebuffer));
-            self.ctx.gl.viewport(0, 0, w, h);
-            self.ctx.gl.scissor(0, 0, w, h);
-        }
-        gl_clear(&self.ctx.gl, pass_action);
 
         code();
     }
@@ -94,26 +112,61 @@ impl RenderPass {
 
 impl Drop for RenderPass {
     fn drop(&mut self) {
+        tracing::debug!(
+            target: TARGET_NAME, 
+            "dropping: {:?}",
+            self.gl_fb,
+        );
         unsafe { self.ctx.gl.delete_framebuffer(self.gl_fb) }
     }
 }
 
 impl GlContext {
     pub fn perform_default_render_pass(&self, pass_action: PassAction, code: impl FnOnce()) {
+        let span = tracing::debug_span!(
+            target: TARGET_NAME,
+            "perform_default_render_pass",
+        );
+        let _entered = span.enter();
+
         let (screen_width, screen_height) = self.screen_size();
-        let (w, h) = (screen_width as i32, screen_height as i32);
-        unsafe {
-            self.gl.bind_framebuffer(glow::FRAMEBUFFER, None);
-            self.gl.viewport(0, 0, w, h);
-            self.gl.scissor(0, 0, w, h);
-        }
-        gl_clear(&self.gl, pass_action);
+        bind_and_setup_fb(
+            &self.gl, 
+            pass_action, 
+            None, 
+            screen_width as i32, 
+            screen_height as i32
+        );
 
         code();
     }
 }
 
-fn gl_clear(gl: &glow::Context, pass_action: PassAction) {
+fn bind_and_setup_fb(
+    gl: &glow::Context, 
+    pass_action: PassAction, 
+    framebuffer: Option<glow::Framebuffer>, 
+    width: i32, 
+    height: i32,
+) {
+    tracing::trace!(
+        target: TARGET_NAME,
+        width=width,
+        height=height,
+        "applying scissor andviewport",
+    );
+    unsafe {
+        gl.bind_framebuffer(glow::FRAMEBUFFER, framebuffer);
+        gl.viewport(0, 0, width, height);
+        gl.scissor(0, 0, width, height);
+    }
+    
+    tracing::trace!(
+        target: TARGET_NAME,
+        action=?pass_action,
+        "clear",
+    );
+
     let mut bits = 0;
     if let Some((r, g, b, a)) = pass_action.color {
         bits |= glow::COLOR_BUFFER_BIT;
@@ -143,7 +196,7 @@ fn gl_clear(gl: &glow::Context, pass_action: PassAction) {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct PassAction {
     color: Option<(f32, f32, f32, f32)>,
     depth: Option<f32>,

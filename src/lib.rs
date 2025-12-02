@@ -23,7 +23,17 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Icon, Window, WindowAttributes};
 
+static TARGET_NAME: &str = "app";
+
 pub fn run<T: EventHandler>(conf: Conf) {
+    // TODO: log filtering must be configurable
+    tracing_subscriber::fmt()
+        .with_level(true)
+        .with_max_level(tracing::Level::TRACE)
+        .init();
+
+    tracing::info!(target: TARGET_NAME, "starting");
+    
     let event_loop = EventLoop::<FileReady>::with_user_event().build().unwrap();
     let proxy = event_loop.create_proxy();
     event_loop.set_control_flow(ControlFlow::Poll);
@@ -129,6 +139,8 @@ impl<T: EventHandler> App<T> {
             glow_gl,
             window.inner_size().into(),
         ));
+
+        tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
         let handler = T::init(gl_context.clone(), self.fs_server.get_handle());
         self.state = AppState::Ready {

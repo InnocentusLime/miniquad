@@ -6,6 +6,8 @@ use glow::HasContext;
 
 use crate::graphics::{BufferUsage, GlContext};
 
+static TARGET_NAME: &str = "gl.index_buffer";
+
 #[derive(Debug)]
 pub struct IndexBuffer<T: IndexBufferElement = u16> {
     ctx: Rc<GlContext>,
@@ -17,10 +19,7 @@ pub struct IndexBuffer<T: IndexBufferElement = u16> {
 impl<T: IndexBufferElement> IndexBuffer<T> {
     pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> IndexBuffer<T> {
         assert_eq!(size % std::mem::size_of::<T>(), 0, "size must be aligned");
-
-        let mut cache = ctx.cache.borrow_mut();
-        let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
-        cache.bind_index_buffer(&ctx.gl, gl_buf);
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
         unsafe {
             ctx.gl.buffer_data_size(
                 glow::ELEMENT_ARRAY_BUFFER,
@@ -28,8 +27,6 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
                 super::gl_usage(usage),
             );
         }
-
-        std::mem::drop(cache);
         IndexBuffer {
             ctx,
             gl_buf,
@@ -40,16 +37,11 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
 
     pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> IndexBuffer<T> {
         let data: &[u8] = bytemuck::cast_slice(data);
-        
-        let mut cache = ctx.cache.borrow_mut();
-        let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
-        cache.bind_index_buffer(&ctx.gl, gl_buf);
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
         unsafe {
             ctx.gl
                 .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, super::gl_usage(usage));
         }
-
-        std::mem::drop(cache);
         IndexBuffer {
             ctx,
             gl_buf,
@@ -87,6 +79,12 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
 
 impl<T: IndexBufferElement> Drop for IndexBuffer<T> {
     fn drop(&mut self) {
+        tracing::debug!(
+            target: TARGET_NAME, 
+            index_ty = std::any::type_name::<T>(),
+            "dropping: {:?}", 
+            self.gl_buf,
+        );
         unsafe { self.ctx.gl.delete_buffer(self.gl_buf) }
     }
 }
@@ -113,4 +111,16 @@ impl IndexBufferElement for u16 {
 
 impl IndexBufferElement for u32 {
     const GL_TYPE: u32 = glow::UNSIGNED_SHORT;
+}
+
+fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> glow::Buffer {
+    let mut cache = ctx.cache.borrow_mut();
+    let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
+    tracing::debug!(
+        target: TARGET_NAME, 
+        index_ty = ty_name,
+        "new: {gl_buf:?}",
+    );
+    cache.bind_index_buffer(&ctx.gl, gl_buf);
+    gl_buf
 }

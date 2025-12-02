@@ -6,6 +6,8 @@ use glow::HasContext;
 
 use crate::graphics::{BufferUsage, GlContext};
 
+static TARGET_NAME: &str = "gl.vertex_buffer";
+
 #[macro_export]
 macro_rules! bind_vertex_buffers {
     (
@@ -40,16 +42,11 @@ pub struct VertexBuffer<T: Pod + Default> {
 impl<T: Pod + Default> VertexBuffer<T> {
     pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> VertexBuffer<T> {
         assert_eq!(size % std::mem::size_of::<T>(), 0, "size must be aligned");
-
-        let mut cache = ctx.cache.borrow_mut();
-        let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
-        cache.bind_buffer(&ctx.gl, gl_buf);
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
         unsafe {
             ctx.gl
                 .buffer_data_size(glow::ARRAY_BUFFER, size as i32, super::gl_usage(usage));
         }
-
-        std::mem::drop(cache);
         VertexBuffer {
             ctx,
             gl_buf,
@@ -60,16 +57,11 @@ impl<T: Pod + Default> VertexBuffer<T> {
 
     pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> VertexBuffer<T> {
         let data: &[u8] = bytemuck::cast_slice(data);
-        
-        let mut cache = ctx.cache.borrow_mut();
-        let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
-        cache.bind_buffer(&ctx.gl, gl_buf);
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
         unsafe {
             ctx.gl
                 .buffer_data_u8_slice(glow::ARRAY_BUFFER, data, super::gl_usage(usage));
         }
-
-        std::mem::drop(cache);
         VertexBuffer {
             ctx,
             gl_buf,
@@ -107,6 +99,12 @@ impl<T: Pod + Default> VertexBuffer<T> {
 
 impl<T: Pod + Default> Drop for VertexBuffer<T> {
     fn drop(&mut self) {
+        tracing::debug!(
+            target: TARGET_NAME, 
+            vertex_ty = std::any::type_name::<T>(),
+            "dropping: {:?}", 
+            self.gl_buf,
+        );
         unsafe {
             self.ctx.gl.delete_buffer(self.gl_buf);
         }
@@ -119,4 +117,16 @@ pub struct VertexBufferBinding<'a> {
     pub(crate) offset: u32,
     pub(crate) stride: u32,
     _phantom: PhantomData<&'a glow::Buffer  >,
+}
+
+fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> glow::Buffer {
+    let mut cache = ctx.cache.borrow_mut();
+    let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
+    tracing::debug!(
+        target: TARGET_NAME, 
+        vertex_ty = ty_name,
+        "new: {gl_buf:?}",
+    );
+    cache.bind_buffer(&ctx.gl, gl_buf);
+    gl_buf
 }

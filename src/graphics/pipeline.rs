@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 use std::rc::Rc;
 
 use crate::graphics::vertex_buffer::VertexBufferBinding;
@@ -7,6 +7,8 @@ use crate::graphics::{ColorMask, Comparison, CullFace, FrontFaceOrder, GlContext
 use crate::{BlendState, IndexBufferBinding, StencilState, TextureBinding};
 
 use glow::HasContext;
+
+static TARGET_NAME: &str = "gl.pipeline";
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct PipelineParams {
@@ -62,8 +64,23 @@ impl Pipeline {
         let mut cache = ctx.cache.borrow_mut();
 
         let vertex = load_shader(&ctx.gl, ShaderType::Vertex, vertex_shader_source)?;
+        tracing::debug!(
+            target: TARGET_NAME, 
+            "compiled vertex shader: {vertex:?}",
+        );
+        
         let fragment = load_shader(&ctx.gl, ShaderType::Fragment, fragment_shader_source)?;
+        tracing::debug!(
+            target: TARGET_NAME, 
+            "compiled fragment shader: {fragment:?}",
+        );
+        
         let program = create_program(&ctx.gl, vertex, fragment)?;
+        tracing::debug!(
+            target: TARGET_NAME,
+            params=?params,
+            "new: {program:?} (vertex={vertex:?}, fragment={fragment:?})",
+        );
 
         cache.bind_program(&ctx.gl, program);
         let attributes = get_pipeline_attributes(&ctx.gl, program, attributes)?;
@@ -91,7 +108,7 @@ impl Pipeline {
         index_buffer: IndexBufferBinding,
         textures: &[TextureBinding],
         uniform_data: &[u8],
-    ) {
+    ) { 
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_program(&self.ctx.gl, self.gl_prog);
         std::mem::drop(cache);
@@ -110,44 +127,61 @@ impl Pipeline {
 
             match uniform.uniform_type {
                 UniformType::F32 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, f32>(data, uniform);
                     self.ctx.gl.uniform_1_f32_slice(Some(&location), value);
                 },
                 UniformType::F32x2 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, [f32; 2]>(data, uniform);
                     self.ctx.gl.uniform_2_f32_slice(Some(&location), value);
                 },
                 UniformType::F32x3 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, [f32; 3]>(data, uniform);
                     self.ctx.gl.uniform_3_f32_slice(Some(&location), value);
                 },
                 UniformType::F32x4 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, [f32; 4]>(data, uniform);
                     self.ctx.gl.uniform_4_f32_slice(Some(&location), value);
                 },
                 UniformType::I32 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, i32>(data, uniform);
                     self.ctx.gl.uniform_1_i32_slice(Some(&location), value);
                 },
                 UniformType::I32x2 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, [i32; 2]>(data, uniform);
                     self.ctx.gl.uniform_2_i32_slice(Some(&location), value);
                 },
                 UniformType::I32x3 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, [i32; 3]>(data, uniform);
                     self.ctx.gl.uniform_3_i32_slice(Some(&location), value);
                 },
                 UniformType::I32x4 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, [i32; 4]>(data, uniform);
                     self.ctx.gl.uniform_4_i32_slice(Some(&location), value);
                 },
                 UniformType::F32x4x4 => unsafe {
-                    let value = bytemuck::cast_slice(data);
+                    let value = self.get_uniform_value::<_, [[f32; 4]; 4]>(data, uniform);
                     self.ctx.gl.uniform_matrix_4_f32_slice(Some(&location), false, value);
                 },
             }
             offset += sz;
         }
+    }
+
+    fn get_uniform_value<'a, T, Inter>(&self, data: &'a [u8], uniform: &ShaderUniform) -> &'a [T]
+    where 
+        T: bytemuck::AnyBitPattern + Debug + 'static,
+        Inter: bytemuck::AnyBitPattern + Debug + 'static,
+    {
+        let value = bytemuck::cast_slice(data);
+        let interpreted = bytemuck::cast_slice::<_, Inter>(data);
+        tracing::trace!(
+            target: TARGET_NAME,
+            uniform_name = uniform.name,
+            gl_prog = ?self.gl_prog,
+            interpreted = ?interpreted,
+            "set uniform",
+        );
+        value
     }
 
     fn apply_bindings(
@@ -156,6 +190,14 @@ impl Pipeline {
         index_buffer: IndexBufferBinding,
         textures: &[TextureBinding],
     ) {
+        tracing::trace!(
+            target: TARGET_NAME,
+            gl_prog = ?self.gl_prog,
+            vertex_buffers = ?vertex_buffers,
+            index_buffers = ?index_buffer,
+            textures = ?textures,
+            "applying bindings",
+        );
         let mut cache = self.ctx.cache.borrow_mut();
 
         for (n, (image_loc, texture)) in self.image_uniforms.iter().zip(textures).enumerate() {
@@ -367,6 +409,11 @@ impl Pipeline {
 
 impl Drop for Pipeline {
     fn drop(&mut self) {
+        tracing::debug!(
+            target: TARGET_NAME, 
+            "dropping: {:?}",
+            self.gl_prog,
+        );
         unsafe { self.ctx.gl.delete_program(self.gl_prog) };
     }
 }
@@ -469,6 +516,7 @@ fn get_pipeline_uniforms(
         .map(|uniform| {
             Ok(ShaderUniform {
                 gl_loc: get_uniform_location(gl, program, &uniform.name)?,
+                name: uniform.name,
                 uniform_type: uniform.uniform_type,
                 array_count: uniform.array_len as _,
             })
@@ -599,6 +647,8 @@ impl VertexFormat {
 
 #[derive(Debug)]
 struct ShaderUniform {
+    #[allow(dead_code)]
+    name: String,
     gl_loc: glow::UniformLocation,
     uniform_type: UniformType,
     array_count: i32,

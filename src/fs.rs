@@ -3,6 +3,8 @@ use std::thread::{JoinHandle, spawn};
 
 use winit::event_loop::EventLoopProxy;
 
+static TARGET_NAME: &str = "fs_server";
+
 pub struct FsServerHandle(Sender<FsTask>);
 
 impl FsServerHandle {
@@ -39,16 +41,39 @@ impl FsServer {
 
 fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<FileReady>) {
     while let Ok(task) = task_queue.recv() {
+        tracing::debug!(
+            target: TARGET_NAME,
+            user_id=task.user_id,
+            path=task.path,
+            "got task",
+        );
         let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path).map_err(Into::into);
-        proxy
+        match &file_content {
+            Ok(_) => tracing::info!(
+                target: TARGET_NAME,
+                user_id=task.user_id,
+                "done",
+            ),
+            Err(e) => tracing::error!(
+                target: TARGET_NAME,
+                user_id=task.user_id,
+                "{e:?}"
+            ),
+        }
+        
+        let send_res = proxy
             .send_event(FileReady {
                 user_id: task.user_id,
                 bytes_result: file_content,
-            })
-            .expect("Client terminated")
+            });
+        if send_res.is_err() {
+            tracing::debug!(target: TARGET_NAME, "terminating: event loop closed");
+        }
     }
+    tracing::debug!(target: TARGET_NAME, "terminated");
 }
 
+#[derive(Debug)]
 struct FsTask {
     path: String,
     user_id: u64,
