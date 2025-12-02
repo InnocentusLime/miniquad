@@ -1,11 +1,11 @@
-use std::error::Error;
-use std::fmt::{Display, Debug};
+use std::fmt::Debug;
 use std::rc::Rc;
 
 use crate::graphics::vertex_buffer::VertexBufferBinding;
 use crate::graphics::{ColorMask, Comparison, CullFace, FrontFaceOrder, GlContext, PrimitiveType};
 use crate::{BlendState, IndexBufferBinding, StencilState, TextureBinding};
 
+use anyhow::Context;
 use glow::HasContext;
 
 static TARGET_NAME: &str = "gl.pipeline";
@@ -60,16 +60,18 @@ impl Pipeline {
         attributes: impl IntoIterator<Item = VertexAttribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = S>,
-    ) -> Result<Pipeline, ShaderError> {
+    ) -> anyhow::Result<Pipeline> {
         let mut cache = ctx.cache.borrow_mut();
 
-        let vertex = load_shader(&ctx.gl, ShaderType::Vertex, vertex_shader_source)?;
+        let vertex = load_shader(&ctx.gl, glow::VERTEX_SHADER, vertex_shader_source)
+            .context("load vertex shader")?;
         tracing::debug!(
             target: TARGET_NAME, 
             "compiled vertex shader: {vertex:?}",
         );
         
-        let fragment = load_shader(&ctx.gl, ShaderType::Fragment, fragment_shader_source)?;
+        let fragment = load_shader(&ctx.gl, glow::FRAGMENT_SHADER, fragment_shader_source)
+            .context("load fragment shader")?;
         tracing::debug!(
             target: TARGET_NAME, 
             "compiled fragment shader: {fragment:?}",
@@ -420,42 +422,28 @@ impl Drop for Pipeline {
 
 fn load_shader(
     gl: &glow::Context,
-    shader_type: ShaderType,
+    shader_type: u32,
     source: &str,
-) -> Result<glow::Shader, ShaderError> {
-    let (shader_type_name, gl_type) = match shader_type {
-        ShaderType::Vertex => ("Vertex", glow::VERTEX_SHADER),
-        ShaderType::Fragment => ("Fragment", glow::FRAGMENT_SHADER),
-    };
-
+) -> anyhow::Result<glow::Shader> {
     unsafe {
-        let shader = gl.create_shader(gl_type).unwrap();
+        let shader = gl.create_shader(shader_type).unwrap();
         gl.shader_source(shader, source);
         gl.compile_shader(shader);
 
         if !gl.get_shader_compile_status(shader) {
             let error_message = gl.get_shader_info_log(shader);
-            return Err(ShaderError::CompilationError {
-                shader_type_name,
-                error_message,
-            });
+            anyhow::bail!("compilation error: {error_message}");
         }
 
         Ok(shader)
     }
 }
 
-#[derive(Clone, Copy)]
-enum ShaderType {
-    Vertex,
-    Fragment,
-}
-
 fn create_program(
     gl: &glow::Context,
     vertex_shader: glow::Shader,
     fragment_shader: glow::Shader,
-) -> Result<glow::Program, ShaderError> {
+) -> anyhow::Result<glow::Program> {
     unsafe {
         let program = gl.create_program().unwrap();
         gl.attach_shader(program, vertex_shader);
@@ -469,7 +457,7 @@ fn create_program(
 
         if !gl.get_program_link_status(program) {
             let error_message = gl.get_program_info_log(program);
-            return Err(ShaderError::LinkError(error_message));
+            anyhow::bail!("link error: {error_message}");
         }
 
         Ok(program)
@@ -480,13 +468,11 @@ fn get_pipeline_attributes(
     gl: &glow::Context,
     program: glow::Program,
     attributes: impl IntoIterator<Item = VertexAttribute>,
-) -> Result<Vec<(u32, VertexAttribute)>, ShaderError> {
+) -> anyhow::Result<Vec<(u32, VertexAttribute)>> {
     let mut vertex_layout = Vec::new();
     for attr in attributes.into_iter() {
         let Some(attr_loc) = (unsafe { gl.get_attrib_location(program, attr.name) }) else {
-            return Err(ShaderError::MissingAttribute {
-                attribute: attr.name.to_string(),
-            });
+            anyhow::bail!("attribute {:?} not found", attr.name);
         };
         vertex_layout.push((attr_loc, attr));
     }
@@ -498,19 +484,19 @@ fn get_pipeline_images<S: Into<String>>(
     gl: &glow::Context,
     program: glow::Program,
     image_uniforms: impl IntoIterator<Item = S>,
-) -> Result<Vec<glow::UniformLocation>, ShaderError> {
+) -> anyhow::Result<Vec<glow::UniformLocation>> {
     image_uniforms
         .into_iter()
         .map(|x| x.into())
         .map(|name| get_uniform_location(gl, program, &name))
-        .collect::<Result<Vec<_>, ShaderError>>()
+        .collect()
 }
 
 fn get_pipeline_uniforms(
     gl: &glow::Context,
     program: glow::Program,
     uniforms: impl IntoIterator<Item = UniformDesc>,
-) -> Result<Vec<ShaderUniform>, ShaderError> {
+) -> anyhow::Result<Vec<ShaderUniform>> {
     uniforms
         .into_iter()
         .map(|uniform| {
@@ -521,17 +507,16 @@ fn get_pipeline_uniforms(
                 array_count: uniform.array_len as _,
             })
         })
-        .collect::<Result<Vec<_>, ShaderError>>()
+        .collect()
 }
 
 fn get_uniform_location(
     gl: &glow::Context,
     program: glow::Program,
     name: &str,
-) -> Result<glow::UniformLocation, ShaderError> {
-    unsafe { gl.get_uniform_location(program, name) }.ok_or_else(|| ShaderError::MissingUniform {
-        uniform: name.to_string(),
-    })
+) -> anyhow::Result<glow::UniformLocation> {
+    unsafe { gl.get_uniform_location(program, name) }
+        .ok_or_else(|| anyhow::anyhow!("uniform {name:?} not found"))
 }
 
 #[derive(Debug, Clone)]
@@ -655,34 +640,3 @@ struct ShaderUniform {
 }
 
 const MAX_VERTEX_ATTRIBUTES: usize = 16;
-
-#[derive(Clone, Debug)]
-pub enum ShaderError {
-    MissingUniform {
-        uniform: String,
-    },
-    MissingAttribute {
-        attribute: String,
-    },
-    CompilationError {
-        shader_type_name: &'static str,
-        error_message: String,
-    },
-    LinkError(String),
-}
-
-impl Display for ShaderError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::MissingUniform { uniform } => write!(f, "No such uniform:{uniform}"),
-            Self::MissingAttribute { attribute } => write!(f, "No such attribute:{attribute}"),
-            Self::CompilationError {
-                shader_type_name,
-                error_message,
-            } => write!(f, "{shader_type_name} shader error:\n{error_message}"),
-            Self::LinkError(msg) => write!(f, "Link shader error:\n{msg}"),
-        }
-    }
-}
-
-impl Error for ShaderError {}

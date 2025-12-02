@@ -104,7 +104,7 @@ impl GlContext {
         attributes: impl IntoIterator<Item = VertexAttribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = S>,
-    ) -> Result<Pipeline, ShaderError> {
+    ) -> anyhow::Result<Pipeline> {
         Pipeline::new(
             self.clone(),
             vertex_shader_source,
