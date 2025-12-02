@@ -4,7 +4,7 @@ use miniquad::*;
 ///! A simple rendering example. This example loads a texture from memory
 ///! and draws a few quads with it. The example should look as follows:
 ///! https://youtu.be/kksaeWrAT7E
-use std::rc::Rc;
+use std::{rc::Rc, time::Instant};
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {
@@ -12,6 +12,7 @@ fn main() {
 }
 
 struct Stage {
+    start: Instant,
     ctx: Rc<GlContext>,
     _fs_server: FsServerHandle,
 
@@ -95,13 +96,15 @@ impl EventHandler for Stage {
             indicies,
             texture: None,
             ctx,
+            start: Instant::now(),
         }
     }
 }
 
 impl Stage {
     fn draw(&mut self) {
-        let t = date::now();
+        let t = Instant::now().duration_since(self.start).as_secs_f32();
+
         let Some(texture) = self.texture.as_ref() else {
             return;
         };
@@ -110,9 +113,9 @@ impl Stage {
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
             || {
                 for i in 0..10 {
-                    let t = t + i as f64 * 0.3;
+                    let t = t + i as f32 * 0.3;
                     let uniforms = shader::Uniforms {
-                        offset: vec2(t.sin() as f32 * 0.5, (t * 3.).cos() as f32 * 0.5),
+                        offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
                     };
                     DrawCall {
                         ctx: &self.ctx,

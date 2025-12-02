@@ -6,7 +6,7 @@ use miniquad::*;
 ///! and visually interact with each other.
 ///! Should look like this:
 ///! https://youtu.be/W52jTDKOzIk
-use std::rc::Rc;
+use std::{rc::Rc, time::Instant};
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
     window::Window,
@@ -21,18 +21,18 @@ struct Stage {
     pipeline: Pipeline,
     vertices: VertexBuffer<Vertex>,
     indicies: IndexBuffer,
-    start_time: f64,
-    last_frame: f64,
     uniforms: shader::Uniforms,
     blobs_velocities: [(f32, f32); 32],
     ctx: Rc<GlContext>,
+    start: Instant,
+    last_frame: Instant,
 }
 
 impl EventHandler for Stage {
     fn update(&mut self) {
-        let time = miniquad::date::now();
-        let delta = (time - self.last_frame) as f32;
-        self.last_frame = time;
+        let new_frame = Instant::now();
+        let delta = new_frame.duration_since(self.last_frame).as_secs_f32();
+        self.last_frame = new_frame;
 
         for i in 1..self.uniforms.blobs_count as usize {
             self.uniforms.blobs_positions[i].x += self.blobs_velocities[i].0 * delta * 0.1;
@@ -99,18 +99,17 @@ impl EventHandler for Stage {
             blobs_positions: [vec2(0., 0.); 32],
         };
 
-        let time = miniquad::date::now();
-
+        let time = Instant::now();
         Stage {
             pipeline,
             vertices,
             indicies,
-            start_time: time,
             uniforms,
             mouse_pos: Vec2::ZERO,
             blobs_velocities: [(0., 0.); 32],
-            last_frame: time,
             ctx,
+            last_frame: time,
+            start: time,
         }
     }
 }
@@ -142,7 +141,7 @@ impl Stage {
     }
 
     fn draw(&mut self) {
-        self.uniforms.time = (miniquad::date::now() - self.start_time) as f32;
+        self.uniforms.time = self.last_frame.duration_since(self.start).as_secs_f32();
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
             || {
