@@ -4,11 +4,14 @@ use miniquad::*;
 ///! A simple rendering example. This example loads a texture from memory
 ///! and draws a few quads with it. The example should look as follows:
 ///! https://youtu.be/kksaeWrAT7E
-use std::{rc::Rc, time::Instant};
+use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    miniquad::run::<Stage>(Conf {
+        fs_root: "examples/".into(),
+        ..Conf::default()
+    });
 }
 
 struct Stage {
@@ -33,7 +36,9 @@ impl EventHandler for Stage {
     }
 
     fn file_ready(&mut self, event: FileReady) {
-        let bytes = event.bytes_result.expect("Load failed");
+        let Ok(bytes) = event.bytes_result else {
+            return;
+        };
         let img = image::load_from_memory(&bytes)
             .expect("Image load failed")
             .flipv();
@@ -54,7 +59,7 @@ impl EventHandler for Stage {
     }
 
     fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Stage {
-        fs_server.submit_task("./examples/assets/ferris.png", 0);
+        fs_server.submit_task("assets/ferris.png", 0);
 
         #[rustfmt::skip]
         let vertices = [

@@ -27,7 +27,7 @@ impl RenderPass {
 
         let gl_fb = unsafe { ctx.gl.create_framebuffer().unwrap() };
         tracing::debug!(
-            target: TARGET_NAME, 
+            target: TARGET_NAME,
             "new: {gl_fb:?}",
         );
 
@@ -35,7 +35,7 @@ impl RenderPass {
             ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(gl_fb));
             for (i, color_img) in color_img.iter().enumerate() {
                 tracing::debug!(
-                    target: TARGET_NAME, 
+                    target: TARGET_NAME,
                     "{gl_fb:?}: color_attachment[{i}]={:?}",
                     color_img.gl_tex,
                 );
@@ -49,7 +49,7 @@ impl RenderPass {
             }
             if let Some(depth_img) = &depth_img {
                 tracing::debug!(
-                    target: TARGET_NAME, 
+                    target: TARGET_NAME,
                     "{gl_fb:?}: depth_attachment={:?}",
                     depth_img.gl_tex,
                 );
@@ -99,9 +99,9 @@ impl RenderPass {
             .or(self.depth_texture.as_ref())
             .unwrap();
         bind_and_setup_fb(
-            &self.ctx.gl, 
-            pass_action, 
-            Some(self.gl_fb), 
+            &self.ctx.gl,
+            pass_action,
+            Some(self.gl_fb),
             texture.width() as i32,
             texture.height() as i32,
         );
@@ -113,7 +113,7 @@ impl RenderPass {
 impl Drop for RenderPass {
     fn drop(&mut self) {
         tracing::debug!(
-            target: TARGET_NAME, 
+            target: TARGET_NAME,
             "dropping: {:?}",
             self.gl_fb,
         );
@@ -131,22 +131,25 @@ impl GlContext {
 
         let (screen_width, screen_height) = self.screen_size();
         bind_and_setup_fb(
-            &self.gl, 
-            pass_action, 
-            None, 
-            screen_width as i32, 
-            screen_height as i32
+            &self.gl,
+            pass_action,
+            None,
+            screen_width as i32,
+            screen_height as i32,
         );
 
         code();
+        unsafe {
+            self.gl.finish();
+        }
     }
 }
 
 fn bind_and_setup_fb(
-    gl: &glow::Context, 
-    pass_action: PassAction, 
-    framebuffer: Option<glow::Framebuffer>, 
-    width: i32, 
+    gl: &glow::Context,
+    pass_action: PassAction,
+    framebuffer: Option<glow::Framebuffer>,
+    width: i32,
     height: i32,
 ) {
     tracing::trace!(
@@ -160,7 +163,7 @@ fn bind_and_setup_fb(
         gl.viewport(0, 0, width, height);
         gl.scissor(0, 0, width, height);
     }
-    
+
     tracing::trace!(
         target: TARGET_NAME,
         action=?pass_action,

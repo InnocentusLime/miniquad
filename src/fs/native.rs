@@ -1,29 +1,45 @@
+use super::{FileReady, TARGET_NAME};
+
+use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread::{JoinHandle, spawn};
 
 use winit::event_loop::EventLoopProxy;
 
-static TARGET_NAME: &str = "fs_server";
-
-pub struct FsServerHandle(Sender<FsTask>);
+pub struct FsServerHandle {
+    task_queue: Sender<FsTask>,
+    fs_root: PathBuf,
+}
 
 impl FsServerHandle {
     pub fn submit_task(&self, path: &str, user_id: u64) {
-        let path = path.to_string();
-        self.0
+        tracing::info!(
+            target: TARGET_NAME,
+            path=path,
+            user_id=user_id,
+            "will load"
+        );
+
+        let path = self.fs_root.join(path);
+        tracing::debug!(
+            target: TARGET_NAME,
+            real_path=?path,
+            "sending task to read file"
+        );
+        self.task_queue
             .send(FsTask { path, user_id })
             .expect("Worker thread terminated");
     }
 }
 
-// TODO: this works only for native
 pub(crate) struct FsServer {
     _worker_thread: JoinHandle<()>,
     task_queue: Sender<FsTask>,
+    fs_root: PathBuf,
 }
 
 impl FsServer {
-    pub(crate) fn start(event_loop_proxy: EventLoopProxy<FileReady>) -> FsServer {
+    pub(crate) fn start(event_loop_proxy: EventLoopProxy<FileReady>, fs_root: PathBuf) -> FsServer {
         let (snd, rcv) = channel();
         let worker_thread = spawn(move || {
             fs_server_worker(rcv, event_loop_proxy);
@@ -31,22 +47,20 @@ impl FsServer {
         FsServer {
             _worker_thread: worker_thread,
             task_queue: snd,
+            fs_root,
         }
     }
 
     pub fn get_handle(&self) -> FsServerHandle {
-        FsServerHandle(self.task_queue.clone())
+        FsServerHandle {
+            task_queue: self.task_queue.clone(),
+            fs_root: self.fs_root.clone(),
+        }
     }
 }
 
 fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<FileReady>) {
     while let Ok(task) = task_queue.recv() {
-        tracing::debug!(
-            target: TARGET_NAME,
-            user_id=task.user_id,
-            path=task.path,
-            "got task",
-        );
         let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path).map_err(Into::into);
         match &file_content {
             Ok(_) => tracing::info!(
@@ -60,12 +74,11 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<FileRead
                 "{e:?}"
             ),
         }
-        
-        let send_res = proxy
-            .send_event(FileReady {
-                user_id: task.user_id,
-                bytes_result: file_content,
-            });
+
+        let send_res = proxy.send_event(FileReady {
+            user_id: task.user_id,
+            bytes_result: file_content,
+        });
         if send_res.is_err() {
             tracing::debug!(target: TARGET_NAME, "terminating: event loop closed");
         }
@@ -75,12 +88,6 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<FileRead
 
 #[derive(Debug)]
 struct FsTask {
-    path: String,
+    path: PathBuf,
     user_id: u64,
-}
-
-#[derive(Debug)]
-pub struct FileReady {
-    pub user_id: u64,
-    pub bytes_result: anyhow::Result<Vec<u8>>,
 }

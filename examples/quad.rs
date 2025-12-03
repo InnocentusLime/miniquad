@@ -4,7 +4,7 @@ use miniquad::*;
 ///! A simple rendering example. This example loads a texture from memory
 ///! and draws a few quads with it. The example should look as follows:
 ///! https://youtu.be/kksaeWrAT7E
-use std::{rc::Rc, time::Instant};
+use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {

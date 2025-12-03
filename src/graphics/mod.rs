@@ -1,9 +1,9 @@
-mod vertex_buffer;
 mod cache;
 mod index_buffer;
 mod pipeline;
 mod render_pass;
 mod texture;
+mod vertex_buffer;
 
 use std::{
     cell::{Cell, RefCell},
@@ -13,13 +13,12 @@ use std::{
 use bytemuck::Pod;
 use cache::GlCache;
 use glow::HasContext;
-use glutin::context::PossiblyCurrentContext;
 
-pub use vertex_buffer::*;
 pub use index_buffer::*;
 pub use pipeline::*;
 pub use render_pass::*;
 pub use texture::*;
+pub use vertex_buffer::*;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum PrimitiveType {
@@ -30,7 +29,6 @@ pub enum PrimitiveType {
 
 #[derive(Debug)]
 pub struct GlContext {
-    pub(crate) glutin_ctx: PossiblyCurrentContext,
     pub(crate) client_area_size: Cell<(u32, u32)>,
     pub(crate) gl: glow::Context,
     pub(crate) vao: glow::VertexArray,
@@ -38,17 +36,12 @@ pub struct GlContext {
 }
 
 impl GlContext {
-    pub fn new(
-        glutin_ctx: PossiblyCurrentContext,
-        gl: glow::Context,
-        client_area_size: (u32, u32),
-    ) -> GlContext {
+    pub fn new(gl: glow::Context, client_area_size: (u32, u32)) -> GlContext {
         let vao = unsafe { gl.create_vertex_array().unwrap() };
         unsafe {
             gl.bind_vertex_array(Some(vao));
         }
         GlContext {
-            glutin_ctx,
             cache: RefCell::new(GlCache::new()),
             client_area_size: Cell::new(client_area_size),
             gl,

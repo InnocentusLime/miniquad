@@ -60,7 +60,7 @@ impl GlCache {
         let store = CachedTexture { target, texture };
         if self.textures[slot_index as usize] != Some(store) {
             unsafe {
-                gl.active_texture(slot_index);
+                gl.active_texture(slot_index + glow::TEXTURE0);
                 gl.bind_texture(target, Some(texture));
             }
             self.textures[slot_index as usize] = Some(store);

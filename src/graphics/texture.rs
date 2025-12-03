@@ -1,8 +1,7 @@
-use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::{cell::Cell, marker::PhantomData};
 
-use glow::{HasContext, NativeFramebuffer, PixelPackData, PixelUnpackData};
+use glow::{HasContext, PixelUnpackData};
 
 use crate::graphics::GlContext;
 
@@ -63,10 +62,10 @@ impl Texture {
             FilterMode::Nearest => glow::NEAREST,
             FilterMode::Linear => glow::LINEAR,
         };
-        
+
         let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
         tracing::debug!(
-            target: TARGET_NAME, 
+            target: TARGET_NAME,
             params=?params,
             "new: {gl_tex:?}",
         );
@@ -75,30 +74,8 @@ impl Texture {
         unsafe {
             ctx.gl.pixel_store_i32(glow::PACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
 
-            if cfg!(not(target_arch = "wasm32")) {
-                // if not WASM
-                if params.format == TextureFormat::Alpha {
-                    // if alpha miniquad texture, the value on non-WASM is stored in red channel
-                    // swizzle red -> alpha
-                    ctx.gl.tex_parameter_i32(
-                        glow::TEXTURE_2D,
-                        glow::TEXTURE_SWIZZLE_A,
-                        glow::RED as i32,
-                    );
-                } else {
-                    // keep alpha -> alpha
-                    ctx.gl.tex_parameter_i32(
-                        glow::TEXTURE_2D,
-                        glow::TEXTURE_SWIZZLE_A,
-                        glow::ALPHA as i32,
-                    );
-                }
-            }
-
             match source {
                 TextureSource::Empty => {
-                    // not quite sure if glTexImage2D(null) is really a requirement
-                    // but it was like this for quite a while and apparantly it works?
                     ctx.gl.tex_image_2d(
                         glow::TEXTURE_2D,
                         0,
@@ -126,8 +103,10 @@ impl Texture {
                 }
             }
 
-            ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap as i32);
-            ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap as i32);
+            ctx.gl
+                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap as i32);
+            ctx.gl
+                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap as i32);
             ctx.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MIN_FILTER,
@@ -187,8 +166,12 @@ impl Texture {
         };
 
         unsafe {
-            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap_x as i32);
-            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap_y as i32);
+            self.ctx
+                .gl
+                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap_x as i32);
+            self.ctx
+                .gl
+                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap_y as i32);
         }
     }
 
@@ -197,7 +180,11 @@ impl Texture {
         cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let filter = gl_filter(filter, mipmap_filter);
         unsafe {
-            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MIN_FILTER, filter as i32);
+            self.ctx.gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MIN_FILTER,
+                filter as i32,
+            );
         }
     }
 
@@ -209,7 +196,11 @@ impl Texture {
             FilterMode::Linear => glow::LINEAR,
         };
         unsafe {
-            self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_MAG_FILTER, filter as i32);
+            self.ctx.gl.tex_parameter_i32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAG_FILTER,
+                filter as i32,
+            );
         }
     }
 
@@ -231,23 +222,6 @@ impl Texture {
 
         unsafe {
             self.ctx.gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
-
-            if cfg!(not(target_arch = "wasm32")) {
-                // if not WASM
-                if self.format == TextureFormat::Alpha {
-                    // if alpha miniquad texture, the value on non-WASM is stored in red channel
-                    // swizzle red -> alpha
-                    self.ctx.gl.tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_SWIZZLE_A, glow::RED as _);
-                } else {
-                    // keep alpha -> alpha
-                    self.ctx.gl.tex_parameter_i32(
-                        glow::TEXTURE_2D,
-                        glow::TEXTURE_SWIZZLE_A,
-                        glow::ALPHA as _,
-                    );
-                }
-            }
-
             self.ctx.gl.tex_sub_image_2d(
                 glow::TEXTURE_2D,
                 0,
@@ -259,38 +233,6 @@ impl Texture {
                 pixel_type,
                 PixelUnpackData::Slice(Some(source)),
             );
-        }
-    }
-
-    /// Read texture data into CPU memory
-    pub fn read_pixels(&self, bytes: &mut [u8]) {
-        let (_, format, pixel_type) = gl_texture_format(self.format);
-        assert_eq!(bytes.len() as u32, self.width() * self.height());
-        unsafe {
-            let curr_fbo = self.ctx.gl.get_parameter_i32(glow::DRAW_FRAMEBUFFER_BINDING);
-            let curr_fbo = NativeFramebuffer(NonZeroU32::new(curr_fbo as u32).unwrap());
-            let temp_fbo = self.ctx.gl.create_framebuffer().unwrap();
-
-            self.ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(temp_fbo));
-            self.ctx.gl.framebuffer_texture_2d(
-                glow::FRAMEBUFFER,
-                glow::COLOR_ATTACHMENT0,
-                glow::TEXTURE_2D,
-                Some(self.gl_tex),
-                0,
-            );
-            self.ctx.gl.read_pixels(
-                0,
-                0,
-                self.width() as _,
-                self.height() as _,
-                format,
-                pixel_type,
-                PixelPackData::Slice(Some(bytes)),
-            );
-
-            self.ctx.gl.bind_framebuffer(glow::FRAMEBUFFER, Some(curr_fbo));
-            self.ctx.gl.delete_framebuffer(temp_fbo);
         }
     }
 
@@ -325,8 +267,8 @@ impl Texture {
 impl Drop for Texture {
     fn drop(&mut self) {
         tracing::debug!(
-            target: TARGET_NAME, 
-            "dropping: {:?}", 
+            target: TARGET_NAME,
+            "dropping: {:?}",
             self.gl_tex,
         );
         unsafe {
@@ -345,10 +287,9 @@ pub struct TextureBinding<'a> {
 pub enum TextureFormat {
     RGB8,
     RGBA8,
-    RGBA16F,
-    Depth,
-    Depth32,
-    Alpha,
+    RGBAF16,
+    DepthU16,
+    DepthF32,
 }
 
 impl TextureFormat {
@@ -358,10 +299,9 @@ impl TextureFormat {
         match self {
             TextureFormat::RGB8 => 3 * square,
             TextureFormat::RGBA8 => 4 * square,
-            TextureFormat::RGBA16F => 8 * square,
-            TextureFormat::Depth => 2 * square,
-            TextureFormat::Depth32 => 4 * square,
-            TextureFormat::Alpha => square,
+            TextureFormat::RGBAF16 => 8 * square,
+            TextureFormat::DepthU16 => 2 * square,
+            TextureFormat::DepthF32 => 4 * square,
         }
     }
 }
@@ -396,20 +336,43 @@ pub enum TextureSource<'a> {
 }
 
 fn gl_texture_format(format: TextureFormat) -> (u32, u32, u32) {
+    // Depth textures are a special case when it comes to OpenGL vs WebGL.
+    // In OpenGL GL_DEPTH_COMPONENT is the ONLY valid internal format for
+    // value for depth textures.
+    // In WebGL and OpenGL ES that is not true and the call must specify
+    // a SIZED value (e.g. GL_DEPTH_COMPONENT16 or GL_DEPTH_COMPONENT32F).
+    //
+    // NOTE:
+    // This is still imperfect. If we run on a native platform with
+    // a OpenGL ES context -- the code will most like not work.
+    //
+    // REF:
+    // * OpenGL: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
+    // * OpenGL ES: https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glTexImage2D.xhtml
+
+    #[cfg(not(target_family = "wasm"))]
+    const DEPTH_U16_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT;
+    #[cfg(target_family = "wasm")]
+    const DEPTH_U16_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT16;
+    #[cfg(not(target_family = "wasm"))]
+    const DEPTH_F32_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT;
+    #[cfg(target_family = "wasm")]
+    const DEPTH_F32_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT32F;
+
     match format {
         TextureFormat::RGB8 => (glow::RGB, glow::RGB, glow::UNSIGNED_BYTE),
         TextureFormat::RGBA8 => (glow::RGBA, glow::RGBA, glow::UNSIGNED_BYTE),
-        TextureFormat::RGBA16F => (glow::RGBA16F, glow::RGBA, glow::FLOAT),
-        TextureFormat::Depth => (
-            glow::DEPTH_COMPONENT,
+        TextureFormat::RGBAF16 => (glow::RGBA16F, glow::RGBA, glow::FLOAT),
+        TextureFormat::DepthU16 => (
+            DEPTH_U16_INTERNAL_FORMAT,
             glow::DEPTH_COMPONENT,
             glow::UNSIGNED_SHORT,
         ),
-        TextureFormat::Depth32 => (glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT, glow::FLOAT),
-        #[cfg(target_arch = "wasm32")]
-        TextureFormat::Alpha => (glow::ALPHA, glow::ALPHA, glow::UNSIGNED_BYTE),
-        #[cfg(not(target_arch = "wasm32"))]
-        TextureFormat::Alpha => (glow::R8, glow::RED, glow::UNSIGNED_BYTE), // texture updates will swizzle Red -> Alpha to match WASM
+        TextureFormat::DepthF32 => (
+            DEPTH_F32_INTERNAL_FORMAT,
+            glow::DEPTH_COMPONENT,
+            glow::FLOAT,
+        ),
     }
 }
 

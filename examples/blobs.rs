@@ -6,7 +6,7 @@ use miniquad::*;
 ///! and visually interact with each other.
 ///! Should look like this:
 ///! https://youtu.be/W52jTDKOzIk
-use std::{rc::Rc, time::Instant};
+use std::rc::Rc;
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
     window::Window,

@@ -1,50 +1,48 @@
 #![doc = include_str!("../README.md")]
 
+mod context_init;
 mod embeded_assets;
 mod fs;
 mod graphics;
+mod tracing_init;
 
 pub use bytemuck::offset_of;
 pub use fs::*;
 pub use graphics::*;
+use tracing_subscriber::EnvFilter;
+pub use web_time::*;
 
-use std::{num::NonZeroU32, rc::Rc};
+use std::path::PathBuf;
+use std::rc::Rc;
 
-use glutin::config::{Api, Config, ConfigTemplateBuilder};
-use glutin::context::{ContextAttributesBuilder, PossiblyCurrentContext};
-use glutin::context::{NotCurrentGlContext, PossiblyCurrentGlContext};
-use glutin::display::{Display, GetGlDisplay, GlDisplay};
-use glutin::surface::{GlSurface, Surface, SwapInterval, WindowSurface};
-use glutin_winit::{DisplayBuilder, GlWindow};
-use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler;
-use winit::dpi::PhysicalSize;
+use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Icon, Window, WindowAttributes};
 
+use crate::context_init::*;
+
 static TARGET_NAME: &str = "app";
 
 pub fn run<T: EventHandler>(conf: Conf) {
-    // TODO: log filtering must be configurable
-    tracing_subscriber::fmt()
-        .with_level(true)
-        .with_max_level(tracing::Level::TRACE)
-        .init();
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    let filter = EnvFilter::builder().parse_lossy("debug");
+    tracing_init::init_tracing_subscriber(filter);
+    tracing::info!(target: TARGET_NAME, conf=?conf, "starting");
 
-    tracing::info!(target: TARGET_NAME, "starting");
-    
     let event_loop = EventLoop::<FileReady>::with_user_event().build().unwrap();
     let proxy = event_loop.create_proxy();
     event_loop.set_control_flow(ControlFlow::Poll);
 
-    let mut app = App::<T> {
-        fs_server: FsServer::start(proxy),
-        conf,
-        state: AppState::Boot,
-    };
-
-    event_loop.run_app(&mut app).unwrap();
+    start_app(
+        event_loop,
+        App::<T> {
+            fs_server: FsServer::start(proxy, conf.fs_root.clone()),
+            conf,
+            state: AppState::Boot,
+        },
+    );
 }
 
 struct App<T> {
@@ -79,17 +77,19 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
             (
                 WindowEvent::Resized(new_size),
                 AppState::Ready {
-                    surface,
+                    platform,
                     gl_context,
                     ..
                 },
             ) => {
-                gl_context.client_area_size.set((*new_size).into());
-                surface.resize(
-                    &gl_context.glutin_ctx,
-                    NonZeroU32::new(new_size.width).unwrap(),
-                    NonZeroU32::new(new_size.height).unwrap(),
+                tracing::debug!(
+                    target: TARGET_NAME,
+                    width=new_size.width,
+                    height=new_size.height,
+                    "resize",
                 );
+                platform.resize_surface(*new_size);
+                gl_context.client_area_size.set((*new_size).into());
             }
             _ => (),
         }
@@ -97,8 +97,8 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
         let AppState::Ready {
             window,
             handler,
-            surface,
-            gl_context,
+            platform,
+            ..
         } = &mut self.state
         else {
             return;
@@ -106,46 +106,39 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
         let swap_buffers = matches!(event, WindowEvent::RedrawRequested);
         handler.window_event(event, window);
         if swap_buffers {
-            surface
-                .swap_buffers(&gl_context.glutin_ctx)
-                .expect("Failed to swap buffers");
+            platform.swap_buffers();
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         let AppState::Ready {
             window, handler, ..
         } = &mut self.state
         else {
             return;
         };
-        window.request_redraw();
+
         handler.update();
+
+        window.request_redraw();
+        event_loop.set_control_flow(ControlFlow::WaitUntil(
+            Instant::now()
+                .checked_add(Duration::from_millis(16))
+                .unwrap(),
+        ));
     }
 }
 
 impl<T: EventHandler> App<T> {
     fn init(&mut self, event_loop: &ActiveEventLoop) {
-        let (window, display, gl_config) = create_window_and_gl_config(event_loop, &self.conf);
-        let (gl_context, surface) =
-            create_surface_and_context(&display, &gl_config, &window, &self.conf);
-
-        gl_context.make_current(&surface).unwrap();
-        let glow_gl = unsafe {
-            glow::Context::from_loader_function_cstr(|proc| display.get_proc_address(proc))
-        };
-        let gl_context = Rc::new(GlContext::new(
-            gl_context,
-            glow_gl,
-            window.inner_size().into(),
-        ));
-
+        let (window, platform) = create_ctx_and_window(event_loop, &self.conf);
+        let gl_context = Rc::new(GlContext::new(platform.make_glow_context(), (800, 600)));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
         let handler = T::init(gl_context.clone(), self.fs_server.get_handle());
         self.state = AppState::Ready {
             window,
-            surface,
+            platform,
             gl_context,
             handler,
         }
@@ -156,86 +149,37 @@ enum AppState<T> {
     Boot,
     Ready {
         window: Window,
-        surface: Surface<WindowSurface>,
+        platform: PlatformContext,
         gl_context: Rc<GlContext>,
         handler: T,
     },
 }
 
-fn create_window_and_gl_config(
-    event_loop: &ActiveEventLoop,
-    conf: &Conf,
-) -> (Window, Display, Config) {
-    let display_builder =
-        DisplayBuilder::new().with_window_attributes(Some(conf.window_attributes.clone()));
-    let template_builder = ConfigTemplateBuilder::new()
-        .with_api(Api::OPENGL)
-        .with_alpha_size(8);
-    let (window, gl_config) = display_builder
-        .build(event_loop, template_builder, |mut conf| {
-            conf.next().expect("No GL configuration found")
-        })
-        .expect("Could not initialize the GL platform");
-    let window = window.expect("No window has been created");
-
-    (window, gl_config.display(), gl_config)
-}
-
-fn create_surface_and_context(
-    gl_display: &Display,
-    gl_config: &Config,
-    window: &Window,
-    conf: &Conf,
-) -> (PossiblyCurrentContext, Surface<WindowSurface>) {
-    let raw_window_handle = window
-        .window_handle()
-        .expect("Window has not raw handle")
-        .as_raw();
-    let context_attributes = ContextAttributesBuilder::new().build(Some(raw_window_handle));
-    let gl_context = unsafe {
-        gl_display
-            .create_context(gl_config, &context_attributes)
-            .expect("Failed to create GL context")
-    };
-    let gl_context = gl_context.treat_as_possibly_current();
-
-    let surface_attributes = window
-        .build_surface_attributes(Default::default())
-        .expect("Failed to build surface attributes");
-    let surface = unsafe {
-        gl_display
-            .create_window_surface(gl_config, &surface_attributes)
-            .expect("Failed to create window surface")
-    };
-    gl_context
-        .make_current(&surface)
-        .expect("Failed to make the context current");
-    surface
-        .set_swap_interval(&gl_context, conf.swap_interval)
-        .expect("Failed to update window swap interval");
-
-    (gl_context, surface)
-}
-
-/// Describes a hardware and platform-specific setup.
 #[derive(Debug)]
 pub struct Conf {
     pub window_attributes: WindowAttributes,
-
-    /// Optional swap interval (vertical sync).
+    /// Specifies the root folder, against which all fs request will be resolved.
     ///
-    /// Note that this is highly platform- and driver-dependent.
-    /// There is no guarantee the FPS will match the specified `swap_interval`.
-    /// In other words, `swap_interval` is only a hint to the GPU driver and
-    /// not a reliable way to limit the game's FPS.
-    pub swap_interval: SwapInterval,
+    /// This setting has no effect on WASM. In WASM paths are resolved against the
+    /// page url.
+    pub fs_root: PathBuf,
+    /// Configures the tracing filter.
+    ///
+    /// The default allows all tracing events with
+    /// debug level or higher. You can also configure the filter through an environment
+    /// variable. For more info, see [EnvFilter].
+    ///
+    /// Do not use the filter to disable debug! and trace! events altogether.
+    /// Use tracing macros for setting max level instead
+    pub filter: EnvFilter,
 }
 
 impl Default for Conf {
     fn default() -> Conf {
         Conf {
             window_attributes: default_window_attributes(),
-            swap_interval: SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
+            fs_root: PathBuf::new(),
+            filter: default_log_filter(),
         }
     }
 }
@@ -249,14 +193,21 @@ pub fn default_window_attributes() -> WindowAttributes {
     .unwrap();
 
     WindowAttributes::default()
-        .with_inner_size(PhysicalSize::new(800, 600))
+        .with_inner_size(LogicalSize::new(800, 600))
         .with_resizable(true)
         .with_title("Miniquad window")
         .with_window_icon(Some(default_icon))
 }
 
+pub fn default_log_filter() -> EnvFilter {
+    EnvFilter::builder()
+        .with_default_directive(tracing::Level::DEBUG.into())
+        .from_env()
+        .expect("failed to parse log filter")
+}
+
 /// A trait defining event callbacks.
-pub trait EventHandler {
+pub trait EventHandler: 'static {
     fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Self;
 
     fn file_ready(&mut self, _event: FileReady) {}

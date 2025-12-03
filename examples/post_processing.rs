@@ -55,7 +55,7 @@ impl EventHandler for Stage {
             TextureParams {
                 width,
                 height,
-                format: TextureFormat::Depth,
+                format: TextureFormat::DepthU16,
                 ..Default::default()
             },
         );
@@ -184,7 +184,7 @@ impl Stage {
             TextureParams {
                 width,
                 height,
-                format: TextureFormat::Depth,
+                format: TextureFormat::DepthU16,
                 ..Default::default()
             },
         );

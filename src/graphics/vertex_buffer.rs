@@ -77,7 +77,7 @@ impl<T: Pod + Default> VertexBuffer<T> {
     pub fn update(&self, data: &[T]) {
         let data: &[u8] = bytemuck::cast_slice(data);
         assert!(data.len() <= self.size());
-        
+
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_buffer(&self.ctx.gl, self.gl_buf);
         unsafe {
@@ -100,9 +100,9 @@ impl<T: Pod + Default> VertexBuffer<T> {
 impl<T: Pod + Default> Drop for VertexBuffer<T> {
     fn drop(&mut self) {
         tracing::debug!(
-            target: TARGET_NAME, 
+            target: TARGET_NAME,
             vertex_ty = std::any::type_name::<T>(),
-            "dropping: {:?}", 
+            "dropping: {:?}",
             self.gl_buf,
         );
         unsafe {
@@ -116,14 +116,14 @@ pub struct VertexBufferBinding<'a> {
     pub(crate) gl_buf: glow::Buffer,
     pub(crate) offset: u32,
     pub(crate) stride: u32,
-    _phantom: PhantomData<&'a glow::Buffer  >,
+    _phantom: PhantomData<&'a glow::Buffer>,
 }
 
 fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> glow::Buffer {
     let mut cache = ctx.cache.borrow_mut();
     let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
     tracing::debug!(
-        target: TARGET_NAME, 
+        target: TARGET_NAME,
         vertex_ty = ty_name,
         "new: {gl_buf:?}",
     );

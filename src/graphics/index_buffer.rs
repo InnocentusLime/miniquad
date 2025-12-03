@@ -57,7 +57,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
     pub fn update(&self, data: &[T]) {
         let data: &[u8] = bytemuck::cast_slice(data);
         assert!(data.len() <= self.size());
-        
+
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_index_buffer(&self.ctx.gl, self.gl_buf);
         unsafe {
@@ -80,9 +80,9 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
 impl<T: IndexBufferElement> Drop for IndexBuffer<T> {
     fn drop(&mut self) {
         tracing::debug!(
-            target: TARGET_NAME, 
+            target: TARGET_NAME,
             index_ty = std::any::type_name::<T>(),
-            "dropping: {:?}", 
+            "dropping: {:?}",
             self.gl_buf,
         );
         unsafe { self.ctx.gl.delete_buffer(self.gl_buf) }
@@ -117,7 +117,7 @@ fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> glow::Buffe
     let mut cache = ctx.cache.borrow_mut();
     let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
     tracing::debug!(
-        target: TARGET_NAME, 
+        target: TARGET_NAME,
         index_ty = ty_name,
         "new: {gl_buf:?}",
     );
