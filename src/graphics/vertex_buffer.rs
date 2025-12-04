@@ -88,10 +88,18 @@ impl<T: Pod + Default> VertexBuffer<T> {
     }
 
     pub fn binding(&self, offset: u32) -> VertexBufferBinding<'_> {
+        let stride = std::mem::size_of::<T>() as u32;
+        
+        // This is a limitation coming from WebGL. Since WebGL is a valid target,
+        // this limiation is enforced on all platforms.
+        //
+        // REF: https://registry.khronos.org/webgl/specs/latest/1.0/#VERTEX_STRIDE 
+        assert!(stride <= 255, "maximum supported stride is 255");
+        
         VertexBufferBinding {
             gl_buf: self.gl_buf,
             offset,
-            stride: std::mem::size_of::<T>() as u32,
+            stride,
             _phantom: PhantomData,
         }
     }
