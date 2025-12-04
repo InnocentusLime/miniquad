@@ -210,7 +210,7 @@ impl Stage {
 
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
         self.offscreen_pass
-            .perform(PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0), || {
+            .perform(PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0), |_, _| {
                 DrawCall {
                     ctx: &self.ctx,
                     pipeline: &self.offscreen_pipeline,
@@ -234,7 +234,7 @@ impl Stage {
         // previously rendered offscreen render-target as texture
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0),
-            || {
+            |_, _| {
                 DrawCall {
                     ctx: &self.ctx,
                     pipeline: &self.post_processing_pipeline,

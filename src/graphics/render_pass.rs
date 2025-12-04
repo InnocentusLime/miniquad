@@ -83,7 +83,7 @@ impl RenderPass {
         &self.color_textures
     }
 
-    pub fn perform(&self, pass_action: PassAction, code: impl FnOnce()) {
+    pub fn perform(&self, pass_action: PassAction, code: impl FnOnce(u32, u32)) {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_render_pass",
@@ -106,7 +106,7 @@ impl RenderPass {
             texture.height() as i32,
         );
 
-        code();
+        code(texture.width(), texture.height());
     }
 }
 
@@ -122,7 +122,7 @@ impl Drop for RenderPass {
 }
 
 impl GlContext {
-    pub fn perform_default_render_pass(&self, pass_action: PassAction, code: impl FnOnce()) {
+    pub fn perform_default_render_pass(&self, pass_action: PassAction, code: impl FnOnce(u32, u32)) {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_default_render_pass",
@@ -138,7 +138,7 @@ impl GlContext {
             screen_height as i32,
         );
 
-        code();
+        code(screen_width, screen_height);
     }
 }
 

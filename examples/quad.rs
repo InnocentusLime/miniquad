@@ -96,7 +96,7 @@ impl Stage {
 
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
-            || {
+            |_, _| {
                 for i in 0..10 {
                     let t = t + i as f32 * 0.3;
                     let uniforms = shader::Uniforms {

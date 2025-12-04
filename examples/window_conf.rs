@@ -24,7 +24,7 @@ impl EventHandler for Stage {
         if matches!(event, WindowEvent::RedrawRequested) {
             self.ctx.perform_default_render_pass(
                 PassAction::clear_depth_color(0., 1.0, 0.0, 1.0),
-                || {},
+                |_, _| {},
             );
         }
     }

@@ -20,7 +20,7 @@ impl EventHandler for Stage {
         match event {
             WindowEvent::RedrawRequested => self.ctx.perform_default_render_pass(
                 PassAction::clear_depth_color(0., 1.0, 0.0, 1.0),
-                || {},
+                |_, _| {},
             ),
             WindowEvent::KeyboardInput { event, .. } => info!(
                 loc=?event.location,

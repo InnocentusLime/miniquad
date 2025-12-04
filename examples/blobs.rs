@@ -144,7 +144,7 @@ impl Stage {
         self.uniforms.time = self.last_frame.duration_since(self.start).as_secs_f32();
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
-            || {
+            |_, _| {
                 DrawCall {
                     ctx: &self.ctx,
                     pipeline: &self.pipeline,

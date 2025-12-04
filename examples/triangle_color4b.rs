@@ -66,7 +66,7 @@ impl Stage {
     fn draw(&mut self) {
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
-            || {
+            |_, _| {
                 DrawCall {
                     ctx: &self.ctx,
                     pipeline: &self.pipeline,
