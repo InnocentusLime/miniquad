@@ -6,6 +6,8 @@ mod fs;
 mod graphics;
 mod tracing_init;
 
+pub mod util;
+
 pub use bytemuck::offset_of;
 pub use fs::*;
 use glow::HasContext;

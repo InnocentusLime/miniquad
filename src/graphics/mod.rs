@@ -137,7 +137,7 @@ impl GlContext {
             drawcall.uniform_data,
         );
 
-        let offset = drawcall.index_buffer.sz_elem * drawcall.base_element;
+        let offset = drawcall.index_buffer.sz_elem * (drawcall.base_element as i32);
         let mode = match drawcall.pipeline.primitive_type() {
             PrimitiveType::Triangles => glow::TRIANGLES,
             PrimitiveType::Lines => glow::LINES,
@@ -147,7 +147,7 @@ impl GlContext {
         unsafe {
             self.gl.draw_elements_instanced(
                 mode,
-                drawcall.num_elements,
+                drawcall.num_elements as i32,
                 drawcall.index_buffer.gl_type,
                 offset,
                 1,
@@ -166,8 +166,8 @@ impl Drop for GlContext {
 
 pub struct DrawCall<'a> {
     pub pipeline: &'a Pipeline,
-    pub base_element: i32,
-    pub num_elements: i32,
+    pub base_element: u32,
+    pub num_elements: u32,
     pub vertex_buffers: &'a [VertexBufferBinding<'a>],
     pub index_buffer: IndexBufferBinding<'a>,
     pub textures: &'a [TextureBinding<'a>],

@@ -41,7 +41,7 @@ pub struct VertexBuffer<T: Pod + Default> {
 
 impl<T: Pod + Default> VertexBuffer<T> {
     pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> VertexBuffer<T> {
-        assert_eq!(size % std::mem::size_of::<T>(), 0, "size must be aligned");
+        let size = size * std::mem::size_of::<T>();
         let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
         unsafe {
             ctx.gl
