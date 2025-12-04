@@ -138,8 +138,7 @@ impl EventHandler for Stage {
                 offscreen_shader::VERTEX,
                 offscreen_shader::FRAGMENT,
                 PipelineParams {
-                    depth_test: Comparison::LessOrEqual,
-                    depth_write: true,
+                    depth_test: Some(Comparison::LessOrEqual),
                     ..Default::default()
                 },
                 [

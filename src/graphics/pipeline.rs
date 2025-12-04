@@ -14,8 +14,7 @@ static TARGET_NAME: &str = "gl.pipeline";
 pub struct PipelineParams {
     pub cull_face: CullFace,
     pub front_face_order: FrontFaceOrder,
-    pub depth_test: Comparison,
-    pub depth_write: bool,
+    pub depth_test: Option<Comparison>,
     pub depth_write_offset: Option<(f32, f32)>,
     pub color_blend: Option<BlendState>,
     pub alpha_blend: Option<BlendState>,
@@ -29,8 +28,7 @@ impl Default for PipelineParams {
         PipelineParams {
             cull_face: CullFace::Nothing,
             front_face_order: FrontFaceOrder::CounterClockwise,
-            depth_test: Comparison::Always, // no depth test,
-            depth_write: false,             // no depth write,
+            depth_test: None, // no depth test,
             depth_write_offset: None,
             color_blend: None,
             alpha_blend: None,
@@ -256,166 +254,13 @@ impl Pipeline {
     }
 
     fn apply_parameters(&self, params: &PipelineParams) {
-        if params.depth_write {
-            unsafe {
-                self.ctx.gl.enable(glow::DEPTH_TEST);
-                self.ctx.gl.depth_func(params.depth_test.into())
-            }
-        } else {
-            unsafe {
-                self.ctx.gl.disable(glow::DEPTH_TEST);
-            }
-        }
-
-        match params.front_face_order {
-            FrontFaceOrder::Clockwise => unsafe {
-                self.ctx.gl.front_face(glow::CW);
-            },
-            FrontFaceOrder::CounterClockwise => unsafe {
-                self.ctx.gl.front_face(glow::CCW);
-            },
-        }
-
-        self.set_cull_face(params.cull_face);
-        self.set_blend(params.color_blend, params.alpha_blend);
-        self.set_stencil(params.stencil_test);
-        self.set_color_write(params.color_write);
-    }
-
-    fn set_blend(&self, color_blend: Option<BlendState>, alpha_blend: Option<BlendState>) {
         let mut cache = self.ctx.cache.borrow_mut();
-
-        if color_blend.is_none() && alpha_blend.is_some() {
-            panic!("AlphaBlend without ColorBlend");
-        }
-        if cache.color_blend == color_blend && cache.alpha_blend == alpha_blend {
-            return;
-        }
-
-        unsafe {
-            if let Some(color_blend) = color_blend {
-                if cache.color_blend.is_none() {
-                    self.ctx.gl.enable(glow::BLEND);
-                }
-
-                let BlendState {
-                    equation: eq_rgb,
-                    sfactor: src_rgb,
-                    dfactor: dst_rgb,
-                } = color_blend;
-
-                if let Some(BlendState {
-                    equation: eq_alpha,
-                    sfactor: src_alpha,
-                    dfactor: dst_alpha,
-                }) = alpha_blend
-                {
-                    self.ctx.gl.blend_func_separate(
-                        src_rgb.into(),
-                        dst_rgb.into(),
-                        src_alpha.into(),
-                        dst_alpha.into(),
-                    );
-                    self.ctx
-                        .gl
-                        .blend_equation_separate(eq_rgb.into(), eq_alpha.into());
-                } else {
-                    self.ctx.gl.blend_func(src_rgb.into(), dst_rgb.into());
-                    self.ctx
-                        .gl
-                        .blend_equation_separate(eq_rgb.into(), eq_rgb.into());
-                }
-            } else if cache.color_blend.is_some() {
-                self.ctx.gl.disable(glow::BLEND);
-            }
-        }
-
-        cache.color_blend = color_blend;
-        cache.alpha_blend = alpha_blend;
-    }
-
-    fn set_stencil(&self, stencil_test: Option<StencilState>) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        if cache.stencil == stencil_test {
-            return;
-        }
-        unsafe {
-            if let Some(stencil) = stencil_test {
-                if cache.stencil.is_none() {
-                    self.ctx.gl.enable(glow::STENCIL_TEST);
-                }
-
-                let front = &stencil.front;
-                self.ctx.gl.stencil_op_separate(
-                    glow::FRONT,
-                    front.fail_op.into(),
-                    front.depth_fail_op.into(),
-                    front.pass_op.into(),
-                );
-                self.ctx.gl.stencil_func_separate(
-                    glow::FRONT,
-                    front.test_func.into(),
-                    front.test_ref,
-                    front.test_mask,
-                );
-                self.ctx
-                    .gl
-                    .stencil_mask_separate(glow::FRONT, front.write_mask);
-
-                let back = &stencil.back;
-                self.ctx.gl.stencil_op_separate(
-                    glow::BACK,
-                    back.fail_op.into(),
-                    back.depth_fail_op.into(),
-                    back.pass_op.into(),
-                );
-                self.ctx.gl.stencil_func_separate(
-                    glow::BACK,
-                    back.test_func.into(),
-                    back.test_ref,
-                    back.test_mask,
-                );
-                self.ctx
-                    .gl
-                    .stencil_mask_separate(glow::BACK, back.write_mask);
-            } else if cache.stencil.is_some() {
-                self.ctx.gl.disable(glow::STENCIL_TEST);
-            }
-        }
-
-        cache.stencil = stencil_test;
-    }
-
-    fn set_cull_face(&self, cull_face: CullFace) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        if cache.cull_face == cull_face {
-            return;
-        }
-
-        match cull_face {
-            CullFace::Nothing => unsafe {
-                self.ctx.gl.disable(glow::CULL_FACE);
-            },
-            CullFace::Front => unsafe {
-                self.ctx.gl.enable(glow::CULL_FACE);
-                self.ctx.gl.cull_face(glow::FRONT);
-            },
-            CullFace::Back => unsafe {
-                self.ctx.gl.enable(glow::CULL_FACE);
-                self.ctx.gl.cull_face(glow::BACK);
-            },
-        }
-        cache.cull_face = cull_face;
-    }
-
-    fn set_color_write(&self, color_write: ColorMask) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        if cache.color_write == color_write {
-            return;
-        }
-        let (r, g, b, a) = color_write;
-        unsafe { self.ctx.gl.color_mask(r as _, g as _, b as _, a as _) }
-        cache.color_write = color_write;
+        cache.set_depth_test(&self.ctx.gl, params.depth_test);
+        cache.set_front_face_order(&self.ctx.gl, params.front_face_order);
+        cache.set_cull_face(&self.ctx.gl, params.cull_face);
+        cache.set_blend(&self.ctx.gl, params.color_blend, params.alpha_blend);
+        cache.set_stencil(&self.ctx.gl, params.stencil_test);
+        cache.set_color_write(&self.ctx.gl, params.color_write);
     }
 }
 

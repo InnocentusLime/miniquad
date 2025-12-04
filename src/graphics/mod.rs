@@ -241,7 +241,6 @@ pub enum Comparison {
     GreaterOrEqual,
     Equal,
     NotEqual,
-    Always,
 }
 
 impl From<Comparison> for u32 {
@@ -254,7 +253,6 @@ impl From<Comparison> for u32 {
             Comparison::GreaterOrEqual => glow::GEQUAL,
             Comparison::Equal => glow::EQUAL,
             Comparison::NotEqual => glow::NOTEQUAL,
-            Comparison::Always => glow::ALWAYS,
         }
     }
 }
