@@ -36,21 +36,19 @@ impl EventHandler for Stage {
     }
 
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
-        let color_img = ctx.new_texture(
-            TextureSource::Empty,
+        let color_img = ctx.new_empty_texture(
+            256,
+            256,
             TextureParams {
-                width: 256,
-                height: 256,
-                format: TextureFormat::RGBA8,
+                internal_format: TextureFormat::RGBA8,
                 ..Default::default()
             },
         );
-        let depth_img = ctx.new_texture(
-            TextureSource::Empty,
+        let depth_img = ctx.new_empty_texture(
+            256,
+            256,
             TextureParams {
-                width: 256,
-                height: 256,
-                format: TextureFormat::DepthU16,
+                internal_format: TextureFormat::DepthU16,
                 ..Default::default()
             },
         );

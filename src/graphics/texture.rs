@@ -2,6 +2,8 @@ use std::rc::Rc;
 use std::{cell::Cell, marker::PhantomData};
 
 use glow::{HasContext, PixelUnpackData};
+use image::metadata::Orientation;
+use image::DynamicImage;
 
 use crate::graphics::GlContext;
 
@@ -9,26 +11,22 @@ static TARGET_NAME: &str = "gl.texture";
 
 #[derive(Debug, Copy, Clone)]
 pub struct TextureParams {
-    pub format: TextureFormat,
+    pub internal_format: TextureFormat,
     pub wrap: TextureWrap,
     pub min_filter: FilterMode,
     pub mag_filter: FilterMode,
     pub mipmap_filter: MipmapFilterMode,
-    pub width: u32,
-    pub height: u32,
     pub allocate_mipmaps: bool,
 }
 
 impl Default for TextureParams {
     fn default() -> Self {
         TextureParams {
-            format: TextureFormat::RGBA8,
+            internal_format: TextureFormat::RGBA8,
             wrap: TextureWrap::Clamp,
             min_filter: FilterMode::Linear,
             mag_filter: FilterMode::Linear,
             mipmap_filter: MipmapFilterMode::None,
-            width: 0,
-            height: 0,
             allocate_mipmaps: false,
         }
     }
@@ -44,88 +42,66 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new(ctx: Rc<GlContext>, source: TextureSource, params: TextureParams) -> Texture {
-        if let TextureSource::Bytes(bytes_data) = source {
-            assert_eq!(
-                params.format.size(params.width, params.height) as usize,
-                bytes_data.len()
-            );
-        }
-        let (internal_format, format, pixel_type) = gl_texture_format(params.format);
-        let wrap = match params.wrap {
-            TextureWrap::Repeat => glow::REPEAT,
-            TextureWrap::Mirror => glow::MIRRORED_REPEAT,
-            TextureWrap::Clamp => glow::CLAMP_TO_EDGE,
-        };
-        let min_filter = gl_filter(params.min_filter, params.mipmap_filter);
-        let mag_filter = match params.mag_filter {
-            FilterMode::Nearest => glow::NEAREST,
-            FilterMode::Linear => glow::LINEAR,
-        };
-
-        let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
-        tracing::debug!(
-            target: TARGET_NAME,
-            params=?params,
-            "new: {gl_tex:?}",
-        );
-        let mut cache = ctx.cache.borrow_mut();
-        cache.bind_texture(&ctx.gl, 0, glow::TEXTURE_2D, gl_tex);
+    pub fn new_empty(ctx: Rc<GlContext>, width: u32, height: u32, params: TextureParams) -> Texture {
+        let (internal_format, format, pixel_type) = gl_texture_format(params.internal_format);
+        let gl_tex = create_and_bind_texture(&ctx, &params);
         unsafe {
-            ctx.gl.pixel_store_i32(glow::PACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
-
-            match source {
-                TextureSource::Empty => {
-                    ctx.gl.tex_image_2d(
-                        glow::TEXTURE_2D,
-                        0,
-                        internal_format as i32,
-                        params.width as i32,
-                        params.height as i32,
-                        0,
-                        format,
-                        pixel_type,
-                        glow::PixelUnpackData::Slice(None),
-                    );
-                }
-                TextureSource::Bytes(source) => {
-                    ctx.gl.tex_image_2d(
-                        glow::TEXTURE_2D,
-                        0,
-                        internal_format as i32,
-                        params.width as i32,
-                        params.height as i32,
-                        0,
-                        format,
-                        pixel_type,
-                        glow::PixelUnpackData::Slice(Some(source)),
-                    );
-                }
-            }
-
-            ctx.gl
-                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap as i32);
-            ctx.gl
-                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap as i32);
-            ctx.gl.tex_parameter_i32(
+            ctx.gl.tex_image_2d(
                 glow::TEXTURE_2D,
-                glow::TEXTURE_MIN_FILTER,
-                min_filter as i32,
-            );
-            ctx.gl.tex_parameter_i32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_MAG_FILTER,
-                mag_filter as i32,
+                0,
+                internal_format as i32,
+                width as i32,
+                height as i32,
+                0,
+                format,
+                pixel_type,
+                glow::PixelUnpackData::Slice(None),
             );
         }
-
-        std::mem::drop(cache);
+        apply_texture_parameters(&ctx, &params);
         Texture {
             ctx,
             gl_tex,
-            width: Cell::new(params.width),
-            height: Cell::new(params.height),
-            format: params.format,
+            width: Cell::new(width),
+            height: Cell::new(height),
+            format: params.internal_format,
+        }
+    }
+
+    pub fn new(ctx: Rc<GlContext>, source: impl Into<DynamicImage>, params: TextureParams) -> Texture {
+        let mut source = source.into();
+        source.apply_orientation(Orientation::FlipVertical);
+        let (format, pixel_type) = match source.color() {
+            image::ColorType::Rgb8 => (glow::RGB, glow::UNSIGNED_BYTE),
+            image::ColorType::Rgba8 => (glow::RGBA, glow::UNSIGNED_BYTE),
+            image::ColorType::L16 => (glow::DEPTH_COMPONENT, glow::UNSIGNED_SHORT),
+            _ => unimplemented!("Unsupported image input"),
+        };
+
+        let (internal_format, _, _) = gl_texture_format(params.internal_format);
+        let pixels = source.as_bytes();
+        let (width, height) = (source.width(), source.height());
+        let gl_tex = create_and_bind_texture(&ctx, &params);
+        unsafe {
+            ctx.gl.tex_image_2d(
+                glow::TEXTURE_2D,
+                0,
+                internal_format as i32,
+                width as i32,
+                height as i32,
+                0,
+                format,
+                pixel_type,
+                PixelUnpackData::Slice(Some(pixels)),
+            );
+        }
+        apply_texture_parameters(&ctx, &params);
+        Texture {
+            ctx,
+            gl_tex,
+            width: Cell::new(width),
+            height: Cell::new(height),
+            format: params.internal_format,
         }
     }
 
@@ -287,7 +263,6 @@ pub struct TextureBinding<'a> {
 pub enum TextureFormat {
     RGB8,
     RGBA8,
-    RGBAF16,
     DepthU16,
     DepthF32,
 }
@@ -299,7 +274,6 @@ impl TextureFormat {
         match self {
             TextureFormat::RGB8 => 3 * square,
             TextureFormat::RGBA8 => 4 * square,
-            TextureFormat::RGBAF16 => 8 * square,
             TextureFormat::DepthU16 => 2 * square,
             TextureFormat::DepthF32 => 4 * square,
         }
@@ -330,46 +304,17 @@ pub enum MipmapFilterMode {
     Nearest,
 }
 
-pub enum TextureSource<'a> {
-    Empty,
-    Bytes(&'a [u8]),
-}
-
 fn gl_texture_format(format: TextureFormat) -> (u32, u32, u32) {
-    // Depth textures are a special case when it comes to OpenGL vs WebGL.
-    // In OpenGL GL_DEPTH_COMPONENT is the ONLY valid internal format for
-    // value for depth textures.
-    // In WebGL and OpenGL ES that is not true and the call must specify
-    // a SIZED value (e.g. GL_DEPTH_COMPONENT16 or GL_DEPTH_COMPONENT32F).
-    //
-    // NOTE:
-    // This is still imperfect. If we run on a native platform with
-    // a OpenGL ES context -- the code will most like not work.
-    //
-    // REF:
-    // * OpenGL: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
-    // * OpenGL ES: https://registry.khronos.org/OpenGL-Refpages/es3.0/html/glTexImage2D.xhtml
-
-    #[cfg(not(target_family = "wasm"))]
-    const DEPTH_U16_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT;
-    #[cfg(target_family = "wasm")]
-    const DEPTH_U16_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT16;
-    #[cfg(not(target_family = "wasm"))]
-    const DEPTH_F32_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT;
-    #[cfg(target_family = "wasm")]
-    const DEPTH_F32_INTERNAL_FORMAT: u32 = glow::DEPTH_COMPONENT32F;
-
     match format {
         TextureFormat::RGB8 => (glow::RGB, glow::RGB, glow::UNSIGNED_BYTE),
         TextureFormat::RGBA8 => (glow::RGBA, glow::RGBA, glow::UNSIGNED_BYTE),
-        TextureFormat::RGBAF16 => (glow::RGBA16F, glow::RGBA, glow::FLOAT),
         TextureFormat::DepthU16 => (
-            DEPTH_U16_INTERNAL_FORMAT,
+            glow::DEPTH_COMPONENT16,
             glow::DEPTH_COMPONENT,
             glow::UNSIGNED_SHORT,
         ),
         TextureFormat::DepthF32 => (
-            DEPTH_F32_INTERNAL_FORMAT,
+            glow::DEPTH_COMPONENT32F,
             glow::DEPTH_COMPONENT,
             glow::FLOAT,
         ),
@@ -390,3 +335,48 @@ fn gl_filter(filter: FilterMode, mipmap_filter: MipmapFilterMode) -> u32 {
         },
     }
 }
+
+fn create_and_bind_texture(ctx: &GlContext, params: &TextureParams) -> glow::Texture {
+    let mut cache = ctx.cache.borrow_mut();
+    let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
+    tracing::debug!(
+        target: TARGET_NAME,
+        params=?params,
+        "new: {gl_tex:?}",
+    );
+    cache.bind_texture(&ctx.gl, 0, glow::TEXTURE_2D, gl_tex);
+    unsafe {
+        ctx.gl.pixel_store_i32(glow::PACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
+    }
+    gl_tex
+}
+
+fn apply_texture_parameters(ctx: &GlContext, params: &TextureParams) {
+    let wrap = match params.wrap {
+        TextureWrap::Repeat => glow::REPEAT,
+        TextureWrap::Mirror => glow::MIRRORED_REPEAT,
+        TextureWrap::Clamp => glow::CLAMP_TO_EDGE,
+    };
+    let min_filter = gl_filter(params.min_filter, params.mipmap_filter);
+    let mag_filter = match params.mag_filter {
+        FilterMode::Nearest => glow::NEAREST,
+        FilterMode::Linear => glow::LINEAR,
+    };
+    
+    unsafe {
+        ctx.gl
+            .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap as i32);
+        ctx.gl
+            .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap as i32);
+        ctx.gl.tex_parameter_i32(
+            glow::TEXTURE_2D,
+            glow::TEXTURE_MIN_FILTER,
+            min_filter as i32,
+        );
+        ctx.gl.tex_parameter_i32(
+            glow::TEXTURE_2D,
+            glow::TEXTURE_MAG_FILTER,
+            mag_filter as i32,
+        );
+    }
+} 

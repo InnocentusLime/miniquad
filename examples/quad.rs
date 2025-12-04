@@ -1,5 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
+use image::RgbaImage;
 use miniquad::*;
 ///! A simple rendering example. This example loads a texture from memory
 ///! and draws a few quads with it. The example should look as follows:
@@ -44,19 +45,17 @@ impl EventHandler for Stage {
         let indicies = [0, 1, 2, 0, 2, 3];
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
 
-        let pixels: [u8; 4 * 4 * 4] = [
+        let pixels = RgbaImage::from_raw(4, 4, vec![
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
             0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF,
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF,
             0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
             0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        ];
+        ]).unwrap();
         let texture = ctx.new_texture(
-            TextureSource::Bytes(&pixels),
+            pixels,
             TextureParams {
-                format: TextureFormat::RGBA8,
-                width: 4,
-                height: 4,
+                internal_format: TextureFormat::RGBA8,
                 wrap: TextureWrap::Clamp,
                 min_filter: FilterMode::Linear,
                 mag_filter: FilterMode::Linear,

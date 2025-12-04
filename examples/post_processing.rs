@@ -41,21 +41,19 @@ impl EventHandler for Stage {
 
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         let (width, height) = ctx.screen_size();
-        let color_img = ctx.new_texture(
-            TextureSource::Empty,
+        let color_img = ctx.new_empty_texture(
+            width,
+            height,
             TextureParams {
-                width,
-                height,
-                format: TextureFormat::RGBA8,
+                internal_format: TextureFormat::RGBA8,
                 ..Default::default()
             },
         );
-        let depth_img = ctx.new_texture(
-            TextureSource::Empty,
+        let depth_img = ctx.new_empty_texture(
+            width,
+            height,
             TextureParams {
-                width,
-                height,
-                format: TextureFormat::DepthU16,
+                internal_format: TextureFormat::DepthU16,
                 ..Default::default()
             },
         );
@@ -167,23 +165,19 @@ impl EventHandler for Stage {
 
 impl Stage {
     fn resize_event(&mut self, (width, height): (u32, u32)) {
-        let color_img = Texture::new(
-            self.ctx.clone(),
-            TextureSource::Empty,
+        let color_img = self.ctx.new_empty_texture(
+            width,
+            height,
             TextureParams {
-                width,
-                height,
-                format: TextureFormat::RGBA8,
+                internal_format: TextureFormat::RGBA8,
                 ..Default::default()
             },
         );
-        let depth_img = Texture::new(
-            self.ctx.clone(),
-            TextureSource::Empty,
+        let depth_img = self.ctx.new_empty_texture(
+            width,
+            height,
             TextureParams {
-                width,
-                height,
-                format: TextureFormat::DepthU16,
+                internal_format: TextureFormat::DepthU16,
                 ..Default::default()
             },
         );

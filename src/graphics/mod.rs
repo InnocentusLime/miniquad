@@ -10,6 +10,7 @@ use std::{cell::{Cell, RefCell}, rc::Rc};
 use bytemuck::Pod;
 use cache::GlCache;
 use glow::HasContext;
+use image::DynamicImage;
 
 pub use index_buffer::*;
 pub use pipeline::*;
@@ -82,7 +83,11 @@ impl GlContext {
         IndexBuffer::new(self.clone(), usage, data)
     }
 
-    pub fn new_texture(self: &Rc<Self>, source: TextureSource, params: TextureParams) -> Texture {
+    pub fn new_empty_texture(self: &Rc<Self>, width: u32, height: u32, params: TextureParams) -> Texture {
+        Texture::new_empty(self.clone(), width, height, params)
+    }
+
+    pub fn new_texture(self: &Rc<Self>, source: impl Into<DynamicImage>, params: TextureParams) -> Texture {
         Texture::new(self.clone(), source, params)
     }
 

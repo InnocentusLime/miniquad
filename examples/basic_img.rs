@@ -39,16 +39,11 @@ impl EventHandler for Stage {
         let Ok(bytes) = event.bytes_result else {
             return;
         };
-        let img = image::load_from_memory(&bytes)
-            .expect("Image load failed")
-            .flipv();
-        let img_byte = img.to_rgba8().into_vec();
+        let img = image::load_from_memory(&bytes).expect("Image load failed");
         self.texture = Some(self.ctx.new_texture(
-            TextureSource::Bytes(&img_byte),
+            img,
             TextureParams {
-                format: TextureFormat::RGBA8,
-                width: img.width(),
-                height: img.height(),
+                internal_format: TextureFormat::RGBA8,
                 wrap: TextureWrap::Clamp,
                 min_filter: FilterMode::Linear,
                 mag_filter: FilterMode::Linear,
