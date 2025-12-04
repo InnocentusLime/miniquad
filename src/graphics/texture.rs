@@ -2,8 +2,8 @@ use std::rc::Rc;
 use std::{cell::Cell, marker::PhantomData};
 
 use glow::{HasContext, PixelUnpackData};
-use image::metadata::Orientation;
 use image::DynamicImage;
+use image::metadata::Orientation;
 
 use crate::graphics::GlContext;
 
@@ -38,7 +38,12 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn new_empty(ctx: Rc<GlContext>, width: u32, height: u32, params: TextureParams) -> Texture {
+    pub fn new_empty(
+        ctx: Rc<GlContext>,
+        width: u32,
+        height: u32,
+        params: TextureParams,
+    ) -> Texture {
         let (internal_format, format, pixel_type) = gl_texture_format(params.internal_format);
         let gl_tex = create_and_bind_texture(&ctx, &params);
         unsafe {
@@ -64,7 +69,11 @@ impl Texture {
         }
     }
 
-    pub fn new(ctx: Rc<GlContext>, source: impl Into<DynamicImage>, params: TextureParams) -> Texture {
+    pub fn new(
+        ctx: Rc<GlContext>,
+        source: impl Into<DynamicImage>,
+        params: TextureParams,
+    ) -> Texture {
         let mut source = source.into();
         // OpenGL is expecting the image data to be upside down.
         //
@@ -316,7 +325,7 @@ fn apply_texture_parameters(ctx: &GlContext, params: &TextureParams) {
     };
     let min_filter = gl_filter(params.min_filter);
     let mag_filter = gl_filter(params.mag_filter);
-    
+
     unsafe {
         ctx.gl
             .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap as i32);
@@ -333,7 +342,7 @@ fn apply_texture_parameters(ctx: &GlContext, params: &TextureParams) {
             mag_filter as i32,
         );
     }
-} 
+}
 
 fn gl_filter(filter: FilterMode) -> u32 {
     match filter {
@@ -351,10 +360,6 @@ fn gl_texture_format(format: TextureFormat) -> (u32, u32, u32) {
             glow::DEPTH_COMPONENT,
             glow::UNSIGNED_SHORT,
         ),
-        TextureFormat::DepthF32 => (
-            glow::DEPTH_COMPONENT32F,
-            glow::DEPTH_COMPONENT,
-            glow::FLOAT,
-        ),
+        TextureFormat::DepthF32 => (glow::DEPTH_COMPONENT32F, glow::DEPTH_COMPONENT, glow::FLOAT),
     }
 }

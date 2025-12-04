@@ -80,7 +80,12 @@ impl GlCache {
         }
     }
 
-    pub fn set_blend(&mut self, gl: &glow::Context, color_blend: Option<BlendState>, alpha_blend: Option<BlendState>) {
+    pub fn set_blend(
+        &mut self,
+        gl: &glow::Context,
+        color_blend: Option<BlendState>,
+        alpha_blend: Option<BlendState>,
+    ) {
         // TODO: this looks annoying. Better enforce it on type-level
         if color_blend.is_none() && alpha_blend.is_some() {
             panic!("AlphaBlend without ColorBlend");
@@ -187,9 +192,7 @@ impl GlCache {
             (Some(_), None) => unsafe {
                 gl.disable(glow::DEPTH_TEST);
             },
-            (Some(_), Some(cmp)) => unsafe {
-                gl.depth_func(cmp.into())
-            }
+            (Some(_), Some(cmp)) => unsafe { gl.depth_func(cmp.into()) },
             _ => (),
         }
     }
@@ -235,7 +238,9 @@ impl GlCache {
             return;
         }
         let (r, g, b, a) = color_write;
-        unsafe { gl.color_mask(r as _, g as _, b as _, a as _); }
+        unsafe {
+            gl.color_mask(r as _, g as _, b as _, a as _);
+        }
         self.color_write = color_write;
     }
 }

@@ -108,7 +108,9 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
         let do_draw = matches!(event, WindowEvent::RedrawRequested);
         handler.window_event(event, window);
         if do_draw {
-            unsafe { gl_context.gl.finish(); }
+            unsafe {
+                gl_context.gl.finish();
+            }
             platform.swap_buffers();
         }
     }

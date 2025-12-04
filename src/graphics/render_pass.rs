@@ -122,7 +122,11 @@ impl Drop for RenderPass {
 }
 
 impl GlContext {
-    pub fn perform_default_render_pass(&self, pass_action: PassAction, code: impl FnOnce(u32, u32)) {
+    pub fn perform_default_render_pass(
+        &self,
+        pass_action: PassAction,
+        code: impl FnOnce(u32, u32),
+    ) {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_default_render_pass",
