@@ -145,8 +145,7 @@ impl Stage {
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
             |_, _| {
-                DrawCall {
-                    ctx: &self.ctx,
+                self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 6,
@@ -157,8 +156,7 @@ impl Stage {
                     index_buffer: self.indicies.bind(),
                     textures: &[],
                     uniform_data: bytemuck::bytes_of(&self.uniforms),
-                }
-                .execute()
+                });
             },
         );
     }

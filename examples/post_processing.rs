@@ -211,8 +211,7 @@ impl Stage {
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
         self.offscreen_pass
             .perform(PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0), |_, _| {
-                DrawCall {
-                    ctx: &self.ctx,
+                self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.offscreen_pipeline,
                     base_element: 0,
                     num_elements: 36,
@@ -223,8 +222,7 @@ impl Stage {
                     index_buffer: self.indicies_cube.bind(),
                     textures: &[],
                     uniform_data: bytemuck::bytes_of(&uniforms),
-                }
-                .execute()
+                });
             });
 
         let uniforms = post_processing_shader::Uniforms {
@@ -235,8 +233,7 @@ impl Stage {
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0),
             |_, _| {
-                DrawCall {
-                    ctx: &self.ctx,
+                self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.post_processing_pipeline,
                     base_element: 0,
                     num_elements: 6,
@@ -247,8 +244,7 @@ impl Stage {
                     index_buffer: self.indicies_quad.bind(),
                     textures: &[self.offscreen_pass.color_attachments()[0].bind()],
                     uniform_data: bytemuck::bytes_of(&uniforms),
-                }
-                .execute()
+                });
             },
         );
     }

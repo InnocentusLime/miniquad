@@ -172,8 +172,7 @@ impl Stage {
         // the offscreen pass, rendering a rotating, untextured cube into a render target image
         self.offscreen_pass
             .perform(PassAction::clear_depth_color(1.0, 1.0, 1.0, 1.0), |_, _| {
-                DrawCall {
-                    ctx: &self.ctx,
+                self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.offscreen_pipeline,
                     base_element: 0,
                     num_elements: 36,
@@ -184,8 +183,7 @@ impl Stage {
                     index_buffer: self.indicies_cube.bind(),
                     textures: &[],
                     uniform_data: bytemuck::bytes_of(&vs_params),
-                }
-                .execute();
+                });
             });
 
         // and the display-pass, rendering a rotating, textured cube, using the
@@ -193,8 +191,7 @@ impl Stage {
         self.ctx.perform_default_render_pass(
             PassAction::clear_depth_color(0.0, 0., 0.45, 1.),
             |_, _| {
-                DrawCall {
-                    ctx: &self.ctx,
+                self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.display_pipeline,
                     base_element: 0,
                     num_elements: 36,
@@ -206,8 +203,7 @@ impl Stage {
                     index_buffer: self.indicies_cube.bind(),
                     textures: &[self.offscreen_pass.color_attachments()[0].bind()],
                     uniform_data: bytemuck::bytes_of(&vs_params),
-                }
-                .execute();
+                });
             },
         );
     }

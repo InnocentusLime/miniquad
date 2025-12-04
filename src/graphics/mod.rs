@@ -5,10 +5,7 @@ mod render_pass;
 mod texture;
 mod vertex_buffer;
 
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-};
+use std::{cell::{Cell, RefCell}, rc::Rc};
 
 use bytemuck::Pod;
 use cache::GlCache;
@@ -116,6 +113,32 @@ impl GlContext {
     ) -> RenderPass {
         RenderPass::new(self.clone(), color_img, depth_img)
     }
+
+    pub fn submit_drawcall(&self, drawcall: DrawCall) {
+        drawcall.pipeline.apply(
+            drawcall.vertex_buffers,
+            drawcall.index_buffer,
+            drawcall.textures,
+            drawcall.uniform_data,
+        );
+
+        let offset = drawcall.index_buffer.sz_elem * drawcall.base_element;
+        let mode = match drawcall.pipeline.primitive_type() {
+            PrimitiveType::Triangles => glow::TRIANGLES,
+            PrimitiveType::Lines => glow::LINES,
+            PrimitiveType::Points => glow::POINTS,
+        };
+
+        unsafe {
+            self.gl.draw_elements_instanced(
+                mode,
+                drawcall.num_elements,
+                drawcall.index_buffer.gl_type,
+                offset,
+                1,
+            );
+        }
+    }
 }
 
 impl Drop for GlContext {
@@ -127,7 +150,6 @@ impl Drop for GlContext {
 }
 
 pub struct DrawCall<'a> {
-    pub ctx: &'a GlContext,
     pub pipeline: &'a Pipeline,
     pub base_element: i32,
     pub num_elements: i32,
@@ -135,34 +157,6 @@ pub struct DrawCall<'a> {
     pub index_buffer: IndexBufferBinding<'a>,
     pub textures: &'a [TextureBinding<'a>],
     pub uniform_data: &'a [u8],
-}
-
-impl<'a> DrawCall<'a> {
-    pub fn execute(self) {
-        self.pipeline.apply(
-            self.vertex_buffers,
-            self.index_buffer,
-            self.textures,
-            self.uniform_data,
-        );
-
-        let offset = self.index_buffer.sz_elem * self.base_element;
-        let mode = match self.pipeline.primitive_type() {
-            PrimitiveType::Triangles => glow::TRIANGLES,
-            PrimitiveType::Lines => glow::LINES,
-            PrimitiveType::Points => glow::POINTS,
-        };
-
-        unsafe {
-            self.ctx.gl.draw_elements_instanced(
-                mode,
-                self.num_elements,
-                self.index_buffer.gl_type,
-                offset,
-                1,
-            );
-        }
-    }
 }
 
 impl From<Equation> for u32 {

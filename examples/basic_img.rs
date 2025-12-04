@@ -122,8 +122,7 @@ impl Stage {
                     let uniforms = shader::Uniforms {
                         offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
                     };
-                    DrawCall {
-                        ctx: &self.ctx,
+                    self.ctx.submit_drawcall(DrawCall {
                         pipeline: &self.pipeline,
                         base_element: 0,
                         num_elements: 6,
@@ -134,8 +133,7 @@ impl Stage {
                         index_buffer: self.indicies.bind(),
                         textures: &[texture.bind()],
                         uniform_data: bytemuck::bytes_of(&uniforms),
-                    }
-                    .execute();
+                    });
                 }
             },
         );
