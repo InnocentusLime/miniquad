@@ -47,8 +47,6 @@ impl EventHandler for Stage {
                 wrap: TextureWrap::Clamp,
                 min_filter: FilterMode::Linear,
                 mag_filter: FilterMode::Linear,
-                mipmap_filter: MipmapFilterMode::None,
-                allocate_mipmaps: false,
             },
         ));
     }

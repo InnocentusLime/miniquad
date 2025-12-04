@@ -15,8 +15,6 @@ pub struct TextureParams {
     pub wrap: TextureWrap,
     pub min_filter: FilterMode,
     pub mag_filter: FilterMode,
-    pub mipmap_filter: MipmapFilterMode,
-    pub allocate_mipmaps: bool,
 }
 
 impl Default for TextureParams {
@@ -26,8 +24,6 @@ impl Default for TextureParams {
             wrap: TextureWrap::Clamp,
             min_filter: FilterMode::Linear,
             mag_filter: FilterMode::Linear,
-            mipmap_filter: MipmapFilterMode::None,
-            allocate_mipmaps: false,
         }
     }
 }
@@ -151,10 +147,10 @@ impl Texture {
         }
     }
 
-    pub fn set_min_filter(&self, filter: FilterMode, mipmap_filter: MipmapFilterMode) {
+    pub fn set_min_filter(&self, filter: FilterMode) {
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let filter = gl_filter(filter, mipmap_filter);
+        let filter = gl_filter(filter);
         unsafe {
             self.ctx.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
@@ -167,10 +163,7 @@ impl Texture {
     pub fn set_mag_filter(&mut self, filter: FilterMode) {
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let filter = match filter {
-            FilterMode::Nearest => glow::NEAREST,
-            FilterMode::Linear => glow::LINEAR,
-        };
+        let filter = gl_filter(filter);
         unsafe {
             self.ctx.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,
@@ -304,38 +297,6 @@ pub enum MipmapFilterMode {
     Nearest,
 }
 
-fn gl_texture_format(format: TextureFormat) -> (u32, u32, u32) {
-    match format {
-        TextureFormat::RGB8 => (glow::RGB, glow::RGB, glow::UNSIGNED_BYTE),
-        TextureFormat::RGBA8 => (glow::RGBA, glow::RGBA, glow::UNSIGNED_BYTE),
-        TextureFormat::DepthU16 => (
-            glow::DEPTH_COMPONENT16,
-            glow::DEPTH_COMPONENT,
-            glow::UNSIGNED_SHORT,
-        ),
-        TextureFormat::DepthF32 => (
-            glow::DEPTH_COMPONENT32F,
-            glow::DEPTH_COMPONENT,
-            glow::FLOAT,
-        ),
-    }
-}
-
-fn gl_filter(filter: FilterMode, mipmap_filter: MipmapFilterMode) -> u32 {
-    match filter {
-        FilterMode::Nearest => match mipmap_filter {
-            MipmapFilterMode::None => glow::NEAREST,
-            MipmapFilterMode::Nearest => glow::NEAREST_MIPMAP_NEAREST,
-            MipmapFilterMode::Linear => glow::NEAREST_MIPMAP_LINEAR,
-        },
-        FilterMode::Linear => match mipmap_filter {
-            MipmapFilterMode::None => glow::LINEAR,
-            MipmapFilterMode::Nearest => glow::LINEAR_MIPMAP_NEAREST,
-            MipmapFilterMode::Linear => glow::LINEAR_MIPMAP_LINEAR,
-        },
-    }
-}
-
 fn create_and_bind_texture(ctx: &GlContext, params: &TextureParams) -> glow::Texture {
     let mut cache = ctx.cache.borrow_mut();
     let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
@@ -357,11 +318,8 @@ fn apply_texture_parameters(ctx: &GlContext, params: &TextureParams) {
         TextureWrap::Mirror => glow::MIRRORED_REPEAT,
         TextureWrap::Clamp => glow::CLAMP_TO_EDGE,
     };
-    let min_filter = gl_filter(params.min_filter, params.mipmap_filter);
-    let mag_filter = match params.mag_filter {
-        FilterMode::Nearest => glow::NEAREST,
-        FilterMode::Linear => glow::LINEAR,
-    };
+    let min_filter = gl_filter(params.min_filter);
+    let mag_filter = gl_filter(params.mag_filter);
     
     unsafe {
         ctx.gl
@@ -380,3 +338,27 @@ fn apply_texture_parameters(ctx: &GlContext, params: &TextureParams) {
         );
     }
 } 
+
+fn gl_filter(filter: FilterMode) -> u32 {
+    match filter {
+        FilterMode::Nearest => glow::NEAREST,
+        FilterMode::Linear => glow::LINEAR,
+    }
+}
+
+fn gl_texture_format(format: TextureFormat) -> (u32, u32, u32) {
+    match format {
+        TextureFormat::RGB8 => (glow::RGB, glow::RGB, glow::UNSIGNED_BYTE),
+        TextureFormat::RGBA8 => (glow::RGBA, glow::RGBA, glow::UNSIGNED_BYTE),
+        TextureFormat::DepthU16 => (
+            glow::DEPTH_COMPONENT16,
+            glow::DEPTH_COMPONENT,
+            glow::UNSIGNED_SHORT,
+        ),
+        TextureFormat::DepthF32 => (
+            glow::DEPTH_COMPONENT32F,
+            glow::DEPTH_COMPONENT,
+            glow::FLOAT,
+        ),
+    }
+}
