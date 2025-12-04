@@ -66,6 +66,9 @@ impl Texture {
 
     pub fn new(ctx: Rc<GlContext>, source: impl Into<DynamicImage>, params: TextureParams) -> Texture {
         let mut source = source.into();
+        // OpenGL is expecting the image data to be upside down.
+        //
+        // REF: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
         source.apply_orientation(Orientation::FlipVertical);
         let (format, pixel_type) = match source.color() {
             image::ColorType::Rgb8 => (glow::RGB, glow::UNSIGNED_BYTE),
@@ -286,13 +289,6 @@ pub enum TextureWrap {
 
 #[derive(Clone, Copy, Debug, PartialEq, Hash)]
 pub enum FilterMode {
-    Linear,
-    Nearest,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Hash)]
-pub enum MipmapFilterMode {
-    None,
     Linear,
     Nearest,
 }
