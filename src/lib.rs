@@ -8,6 +8,7 @@ mod tracing_init;
 
 pub use bytemuck::offset_of;
 pub use fs::*;
+use glow::HasContext;
 pub use graphics::*;
 use tracing_subscriber::EnvFilter;
 pub use web_time::*;
@@ -98,14 +99,16 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
             window,
             handler,
             platform,
+            gl_context,
             ..
         } = &mut self.state
         else {
             return;
         };
-        let swap_buffers = matches!(event, WindowEvent::RedrawRequested);
+        let do_draw = matches!(event, WindowEvent::RedrawRequested);
         handler.window_event(event, window);
-        if swap_buffers {
+        if do_draw {
+            unsafe { gl_context.gl.finish(); }
             platform.swap_buffers();
         }
     }

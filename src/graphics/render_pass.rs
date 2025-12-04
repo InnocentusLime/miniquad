@@ -139,9 +139,6 @@ impl GlContext {
         );
 
         code();
-        unsafe {
-            self.gl.finish();
-        }
     }
 }
 
