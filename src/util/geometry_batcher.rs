@@ -4,6 +4,7 @@ use bytemuck::Pod;
 
 use crate::{BufferUsage, GlContext, IndexBuffer, IndexBufferElement, VertexBuffer};
 
+#[derive(Debug)]
 pub struct GeometryBatcher<T: Pod + Default, I: IndexBufferElement = u16> {
     pub vertices: VertexBuffer<T>,
     pub indicies: IndexBuffer<I>,
@@ -31,7 +32,7 @@ impl<T: Pod + Default, I: IndexBufferElement> GeometryBatcher<T, I> {
     }
 
     pub fn extend(&mut self, vertices: &[T], indicies: &[I]) {
-        let index_off = self.client_indicies.len();
+        let index_off = self.client_vertices.len();
 
         assert!(
             self.client_vertices.len() + vertices.len() <= self.vertices.size(),
@@ -46,12 +47,16 @@ impl<T: Pod + Default, I: IndexBufferElement> GeometryBatcher<T, I> {
             .extend(indicies.iter().copied().map(|x| x.offset_by(index_off)));
     }
 
+    pub fn element_count(&self) -> u32 {
+        self.client_indicies.len() as u32
+    }
+
     pub fn finish(&mut self) -> u32 {
-        let result = self.client_indicies.len();
+        let result = self.element_count();
         self.vertices.update(&self.client_vertices);
         self.indicies.update(&self.client_indicies);
         self.client_vertices.clear();
         self.client_indicies.clear();
-        result as u32
+        result
     }
 }
