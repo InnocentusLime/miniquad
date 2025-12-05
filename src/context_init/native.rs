@@ -43,11 +43,13 @@ pub struct PlatformContext {
 
 impl PlatformContext {
     pub fn resize_surface(&self, new_size: PhysicalSize<u32>) {
-        self.gl_surface.resize(
-            &self.gl_context,
-            NonZeroU32::new(new_size.width).unwrap(),
-            NonZeroU32::new(new_size.height).unwrap(),
-        );
+        // NOTE: winit may absolutely easily give us a new size equal to (0, 0).
+        //       we can't do anything here, except pray that the user will eventually
+        //       give us a proper size.
+        let (Some(width), Some(height)) = (NonZeroU32::new(new_size.width), NonZeroU32::new(new_size.height)) else {
+            return;
+        };
+        self.gl_surface.resize(&self.gl_context, width, height);
     }
 
     pub fn make_glow_context(&self) -> glow::Context {
