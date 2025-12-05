@@ -29,7 +29,11 @@ use crate::context_init::*;
 static TARGET_NAME: &str = "app";
 
 pub fn run<T: EventHandler>(conf: Conf) {
+    // console_error_panic_hook doesn't really work well on native builds.
+    // Enable it only in WASM builds.
+    #[cfg(target_family = "wasm")]
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    
     let filter = EnvFilter::builder().parse_lossy("debug");
     tracing_init::init_tracing_subscriber(filter);
     tracing::info!(target: TARGET_NAME, conf=?conf, "starting");
