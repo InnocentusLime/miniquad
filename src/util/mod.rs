@@ -1,6 +1,6 @@
+mod basic_pipeline;
 mod geometry_batcher;
 mod shape_batcher;
-mod basic_pipeline;
 
 pub use basic_pipeline::*;
 pub use geometry_batcher::*;

@@ -33,7 +33,7 @@ pub fn run<T: EventHandler>(conf: Conf) {
     // Enable it only in WASM builds.
     #[cfg(target_family = "wasm")]
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    
+
     let filter = EnvFilter::builder().parse_lossy("debug");
     tracing_init::init_tracing_subscriber(filter);
     tracing::info!(target: TARGET_NAME, conf=?conf, "starting");
@@ -147,7 +147,10 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
 impl<T: EventHandler> App<T> {
     fn init(&mut self, event_loop: &ActiveEventLoop) {
         let (window, platform) = create_ctx_and_window(event_loop, &self.conf);
-        let gl_context = Rc::new(GlContext::new(platform.make_glow_context(), (800, 600)));
+        let gl_context = Rc::new(GlContext::new(
+            platform.make_glow_context(self.conf.is_debug),
+            (800, 600),
+        ));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
         let handler = T::init(gl_context.clone(), self.fs_server.get_handle());
@@ -172,6 +175,7 @@ enum AppState<T> {
 
 #[derive(Debug)]
 pub struct Conf {
+    pub is_debug: bool,
     pub window_attributes: WindowAttributes,
     /// Specifies the root folder, against which all fs request will be resolved.
     ///
@@ -192,6 +196,7 @@ pub struct Conf {
 impl Default for Conf {
     fn default() -> Conf {
         Conf {
+            is_debug: true,
             window_attributes: default_window_attributes(),
             fs_root: PathBuf::new(),
             filter: default_log_filter(),

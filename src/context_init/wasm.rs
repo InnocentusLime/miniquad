@@ -81,7 +81,7 @@ impl PlatformContext {
         self.webgl_canvas.set_height(new_size.height);
     }
 
-    pub fn make_glow_context(&self) -> glow::Context {
+    pub fn make_glow_context(&self, _is_debug: bool) -> glow::Context {
         glow::Context::from_webgl2_context(self.webgl_context.clone())
     }
 

@@ -1,9 +1,12 @@
 use std::rc::Rc;
 
-use super::{GeometryBatcher, BasicVertex};
-use crate::{bind_vertex_buffers, util::BasicPipelineUniform, BufferUsage, DrawCall, GlContext, IndexBuffer, Pipeline, VertexBuffer};
+use super::{BasicVertex, GeometryBatcher};
+use crate::{
+    BufferUsage, DrawCall, GlContext, IndexBuffer, Pipeline, VertexBuffer, bind_vertex_buffers,
+    util::BasicPipelineUniform,
+};
 
-use glam::{vec2, Affine2, Mat4, Vec2, Vec4};
+use glam::{Affine2, Mat4, Vec2, Vec4, vec2};
 
 #[derive(Debug)]
 pub struct ShapeBatcher(pub GeometryBatcher<BasicVertex>);
@@ -16,31 +19,26 @@ impl ShapeBatcher {
         )
     }
 
-    pub fn new(
-        vertices: VertexBuffer<BasicVertex>,
-        indicies: IndexBuffer,
-    ) -> Self {
+    pub fn new(vertices: VertexBuffer<BasicVertex>, indicies: IndexBuffer) -> Self {
         ShapeBatcher(GeometryBatcher::new(vertices, indicies))
     }
 
     pub fn element_count(&self) -> u32 {
         self.0.element_count()
     }
-    
+
     pub fn finish(&mut self) -> u32 {
         self.0.finish()
     }
 
     pub fn basic_draw(
-        &mut self, 
-        ctx: &GlContext, 
+        &mut self,
+        ctx: &GlContext,
         view_projection: Mat4,
         basic_pipeline: &Pipeline,
     ) {
         let num_elements = self.finish();
-        let uniforms = BasicPipelineUniform {
-            view_projection,
-        };
+        let uniforms = BasicPipelineUniform { view_projection };
         ctx.submit_drawcall(DrawCall {
             pipeline: basic_pipeline,
             base_element: 0,
@@ -76,11 +74,8 @@ impl ShapeBatcher {
                 BasicVertex { pos: v2, color },
                 BasicVertex { pos: v3, color },
                 BasicVertex { pos: v4, color },
-            ], 
-            &[
-                0, 1, 2,
-                2, 1, 3,
             ],
+            &[0, 1, 2, 2, 1, 3],
         );
     }
 
@@ -96,11 +91,8 @@ impl ShapeBatcher {
                 BasicVertex { pos: v2, color },
                 BasicVertex { pos: v3, color },
                 BasicVertex { pos: v4, color },
-            ], 
-            &[
-                0, 1, 2,
-                2, 1, 3,
             ],
+            &[0, 1, 2, 2, 1, 3],
         );
     }
 
@@ -111,12 +103,12 @@ impl ShapeBatcher {
     }
 
     pub fn poly_lines(
-        &mut self, 
-        color: Vec4, 
-        thickness: f32, 
+        &mut self,
+        color: Vec4,
+        thickness: f32,
         center: Vec2,
         rotation: f32,
-        vertex_count: usize, 
+        vertex_count: usize,
         radius: f32,
     ) {
         let angle_increment = std::f32::consts::TAU / (vertex_count as f32);
@@ -133,7 +125,14 @@ impl ShapeBatcher {
         self.poly_lines(color, thickness, center, 0.0, 50, radius);
     }
 
-    pub fn rect_lines(&mut self, color: Vec4, thickness: f32, center: Vec2, size: Vec2, rotation: f32) {
+    pub fn rect_lines(
+        &mut self,
+        color: Vec4,
+        thickness: f32,
+        center: Vec2,
+        size: Vec2,
+        rotation: f32,
+    ) {
         let tf = Affine2::from_angle_translation(rotation, center);
         let p1 = tf.transform_point2(vec2(-size.x, size.y) * 0.5);
         let p2 = tf.transform_point2(vec2(-size.x, -size.y) * 0.5);

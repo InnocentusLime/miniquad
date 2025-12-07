@@ -3,22 +3,23 @@ use std::rc::Rc;
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
-use crate::{GlContext, Pipeline, PipelineParams, UniformDesc, UniformType, VertexAttribute, VertexFormat};
+use crate::{
+    GlContext, Pipeline, PipelineParams, UniformDesc, UniformType, VertexAttribute, VertexFormat,
+};
 
 pub fn make_basic_pipeline(ctx: &Rc<GlContext>) -> Pipeline {
     ctx.new_pipeline::<&'static str>(
-        BASIC_PIPELINE_VERTEX, 
-        BASIC_PIPELINE_FRAGMENT, 
-        PipelineParams::default(), 
+        BASIC_PIPELINE_VERTEX,
+        BASIC_PIPELINE_FRAGMENT,
+        PipelineParams::default(),
         [
             VertexAttribute::new("in_pos", VertexFormat::F32x2),
             VertexAttribute::new("in_color", VertexFormat::F32x4),
-        ], 
-        [
-            UniformDesc::new_scalar("view_proj", UniformType::F32x4x4)
-        ], 
+        ],
+        [UniformDesc::new_scalar("view_proj", UniformType::F32x4x4)],
         [],
-    ).unwrap()
+    )
+    .unwrap()
 }
 
 #[repr(C)]
