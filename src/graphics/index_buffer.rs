@@ -27,6 +27,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
                 super::gl_usage(usage),
             );
         }
+        ctx.check_no_gl_error();
         IndexBuffer {
             ctx,
             gl_buf,
@@ -42,6 +43,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
             ctx.gl
                 .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, super::gl_usage(usage));
         }
+        ctx.check_no_gl_error();
         IndexBuffer {
             ctx,
             gl_buf,
@@ -65,6 +67,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
                 .gl
                 .buffer_sub_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, 0, data)
         };
+        self.ctx.check_no_gl_error();
     }
 
     pub fn bind(&self) -> IndexBufferBinding<'_> {

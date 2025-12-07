@@ -104,33 +104,13 @@ impl Texture {
             );
         }
         apply_texture_parameters(&ctx, &params);
+        ctx.check_no_gl_error();
         Texture {
             ctx,
             gl_tex,
             width: Cell::new(width),
             height: Cell::new(height),
             format: params.internal_format,
-        }
-    }
-
-    pub fn resize(&self, width: u32, height: u32, source: Option<&[u8]>) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let (internal_format, format, pixel_type) = gl_texture_format(self.format);
-        self.width.set(width);
-        self.height.set(height);
-        unsafe {
-            self.ctx.gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                internal_format as i32,
-                width as i32,
-                height as i32,
-                0,
-                format,
-                pixel_type,
-                glow::PixelUnpackData::Slice(source),
-            );
         }
     }
 
@@ -181,38 +161,6 @@ impl Texture {
                 glow::TEXTURE_2D,
                 glow::TEXTURE_MAG_FILTER,
                 filter as i32,
-            );
-        }
-    }
-
-    pub fn update_part(
-        &self,
-        x_offset: i32,
-        y_offset: i32,
-        width: i32,
-        height: i32,
-        source: &[u8],
-    ) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        assert_eq!(self.size(width as _, height as _), source.len());
-        assert!(x_offset + width <= self.width() as _);
-        assert!(y_offset + height <= self.height() as _);
-
-        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let (_, format, pixel_type) = gl_texture_format(self.format);
-
-        unsafe {
-            self.ctx.gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
-            self.ctx.gl.tex_sub_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                x_offset as _,
-                y_offset as _,
-                width as _,
-                height as _,
-                format,
-                pixel_type,
-                PixelUnpackData::Slice(Some(source)),
             );
         }
     }

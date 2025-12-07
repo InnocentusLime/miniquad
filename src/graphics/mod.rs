@@ -153,6 +153,16 @@ impl GlContext {
                 1,
             );
         }
+
+        self.check_no_gl_error();
+    }
+
+    pub(crate) fn check_no_gl_error(&self) {
+        let err = unsafe { self.gl.get_error() };
+        if err == glow::NO_ERROR {
+            return;
+        }
+        panic!("detected error: {err:#x}");
     }
 }
 

@@ -47,6 +47,7 @@ impl<T: Pod + Default> VertexBuffer<T> {
             ctx.gl
                 .buffer_data_size(glow::ARRAY_BUFFER, size as i32, super::gl_usage(usage));
         }
+        ctx.check_no_gl_error();
         VertexBuffer {
             ctx,
             gl_buf,
@@ -62,6 +63,7 @@ impl<T: Pod + Default> VertexBuffer<T> {
             ctx.gl
                 .buffer_data_u8_slice(glow::ARRAY_BUFFER, data, super::gl_usage(usage));
         }
+        ctx.check_no_gl_error();
         VertexBuffer {
             ctx,
             gl_buf,
@@ -85,6 +87,7 @@ impl<T: Pod + Default> VertexBuffer<T> {
                 .gl
                 .buffer_sub_data_u8_slice(glow::ARRAY_BUFFER, 0, data)
         };
+        self.ctx.check_no_gl_error();
     }
 
     pub fn binding(&self, offset: u32) -> VertexBufferBinding<'_> {

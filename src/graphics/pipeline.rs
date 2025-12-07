@@ -87,6 +87,7 @@ impl Pipeline {
         let uniforms = get_pipeline_uniforms(&ctx.gl, program, uniforms)?;
         let images = get_pipeline_images(&ctx.gl, program, image_uniforms)?;
 
+        ctx.check_no_gl_error();
         std::mem::drop(cache);
         Ok(Pipeline {
             ctx,
@@ -167,6 +168,7 @@ impl Pipeline {
             }
             offset += sz;
         }
+        self.ctx.check_no_gl_error();
     }
 
     fn get_uniform_value<'a, T, Inter>(&self, data: &'a [u8], uniform: &ShaderUniform) -> &'a [T]
@@ -251,6 +253,7 @@ impl Pipeline {
                 self.ctx.gl.enable_vertex_attrib_array(*attr_index);
             }
         }
+        self.ctx.check_no_gl_error();
     }
 
     fn apply_parameters(&self, params: &PipelineParams) {
@@ -261,6 +264,7 @@ impl Pipeline {
         cache.set_blend(&self.ctx.gl, params.color_blend, params.alpha_blend);
         cache.set_stencil(&self.ctx.gl, params.stencil_test);
         cache.set_color_write(&self.ctx.gl, params.color_write);
+        self.ctx.check_no_gl_error();
     }
 }
 

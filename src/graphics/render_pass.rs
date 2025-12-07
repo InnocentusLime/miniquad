@@ -71,6 +71,7 @@ impl RenderPass {
             }
         }
 
+        ctx.check_no_gl_error();
         RenderPass {
             ctx,
             gl_fb,
@@ -105,8 +106,10 @@ impl RenderPass {
             texture.width() as i32,
             texture.height() as i32,
         );
+        self.ctx.check_no_gl_error();
 
         code(texture.width(), texture.height());
+        self.ctx.check_no_gl_error();
     }
 }
 
@@ -141,8 +144,10 @@ impl GlContext {
             screen_width as i32,
             screen_height as i32,
         );
+        self.check_no_gl_error();
 
         code(screen_width, screen_height);
+        self.check_no_gl_error();
     }
 }
 
