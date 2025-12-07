@@ -114,6 +114,10 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
         let do_draw = matches!(event, WindowEvent::RedrawRequested);
         handler.window_event(event, window);
         if do_draw {
+            tracing::trace!(
+                target: TARGET_NAME,
+                "finish_frame",
+            );
             unsafe {
                 gl_context.gl.finish();
             }
