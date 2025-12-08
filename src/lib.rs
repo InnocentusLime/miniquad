@@ -49,6 +49,7 @@ pub fn run<T: EventHandler>(conf: Conf) {
             fs_server: FsServer::start(proxy, conf.fs_root.clone()),
             conf,
             state: AppState::Boot,
+            last_update: Instant::now(),
         },
     );
 }
@@ -57,6 +58,7 @@ struct App<T> {
     conf: Conf,
     fs_server: FsServer,
     state: AppState<T>,
+    last_update: Instant,
 }
 
 impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
@@ -148,10 +150,9 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
 
         window.request_redraw();
         event_loop.set_control_flow(ControlFlow::WaitUntil(
-            Instant::now()
-                .checked_add(Duration::from_millis(16))
-                .unwrap(),
+            self.last_update + Duration::from_millis(16),
         ));
+        self.last_update = Instant::now();
     }
 }
 
