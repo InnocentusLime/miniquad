@@ -17,6 +17,7 @@ pub use web_time::*;
 
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -106,18 +107,27 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
             handler,
             platform,
             gl_context,
+            egui_glow,
             ..
         } = &mut self.state
         else {
             return;
         };
+
         let do_draw = matches!(event, WindowEvent::RedrawRequested);
+        if do_draw {
+            gl_context.recapture_gl();
+        }
+
+        let _ = egui_glow.on_window_event(window, &event);
         handler.window_event(event, window);
+
         if do_draw {
             tracing::trace!(
                 target: TARGET_NAME,
                 "finish_frame",
             );
+            egui_glow.paint(window);
             unsafe {
                 gl_context.gl.finish();
             }
@@ -127,13 +137,14 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         let AppState::Ready {
-            window, handler, ..
+            window, handler, egui_glow, ..
         } = &mut self.state
         else {
             return;
         };
 
         handler.update();
+        egui_glow.run(&window, |egui_ctx| handler.egui(egui_ctx));
 
         window.request_redraw();
         event_loop.set_control_flow(ControlFlow::WaitUntil(
@@ -147,11 +158,20 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
 impl<T: EventHandler> App<T> {
     fn init(&mut self, event_loop: &ActiveEventLoop) {
         let (window, platform) = create_ctx_and_window(event_loop, &self.conf);
+        let glow = Arc::new(platform.make_glow_context(self.conf.is_debug));
         let gl_context = Rc::new(GlContext::new(
-            platform.make_glow_context(self.conf.is_debug),
+            glow.clone(),
             (800, 600),
         ));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
+
+        let egui_glow = egui_glow::EguiGlow::new(
+            event_loop, 
+            glow.clone(), 
+            None, 
+            None, 
+            true,
+        );
 
         let handler = T::init(gl_context.clone(), self.fs_server.get_handle());
         self.state = AppState::Ready {
@@ -159,7 +179,17 @@ impl<T: EventHandler> App<T> {
             platform,
             gl_context,
             handler,
+            egui_glow,
         }
+    }
+}
+
+impl<T> Drop for App<T> {
+    fn drop(&mut self) {
+        let AppState::Ready { egui_glow, .. } = &mut self.state else {
+            return;
+        };
+        egui_glow.destroy();
     }
 }
 
@@ -169,6 +199,7 @@ enum AppState<T> {
         window: Window,
         platform: PlatformContext,
         gl_context: Rc<GlContext>,
+        egui_glow: egui_glow::EguiGlow,
         handler: T,
     },
 }
@@ -240,6 +271,8 @@ pub trait EventHandler: 'static {
     /// while app is still alive and can do some usefull calculations.
     /// Note that in this case drawing from update may lead to crashes.
     fn update(&mut self);
+
+    fn egui(&mut self, _egui_ctx: &egui::Context) {}
 
     fn window_event(&mut self, event: WindowEvent, window: &Window);
 }

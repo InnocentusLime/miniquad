@@ -9,6 +9,7 @@ mod vertex_buffer;
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
+use std::sync::Arc;
 
 use bytemuck::Pod;
 use cache::GlCache;
@@ -26,13 +27,13 @@ pub use vertex_buffer::*;
 #[derive(Debug)]
 pub struct GlContext {
     pub(crate) client_area_size: Cell<(u32, u32)>,
-    pub(crate) gl: glow::Context,
+    pub(crate) gl: Arc<glow::Context>,
     pub(crate) vao: glow::VertexArray,
     pub(crate) cache: RefCell<GlCache>,
 }
 
 impl GlContext {
-    pub fn new(gl: glow::Context, client_area_size: (u32, u32)) -> GlContext {
+    pub fn new(gl: Arc<glow::Context>, client_area_size: (u32, u32)) -> GlContext {
         let vao = unsafe { gl.create_vertex_array().unwrap() };
         unsafe {
             gl.bind_vertex_array(Some(vao));

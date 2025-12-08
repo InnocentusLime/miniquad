@@ -24,6 +24,8 @@ glow = "0.16.0"
 bytemuck = "1.24.0"
 glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
 tracing-subscriber = { version = "0.3.2", features = ["env-filter", "registry"] }
+egui_glow = { version = "0.33.2", features = ["winit"] }
+egui = "0.33.2"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 glutin = "0.32.3"
