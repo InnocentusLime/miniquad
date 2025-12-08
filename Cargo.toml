@@ -43,3 +43,4 @@ image = { version = "0.25.9", features = ["png"], default-features = false }
 glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
 tracing = "0.1.43"
 quad-rand = "0.1"
+egui = "0.33.2"
