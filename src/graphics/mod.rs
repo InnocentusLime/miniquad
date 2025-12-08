@@ -45,6 +45,14 @@ impl GlContext {
         }
     }
 
+    pub(crate) fn recapture_gl(&self) {
+        let mut cache = self.cache.borrow_mut();
+        cache.reset(&self.gl);
+        unsafe {
+            self.gl.bind_vertex_array(Some(self.vao));
+        }
+    }
+
     pub fn screen_size(&self) -> (u32, u32) {
         self.client_area_size.get()
     }
