@@ -1,9 +1,11 @@
 mod basic_pipeline;
 mod geometry_batcher;
+mod input;
 mod shape_batcher;
 
 pub use basic_pipeline::*;
 pub use geometry_batcher::*;
+pub use input::*;
 pub use shape_batcher::*;
 
 use bytemuck::{Pod, Zeroable};
