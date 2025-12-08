@@ -3,43 +3,14 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::graphics::vertex_buffer::VertexBufferBinding;
-use crate::graphics::{ColorMask, Comparison, CullFace, FrontFaceOrder, GlContext, PrimitiveType};
-use crate::{BlendState, IndexBufferBinding, StencilState, TextureBinding};
+use crate::graphics::{GlContext, PipelineParams, PrimitiveType};
+use crate::{IndexBufferBinding, TextureBinding};
 
 use anyhow::Context;
 use bytemuck::Pod;
 use glow::HasContext;
 
 static TARGET_NAME: &str = "gl.pipeline";
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct PipelineParams {
-    pub cull_face: CullFace,
-    pub front_face_order: FrontFaceOrder,
-    pub depth_test: Option<Comparison>,
-    pub depth_write_offset: Option<(f32, f32)>,
-    pub color_blend: Option<BlendState>,
-    pub alpha_blend: Option<BlendState>,
-    pub stencil_test: Option<StencilState>,
-    pub color_write: ColorMask,
-    pub primitive_type: PrimitiveType,
-}
-
-impl Default for PipelineParams {
-    fn default() -> PipelineParams {
-        PipelineParams {
-            cull_face: CullFace::Nothing,
-            front_face_order: FrontFaceOrder::CounterClockwise,
-            depth_test: None, // no depth test,
-            depth_write_offset: None,
-            color_blend: None,
-            alpha_blend: None,
-            stencil_test: None,
-            color_write: (true, true, true, true),
-            primitive_type: PrimitiveType::Triangles,
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Pipeline<U: Pod + 'static> {
@@ -270,7 +241,7 @@ impl<U: Pod + 'static> Pipeline<U> {
         cache.set_depth_test(&self.ctx.gl, params.depth_test);
         cache.set_front_face_order(&self.ctx.gl, params.front_face_order);
         cache.set_cull_face(&self.ctx.gl, params.cull_face);
-        cache.set_blend(&self.ctx.gl, params.color_blend, params.alpha_blend);
+        cache.set_blend(&self.ctx.gl, params.blending);
         cache.set_stencil(&self.ctx.gl, params.stencil_test);
         cache.set_color_write(&self.ctx.gl, params.color_write);
         self.ctx.check_no_gl_error();

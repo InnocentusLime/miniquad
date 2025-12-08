@@ -71,11 +71,11 @@ impl EventHandler for Stage {
                 shader::VERTEX,
                 shader::FRAGMENT,
                 PipelineParams {
-                    color_blend: Some(BlendState::new(
-                        Equation::Add,
-                        BlendFactor::Value(BlendValue::SourceAlpha),
-                        BlendFactor::OneMinusValue(BlendValue::SourceAlpha),
-                    )),
+                    blending: Blending::All(BlendFunc {
+                        equation: BlendEquation::Add,
+                        source: BlendFactor::Value(BlendValue::SrcAlpha),
+                        dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
+                    }),
                     ..Default::default()
                 },
                 [

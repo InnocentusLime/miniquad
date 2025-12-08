@@ -11,8 +11,7 @@ pub struct GlCache {
 
     front_face_order: FrontFaceOrder,
     depth_test: Option<Comparison>,
-    color_blend: Option<BlendState>,
-    alpha_blend: Option<BlendState>,
+    blend: Blending,
     stencil: Option<StencilState>,
     color_write: ColorMask,
     cull_face: CullFace,
@@ -28,8 +27,7 @@ impl GlCache {
 
             front_face_order: FrontFaceOrder::CounterClockwise,
             depth_test: None,
-            color_blend: None,
-            alpha_blend: None,
+            blend: Blending::None,
             stencil: None,
             color_write: (true, true, true, true),
             cull_face: CullFace::Nothing,
@@ -80,100 +78,79 @@ impl GlCache {
         }
     }
 
-    pub fn set_blend(
-        &mut self,
-        gl: &glow::Context,
-        color_blend: Option<BlendState>,
-        alpha_blend: Option<BlendState>,
-    ) {
-        // TODO: this looks annoying. Better enforce it on type-level
-        if color_blend.is_none() && alpha_blend.is_some() {
-            panic!("AlphaBlend without ColorBlend");
-        }
-        if self.color_blend == color_blend && self.alpha_blend == alpha_blend {
+    pub fn set_blend(&mut self, gl: &glow::Context, blend: Blending) {
+        if self.blend == blend {
             return;
         }
-
-        unsafe {
-            if let Some(color_blend) = color_blend {
-                if self.color_blend.is_none() {
+        match blend {
+            Blending::None => unsafe {
+                gl.disable(glow::BLEND);
+            },
+            Blending::All(all) => unsafe {
+                if self.blend == Blending::None {
                     gl.enable(glow::BLEND);
                 }
-
-                let BlendState {
-                    equation: eq_rgb,
-                    sfactor: src_rgb,
-                    dfactor: dst_rgb,
-                } = color_blend;
-
-                if let Some(BlendState {
-                    equation: eq_alpha,
-                    sfactor: src_alpha,
-                    dfactor: dst_alpha,
-                }) = alpha_blend
-                {
-                    gl.blend_func_separate(
-                        src_rgb.into(),
-                        dst_rgb.into(),
-                        src_alpha.into(),
-                        dst_alpha.into(),
-                    );
-                    gl.blend_equation_separate(eq_rgb.into(), eq_alpha.into());
-                } else {
-                    gl.blend_func(src_rgb.into(), dst_rgb.into());
-                    gl.blend_equation_separate(eq_rgb.into(), eq_rgb.into());
+                gl.blend_func(all.source.into(), all.dest.into());
+                gl.blend_equation(all.equation.into());
+            },
+            Blending::Separate { color, alpha } => unsafe {
+                if self.blend == Blending::None {
+                    gl.enable(glow::BLEND);
                 }
-            } else if self.color_blend.is_some() {
-                gl.disable(glow::BLEND);
-            }
+                gl.blend_func_separate(
+                    color.source.into(),
+                    color.dest.into(),
+                    alpha.source.into(),
+                    alpha.dest.into(),
+                );
+                gl.blend_equation_separate(color.equation.into(), alpha.equation.into());
+            },
         }
-
-        self.color_blend = color_blend;
-        self.alpha_blend = alpha_blend;
+        self.blend = blend;
     }
 
     pub fn set_stencil(&mut self, gl: &glow::Context, stencil_test: Option<StencilState>) {
         if self.stencil == stencil_test {
             return;
         }
-        unsafe {
-            if let Some(stencil) = stencil_test {
-                if self.stencil.is_none() {
-                    gl.enable(glow::STENCIL_TEST);
-                }
-
-                let front = &stencil.front;
-                gl.stencil_op_separate(
-                    glow::FRONT,
-                    front.fail_op.into(),
-                    front.depth_fail_op.into(),
-                    front.pass_op.into(),
-                );
-                gl.stencil_func_separate(
-                    glow::FRONT,
-                    front.test_func.into(),
-                    front.test_ref,
-                    front.test_mask,
-                );
-                gl.stencil_mask_separate(glow::FRONT, front.write_mask);
-
-                let back = &stencil.back;
-                gl.stencil_op_separate(
-                    glow::BACK,
-                    back.fail_op.into(),
-                    back.depth_fail_op.into(),
-                    back.pass_op.into(),
-                );
-                gl.stencil_func_separate(
-                    glow::BACK,
-                    back.test_func.into(),
-                    back.test_ref,
-                    back.test_mask,
-                );
-                gl.stencil_mask_separate(glow::BACK, back.write_mask);
-            } else if self.stencil.is_some() {
+        let Some(stencil) = stencil_test else {
+            unsafe {
                 gl.disable(glow::STENCIL_TEST);
             }
+            return;
+        };
+        unsafe {
+            if self.stencil.is_none() {
+                gl.enable(glow::STENCIL_TEST);
+            }
+
+            gl.stencil_op_separate(
+                glow::FRONT,
+                stencil.front.fail_op.into(),
+                stencil.front.depth_fail_op.into(),
+                stencil.front.pass_op.into(),
+            );
+            gl.stencil_func_separate(
+                glow::FRONT,
+                stencil.front.test_func.into(),
+                stencil.front.test_ref,
+                stencil.front.test_mask,
+            );
+            gl.stencil_mask_separate(glow::FRONT, stencil.front.write_mask);
+
+            gl.stencil_op_separate(
+                glow::BACK,
+                stencil.back.fail_op.into(),
+                stencil.back.depth_fail_op.into(),
+                stencil.back.pass_op.into(),
+            );
+            gl.stencil_func_separate(
+                glow::BACK,
+                stencil.back.test_func.into(),
+                stencil.back.test_ref,
+                stencil.back.test_mask,
+            );
+            gl.stencil_mask_separate(glow::BACK, stencil.back.write_mask);
         }
 
         self.stencil = stencil_test;
