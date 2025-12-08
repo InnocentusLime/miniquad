@@ -1,3 +1,4 @@
+mod buffer_usage;
 mod cache;
 mod index_buffer;
 mod pipeline;
@@ -14,6 +15,7 @@ use cache::GlCache;
 use glow::HasContext;
 use image::DynamicImage;
 
+pub use buffer_usage::*;
 pub use index_buffer::*;
 pub use pipeline::*;
 pub use pipeline_params::*;
@@ -177,19 +179,4 @@ pub struct DrawCall<'a, U: Pod + 'static> {
     pub index_buffer: IndexBufferBinding<'a>,
     pub textures: &'a [TextureBinding<'a>],
     pub uniforms: &'a U,
-}
-
-fn gl_usage(usage: BufferUsage) -> u32 {
-    match usage {
-        BufferUsage::Immutable => glow::STATIC_DRAW,
-        BufferUsage::Dynamic => glow::DYNAMIC_DRAW,
-        BufferUsage::Stream => glow::STREAM_DRAW,
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum BufferUsage {
-    Immutable,
-    Dynamic,
-    Stream,
 }
