@@ -171,9 +171,10 @@ impl GlContext {
         }
         panic!("detected error: {err:#x}");
     }
-    
+
     #[cfg(not(debug_assertions))]
-    pub(crate) fn check_no_gl_error(&self) { /* NOOP */ }
+    pub(crate) fn check_no_gl_error(&self) { /* NOOP */
+    }
 }
 
 impl Drop for GlContext {

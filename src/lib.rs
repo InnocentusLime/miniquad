@@ -116,30 +116,28 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
             return;
         };
 
-        let do_draw = matches!(event, WindowEvent::RedrawRequested);
-        if do_draw {
-            gl_context.recapture_gl();
-        }
-
         let _ = egui_glow.on_window_event(window, &event);
-        handler.window_event(event, window);
-
-        if do_draw {
-            tracing::trace!(
-                target: TARGET_NAME,
-                "finish_frame",
-            );
+        if matches!(event, WindowEvent::RedrawRequested) {
+            gl_context.recapture_gl();
+            handler.window_event(event, window);
             egui_glow.paint(window);
+
+            tracing::trace!(target: TARGET_NAME, "finish_frame");
             unsafe {
                 gl_context.gl.finish();
             }
             platform.swap_buffers();
+        } else {
+            handler.window_event(event, window);
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         let AppState::Ready {
-            window, handler, egui_glow, ..
+            window,
+            handler,
+            egui_glow,
+            ..
         } = &mut self.state
         else {
             return;
@@ -160,19 +158,10 @@ impl<T: EventHandler> App<T> {
     fn init(&mut self, event_loop: &ActiveEventLoop) {
         let (window, platform) = create_ctx_and_window(event_loop, &self.conf);
         let glow = Arc::new(platform.make_glow_context(self.conf.is_debug));
-        let gl_context = Rc::new(GlContext::new(
-            glow.clone(),
-            (800, 600),
-        ));
+        let gl_context = Rc::new(GlContext::new(glow.clone(), (800, 600)));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
-        let egui_glow = egui_glow::EguiGlow::new(
-            event_loop, 
-            glow.clone(), 
-            None, 
-            None, 
-            true,
-        );
+        let egui_glow = egui_glow::EguiGlow::new(event_loop, glow.clone(), None, None, true);
 
         let handler = T::init(gl_context.clone(), self.fs_server.get_handle());
         self.state = AppState::Ready {
