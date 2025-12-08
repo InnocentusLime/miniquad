@@ -34,6 +34,23 @@ impl GlCache {
         }
     }
 
+    pub fn reset(&mut self, gl: &glow::Context) {
+        *self = GlCache::new();
+        unsafe {
+            gl.bind_vertex_array(None);
+            gl.bind_buffer(glow::ARRAY_BUFFER, None);
+            gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, None);
+            gl.bind_texture(glow::TEXTURE_2D, None);
+            gl.use_program(None);
+            gl.disable(glow::BLEND);
+            gl.disable(glow::STENCIL_TEST);
+            gl.disable(glow::DEPTH_TEST);
+            gl.front_face(glow::CCW);
+            gl.disable(glow::CULL_FACE);
+            gl.color_mask(true, true, true, true);
+        }
+    }
+
     pub fn bind_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
         if self.vertex_buffer != Some(buffer) {
             self.vertex_buffer = Some(buffer);
@@ -216,7 +233,7 @@ impl GlCache {
         }
         let (r, g, b, a) = color_write;
         unsafe {
-            gl.color_mask(r as _, g as _, b as _, a as _);
+            gl.color_mask(r, g, b, a);
         }
         self.color_write = color_write;
     }
