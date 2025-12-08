@@ -18,7 +18,7 @@ fn main() {
 
 struct Stage {
     mouse_pos: Vec2,
-    pipeline: Pipeline,
+    pipeline: Pipeline<shader::Uniforms>,
     vertices: VertexBuffer<Vertex>,
     indicies: IndexBuffer,
     uniforms: shader::Uniforms,
@@ -76,7 +76,7 @@ impl EventHandler for Stage {
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
 
         let pipeline = ctx
-            .new_pipeline::<&'static str>(
+            .new_pipeline::<&'static str, _>(
                 shader::VERTEX,
                 shader::FRAGMENT,
                 PipelineParams::default(),
@@ -155,7 +155,7 @@ impl Stage {
                     ],
                     index_buffer: self.indicies.bind(),
                     textures: &[],
-                    uniform_data: bytemuck::bytes_of(&self.uniforms),
+                    uniforms: &self.uniforms,
                 });
             },
         );

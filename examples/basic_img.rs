@@ -19,7 +19,7 @@ struct Stage {
     ctx: Rc<GlContext>,
     _fs_server: FsServerHandle,
 
-    pipeline: Pipeline,
+    pipeline: Pipeline<shader::Uniforms>,
     vertices: VertexBuffer<Vertex>,
     indicies: IndexBuffer,
     texture: Option<Texture>,
@@ -112,9 +112,6 @@ impl Stage {
             |_, _| {
                 for i in 0..10 {
                     let t = t + i as f32 * 0.3;
-                    let uniforms = shader::Uniforms {
-                        offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
-                    };
                     self.ctx.submit_drawcall(DrawCall {
                         pipeline: &self.pipeline,
                         base_element: 0,
@@ -125,7 +122,9 @@ impl Stage {
                         ],
                         index_buffer: self.indicies.bind(),
                         textures: &[texture.bind()],
-                        uniform_data: bytemuck::bytes_of(&uniforms),
+                        uniforms: &shader::Uniforms {
+                            offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
+                        },
                     });
                 }
             },

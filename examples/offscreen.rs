@@ -14,8 +14,8 @@ fn main() {
 struct Stage {
     vertices_cube: VertexBuffer<CubeVert>,
     indicies_cube: IndexBuffer,
-    display_pipeline: Pipeline,
-    offscreen_pipeline: Pipeline,
+    display_pipeline: Pipeline<display_shader::Uniforms>,
+    offscreen_pipeline: Pipeline<display_shader::Uniforms>,
     offscreen_pass: RenderPass,
     rx: f32,
     ry: f32,
@@ -118,7 +118,7 @@ impl EventHandler for Stage {
             .unwrap();
 
         let offscreen_pipeline = ctx
-            .new_pipeline::<&'static str>(
+            .new_pipeline::<&'static str, _>(
                 offscreen_shader::VERTEX,
                 offscreen_shader::FRAGMENT,
                 PipelineParams {
@@ -178,7 +178,7 @@ impl Stage {
                     ],
                     index_buffer: self.indicies_cube.bind(),
                     textures: &[],
-                    uniform_data: bytemuck::bytes_of(&vs_params),
+                    uniforms: &vs_params,
                 });
             });
 
@@ -198,7 +198,7 @@ impl Stage {
                     ],
                     index_buffer: self.indicies_cube.bind(),
                     textures: &[self.offscreen_pass.color_attachments()[0].bind()],
-                    uniform_data: bytemuck::bytes_of(&vs_params),
+                    uniforms: &vs_params,
                 });
             },
         );

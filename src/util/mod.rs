@@ -15,3 +15,7 @@ pub struct BasicVertex {
     pub pos: Vec2,
     pub color: Vec4,
 }
+
+#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[repr(C)]
+pub struct NoUniforms;

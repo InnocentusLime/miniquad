@@ -16,8 +16,8 @@ struct Stage {
     indicies_cube: IndexBuffer,
     vertices_quad: VertexBuffer<QuadVert>,
     indicies_quad: IndexBuffer,
-    post_processing_pipeline: Pipeline,
-    offscreen_pipeline: Pipeline,
+    post_processing_pipeline: Pipeline<post_processing_shader::Uniforms>,
+    offscreen_pipeline: Pipeline<offscreen_shader::Uniforms>,
     offscreen_pass: RenderPass,
     rx: f32,
     ry: f32,
@@ -132,7 +132,7 @@ impl EventHandler for Stage {
             .unwrap();
 
         let offscreen_pipeline = ctx
-            .new_pipeline::<&'static str>(
+            .new_pipeline::<&'static str, _>(
                 offscreen_shader::VERTEX,
                 offscreen_shader::FRAGMENT,
                 PipelineParams {
@@ -197,9 +197,6 @@ impl Stage {
         let view_proj = proj * view;
 
         let model = Mat4::from_rotation_y(self.ry) * Mat4::from_rotation_y(self.rx);
-        let uniforms = offscreen_shader::Uniforms {
-            mvp: view_proj * model,
-        };
 
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
         self.offscreen_pass
@@ -214,13 +211,12 @@ impl Stage {
                     ],
                     index_buffer: self.indicies_cube.bind(),
                     textures: &[],
-                    uniform_data: bytemuck::bytes_of(&uniforms),
+                    uniforms: &offscreen_shader::Uniforms {
+                        mvp: view_proj * model,
+                    },
                 });
             });
 
-        let uniforms = post_processing_shader::Uniforms {
-            resolution: vec2(width, height),
-        };
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
         self.ctx.perform_default_render_pass(
@@ -236,7 +232,9 @@ impl Stage {
                     ],
                     index_buffer: self.indicies_quad.bind(),
                     textures: &[self.offscreen_pass.color_attachments()[0].bind()],
-                    uniform_data: bytemuck::bytes_of(&uniforms),
+                    uniforms: &post_processing_shader::Uniforms {
+                        resolution: vec2(width, height),
+                    },
                 });
             },
         );

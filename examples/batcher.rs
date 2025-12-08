@@ -15,7 +15,7 @@ fn main() {
 
 struct Stage {
     start: Instant,
-    pipeline: Pipeline,
+    pipeline: Pipeline<util::NoUniforms>,
     batcher: GeometryBatcher<Vertex>,
     ctx: Rc<GlContext>,
 }
@@ -33,7 +33,7 @@ impl EventHandler for Stage {
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50);
         let pipeline = ctx
-            .new_pipeline::<&'static str>(
+            .new_pipeline::<&'static str, _>(
                 shader::VERTEX,
                 shader::FRAGMENT,
                 PipelineParams::default(),
@@ -102,7 +102,7 @@ impl Stage {
                     ],
                     index_buffer: self.batcher.indicies.bind(),
                     textures: &[],
-                    uniform_data: &[],
+                    uniforms: &util::NoUniforms,
                 });
             },
         );

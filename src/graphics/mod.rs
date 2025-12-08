@@ -101,7 +101,7 @@ impl GlContext {
         Texture::new(self.clone(), source, params)
     }
 
-    pub fn new_pipeline<S: Into<String>>(
+    pub fn new_pipeline<S: Into<String>, U: Pod + 'static>(
         self: &Rc<Self>,
         vertex_shader_source: &str,
         fragment_shader_source: &str,
@@ -109,7 +109,7 @@ impl GlContext {
         attributes: impl IntoIterator<Item = VertexAttribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = S>,
-    ) -> anyhow::Result<Pipeline> {
+    ) -> anyhow::Result<Pipeline<U>> {
         Pipeline::new(
             self.clone(),
             vertex_shader_source,
@@ -129,12 +129,12 @@ impl GlContext {
         RenderPass::new(self.clone(), color_img, depth_img)
     }
 
-    pub fn submit_drawcall(&self, drawcall: DrawCall) {
+    pub fn submit_drawcall<U: Pod + 'static>(&self, drawcall: DrawCall<U>) {
         drawcall.pipeline.apply(
             drawcall.vertex_buffers,
             drawcall.index_buffer,
             drawcall.textures,
-            drawcall.uniform_data,
+            drawcall.uniforms,
         );
 
         let offset = drawcall.index_buffer.sz_elem * (drawcall.base_element as i32);
@@ -174,14 +174,14 @@ impl Drop for GlContext {
     }
 }
 
-pub struct DrawCall<'a> {
-    pub pipeline: &'a Pipeline,
+pub struct DrawCall<'a, U: Pod + 'static> {
+    pub pipeline: &'a Pipeline<U>,
     pub base_element: u32,
     pub num_elements: u32,
     pub vertex_buffers: &'a [VertexBufferBinding<'a>],
     pub index_buffer: IndexBufferBinding<'a>,
     pub textures: &'a [TextureBinding<'a>],
-    pub uniform_data: &'a [u8],
+    pub uniforms: &'a U,
 }
 
 impl From<Equation> for u32 {

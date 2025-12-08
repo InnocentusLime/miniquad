@@ -16,7 +16,7 @@ struct Stage {
     start: Instant,
     ctx: Rc<GlContext>,
 
-    pipeline: Pipeline,
+    pipeline: Pipeline<shader::Uniforms>,
     vertices: VertexBuffer<Vertex>,
     indicies: IndexBuffer,
     texture: Texture,
@@ -114,7 +114,7 @@ impl Stage {
                         ],
                         index_buffer: self.indicies.bind(),
                         textures: &[self.texture.bind()],
-                        uniform_data: bytemuck::bytes_of(&uniforms),
+                        uniforms: &uniforms,
                     });
                 }
             },

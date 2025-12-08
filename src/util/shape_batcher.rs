@@ -35,10 +35,9 @@ impl ShapeBatcher {
         &mut self,
         ctx: &GlContext,
         view_projection: Mat4,
-        basic_pipeline: &Pipeline,
+        basic_pipeline: &Pipeline<BasicPipelineUniform>,
     ) {
         let num_elements = self.finish();
-        let uniforms = BasicPipelineUniform { view_projection };
         ctx.submit_drawcall(DrawCall {
             pipeline: basic_pipeline,
             base_element: 0,
@@ -49,7 +48,7 @@ impl ShapeBatcher {
             ),
             index_buffer: self.0.indicies.bind(),
             textures: &[],
-            uniform_data: bytemuck::bytes_of(&uniforms),
+            uniforms: &BasicPipelineUniform { view_projection },
         });
     }
 

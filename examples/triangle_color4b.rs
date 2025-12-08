@@ -11,7 +11,7 @@ fn main() {
 }
 
 struct Stage {
-    pipeline: Pipeline,
+    pipeline: Pipeline<util::NoUniforms>,
     vertices: VertexBuffer<Vertex>,
     indicies: IndexBuffer,
     ctx: Rc<GlContext>,
@@ -40,7 +40,7 @@ impl EventHandler for Stage {
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
 
         let pipeline = ctx
-            .new_pipeline::<&'static str>(
+            .new_pipeline::<&'static str, _>(
                 shader::VERTEX,
                 shader::FRAGMENT,
                 PipelineParams::default(),
@@ -77,7 +77,7 @@ impl Stage {
                     ],
                     index_buffer: self.indicies.bind(),
                     textures: &[],
-                    uniform_data: &[],
+                    uniforms: &util::NoUniforms,
                 });
             },
         );

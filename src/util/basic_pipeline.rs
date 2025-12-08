@@ -7,8 +7,8 @@ use crate::{
     GlContext, Pipeline, PipelineParams, UniformDesc, UniformType, VertexAttribute, VertexFormat,
 };
 
-pub fn make_basic_pipeline(ctx: &Rc<GlContext>) -> Pipeline {
-    ctx.new_pipeline::<&'static str>(
+pub fn make_basic_pipeline(ctx: &Rc<GlContext>) -> Pipeline<BasicPipelineUniform> {
+    ctx.new_pipeline::<&'static str, _>(
         BASIC_PIPELINE_VERTEX,
         BASIC_PIPELINE_FRAGMENT,
         PipelineParams::default(),

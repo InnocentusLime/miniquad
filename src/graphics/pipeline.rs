@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::graphics::vertex_buffer::VertexBufferBinding;
@@ -6,6 +7,7 @@ use crate::graphics::{ColorMask, Comparison, CullFace, FrontFaceOrder, GlContext
 use crate::{BlendState, IndexBufferBinding, StencilState, TextureBinding};
 
 use anyhow::Context;
+use bytemuck::Pod;
 use glow::HasContext;
 
 static TARGET_NAME: &str = "gl.pipeline";
@@ -40,16 +42,17 @@ impl Default for PipelineParams {
 }
 
 #[derive(Debug)]
-pub struct Pipeline {
+pub struct Pipeline<U: Pod + 'static> {
     ctx: Rc<GlContext>,
     gl_prog: glow::Program,
     image_uniforms: Vec<glow::UniformLocation>,
     uniforms: Vec<ShaderUniform>,
     attributes: Vec<(u32, VertexAttribute)>,
     params: PipelineParams,
+    _phantom: PhantomData<fn(&U)>,
 }
 
-impl Pipeline {
+impl<U: Pod + 'static> Pipeline<U> {
     pub fn new<S: Into<String>>(
         ctx: Rc<GlContext>,
         vertex_shader_source: &str,
@@ -58,7 +61,7 @@ impl Pipeline {
         attributes: impl IntoIterator<Item = VertexAttribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = S>,
-    ) -> anyhow::Result<Pipeline> {
+    ) -> anyhow::Result<Pipeline<U>> {
         let mut cache = ctx.cache.borrow_mut();
 
         let vertex = load_shader(&ctx.gl, glow::VERTEX_SHADER, vertex_shader_source)
@@ -96,6 +99,7 @@ impl Pipeline {
             uniforms,
             attributes,
             params,
+            _phantom: PhantomData,
         })
     }
 
@@ -108,14 +112,14 @@ impl Pipeline {
         vertex_buffers: &[VertexBufferBinding],
         index_buffer: IndexBufferBinding,
         textures: &[TextureBinding],
-        uniform_data: &[u8],
+        uniforms: &U,
     ) {
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_program(&self.ctx.gl, self.gl_prog);
         std::mem::drop(cache);
 
         self.apply_parameters(&self.params);
-        self.apply_uniforms(uniform_data);
+        self.apply_uniforms(bytemuck::bytes_of(uniforms));
         self.apply_bindings(vertex_buffers, index_buffer, textures);
     }
 
@@ -218,6 +222,11 @@ impl Pipeline {
             }
         }
 
+        assert_eq!(
+            self.attributes.len(),
+            vertex_buffers.len(),
+            "attribute mismatch"
+        );
         for ((attr_index, attr), vb) in self.attributes.iter().zip(vertex_buffers) {
             let (gl_type, component_count) = attr.format.gl_info();
             let is_integer = matches!(
@@ -268,7 +277,7 @@ impl Pipeline {
     }
 }
 
-impl Drop for Pipeline {
+impl<U: Pod + 'static> Drop for Pipeline<U> {
     fn drop(&mut self) {
         tracing::debug!(
             target: TARGET_NAME,

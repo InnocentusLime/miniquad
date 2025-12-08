@@ -17,7 +17,7 @@ fn main() {
 
 struct Stage {
     start: Instant,
-    pipeline: Pipeline,
+    pipeline: Pipeline<util::BasicPipelineUniform>,
     batcher: ShapeBatcher,
     ctx: Rc<GlContext>,
 }
