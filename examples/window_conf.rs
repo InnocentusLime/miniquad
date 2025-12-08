@@ -23,7 +23,7 @@ impl EventHandler for Stage {
     fn window_event(&mut self, event: winit::event::WindowEvent, _window: &winit::window::Window) {
         if matches!(event, WindowEvent::RedrawRequested) {
             self.ctx.perform_default_render_pass(
-                PassAction::clear_depth_color(0., 1.0, 0.0, 1.0),
+                Clear::clear_depth_color(0., 1.0, 0.0, 1.0),
                 |_, _| {},
             );
         }

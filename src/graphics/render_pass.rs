@@ -84,7 +84,7 @@ impl RenderPass {
         &self.color_textures
     }
 
-    pub fn perform(&self, pass_action: PassAction, code: impl FnOnce(u32, u32)) {
+    pub fn perform(&self, pass_action: Clear, code: impl FnOnce(u32, u32)) {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_render_pass",
@@ -125,11 +125,7 @@ impl Drop for RenderPass {
 }
 
 impl GlContext {
-    pub fn perform_default_render_pass(
-        &self,
-        pass_action: PassAction,
-        code: impl FnOnce(u32, u32),
-    ) {
+    pub fn perform_default_render_pass(&self, pass_action: Clear, code: impl FnOnce(u32, u32)) {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_default_render_pass",
@@ -153,7 +149,7 @@ impl GlContext {
 
 fn bind_and_setup_fb(
     gl: &glow::Context,
-    pass_action: PassAction,
+    pass_action: Clear,
     framebuffer: Option<glow::Framebuffer>,
     width: i32,
     height: i32,
@@ -206,15 +202,21 @@ fn bind_and_setup_fb(
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct PassAction {
+pub struct Clear {
     color: Option<(f32, f32, f32, f32)>,
     depth: Option<f32>,
     stencil: Option<i32>,
 }
 
-impl PassAction {
-    pub const fn clear_depth_color(r: f32, g: f32, b: f32, a: f32) -> PassAction {
-        PassAction {
+impl Clear {
+    pub const NOTHING: Clear = Clear {
+        color: None,
+        depth: None,
+        stencil: None,
+    };
+
+    pub const fn clear_depth_color(r: f32, g: f32, b: f32, a: f32) -> Clear {
+        Clear {
             color: Some((r, g, b, a)),
             depth: Some(1.),
             stencil: None,

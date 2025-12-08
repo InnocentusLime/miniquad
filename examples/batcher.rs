@@ -90,7 +90,7 @@ impl Stage {
         let num_elements = self.batcher.finish();
 
         self.ctx.perform_default_render_pass(
-            PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
+            Clear::clear_depth_color(0.0, 0.0, 0.0, 1.0),
             |_, _| {
                 self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.pipeline,

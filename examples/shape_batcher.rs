@@ -120,7 +120,7 @@ impl Stage {
         );
 
         self.ctx.perform_default_render_pass(
-            PassAction::clear_depth_color(0.0, 0.0, 0.0, 1.0),
+            Clear::clear_depth_color(0.0, 0.0, 0.0, 1.0),
             |width, height| {
                 let proj =
                     Mat4::orthographic_rh_gl(0.0, width as f32, height as f32, 0.0, 0.0, 1.0);
