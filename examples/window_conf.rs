@@ -1,9 +1,10 @@
-use std::rc::Rc;
+//! Opens a fullscreen window with green screen.
+//! The title of that should be "miniquad".
 
-///! Opens a fullscreen window with green screen.
-///! The title of that should be "miniquad".
 use miniquad::*;
-use winit::{dpi::PhysicalSize, event::WindowEvent};
+use std::rc::Rc;
+use winit::dpi::PhysicalSize;
+use winit::event::WindowEvent;
 
 fn main() {
     miniquad::run::<Stage>(Conf {
@@ -22,8 +23,7 @@ impl EventHandler for Stage {
 
     fn window_event(&mut self, event: winit::event::WindowEvent, _window: &winit::window::Window) {
         if matches!(event, WindowEvent::RedrawRequested) {
-            self.ctx
-                .perform_default_render_pass(Clear::depth_color(GREEN), |_, _| {});
+            self.ctx.default_pass(Clear::depth_color(GREEN), |_, _| {});
         }
     }
 

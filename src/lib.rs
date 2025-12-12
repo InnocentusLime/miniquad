@@ -144,7 +144,7 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
         };
 
         handler.update();
-        egui_glow.run(&window, |egui_ctx| handler.egui(egui_ctx));
+        egui_glow.run(window, |egui_ctx| handler.egui(egui_ctx));
 
         window.request_redraw();
         event_loop.set_control_flow(ControlFlow::WaitUntil(
@@ -161,7 +161,13 @@ impl<T: EventHandler> App<T> {
         let gl_context = Rc::new(GlContext::new(glow.clone(), (800, 600)));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
-        let egui_glow = egui_glow::EguiGlow::new(event_loop, glow.clone(), None, None, true);
+        let egui_glow = Box::new(egui_glow::EguiGlow::new(
+            event_loop,
+            glow.clone(),
+            None,
+            None,
+            true,
+        ));
 
         let handler = T::init(gl_context.clone(), self.fs_server.get_handle());
         self.state = AppState::Ready {
@@ -189,7 +195,7 @@ enum AppState<T> {
         window: Window,
         platform: PlatformContext,
         gl_context: Rc<GlContext>,
-        egui_glow: egui_glow::EguiGlow,
+        egui_glow: Box<egui_glow::EguiGlow>,
         handler: T,
     },
 }

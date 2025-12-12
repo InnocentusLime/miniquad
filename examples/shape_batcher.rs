@@ -1,13 +1,8 @@
+//! Draws a bunch of shapes with the shape batcher.
+
 use glam::{Mat4, vec2};
-use miniquad::{
-    util::{ShapeBatcher, make_basic_pipeline},
-    *,
-};
-///! Just draws a static triangle with different vertex colors assigned
-///! to each corner:
-///! * left -- red
-///! * right -- green
-///! * top -- blue
+use miniquad::util::{ShapeBatcher, make_basic_pipeline};
+use miniquad::*;
 use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
@@ -116,7 +111,7 @@ impl Stage {
         );
 
         self.ctx
-            .perform_default_render_pass(Clear::depth_color(BLACK), |width, height| {
+            .default_pass(Clear::depth_color(BLACK), |width, height| {
                 let proj =
                     Mat4::orthographic_rh_gl(0.0, width as f32, height as f32, 0.0, 0.0, 1.0);
                 self.batcher.basic_draw(&self.ctx, proj, &self.pipeline);

@@ -1,8 +1,8 @@
-use std::rc::Rc;
+//! Demonstrates how to handle raw winit events.
+//! Press some keys and use your mouse to see some logs!
 
-///! Opens a fullscreen window with green screen.
-///! The title of that should be "miniquad".
 use miniquad::*;
+use std::rc::Rc;
 use tracing::info;
 use winit::event::WindowEvent;
 
@@ -18,9 +18,9 @@ impl EventHandler for Stage {
 
     fn window_event(&mut self, event: winit::event::WindowEvent, _window: &winit::window::Window) {
         match event {
-            WindowEvent::RedrawRequested => self
-                .ctx
-                .perform_default_render_pass(Clear::depth_color(GREEN), |_, _| {}),
+            WindowEvent::RedrawRequested => {
+                self.ctx.default_pass(Clear::depth_color(GREEN), |_, _| {})
+            }
             WindowEvent::KeyboardInput { event, .. } => info!(
                 loc=?event.location,
                 phys_code=?event.physical_key,

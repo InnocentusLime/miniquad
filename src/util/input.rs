@@ -93,3 +93,9 @@ impl InputTracker {
         self.released_mouse_buttons.contains(&button)
     }
 }
+
+impl Default for InputTracker {
+    fn default() -> Self {
+        InputTracker::new()
+    }
+}

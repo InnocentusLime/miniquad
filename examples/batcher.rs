@@ -1,13 +1,15 @@
+//! Just draws a static triangle with different vertex colors assigned
+//! to each corner:
+//! * left -- red
+//! * right -- green
+//! * top -- blue
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, Vec4, vec2, vec4};
 use miniquad::{util::GeometryBatcher, *};
-///! Just draws a static triangle with different vertex colors assigned
-///! to each corner:
-///! * left -- red
-///! * right -- green
-///! * top -- blue
 use std::rc::Rc;
-use winit::{event::WindowEvent, window::Window};
+use winit::event::WindowEvent;
+use winit::window::Window;
 
 fn main() {
     miniquad::run::<Stage>(Conf::default());
@@ -38,8 +40,8 @@ impl EventHandler for Stage {
                 shader::FRAGMENT,
                 PipelineParams::default(),
                 [
-                    VertexAttribute::new("in_pos", VertexFormat::F32x2),
-                    VertexAttribute::new("in_color", VertexFormat::F32x4),
+                    Attribute::new("in_pos", VertexFormat::F32x2),
+                    Attribute::new("in_color", VertexFormat::F32x4),
                 ],
                 [],
                 [],
@@ -89,21 +91,20 @@ impl Stage {
         );
         let num_elements = self.batcher.finish();
 
-        self.ctx
-            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
-                self.ctx.submit_drawcall(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements,
-                    vertex_buffers: &bind_vertex_buffers![
-                        (&self.batcher.vertices) as <Vertex>::pos,
-                        (&self.batcher.vertices) as <Vertex>::color,
-                    ],
-                    index_buffer: self.batcher.indicies.bind(),
-                    textures: &[],
-                    uniforms: &util::NoUniforms,
-                });
+        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
+            self.ctx.draw(DrawCall {
+                pipeline: &self.pipeline,
+                base_element: 0,
+                num_elements,
+                vertex_buffers: &bind_vertex_buffers![
+                    (&self.batcher.vertices) as <Vertex>::pos,
+                    (&self.batcher.vertices) as <Vertex>::color,
+                ],
+                index_buffer: self.batcher.indicies.bind(),
+                textures: &[],
+                uniforms: &util::NoUniforms,
             });
+        });
     }
 }
 

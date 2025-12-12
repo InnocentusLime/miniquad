@@ -1,11 +1,12 @@
+//! A simple rendering example, similar to quad, but instead
+//! loads an image from file, using file loading capabilities.
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
 use miniquad::*;
-///! A simple rendering example. This example loads a texture from memory
-///! and draws a few quads with it. The example should look as follows:
-///! https://youtu.be/kksaeWrAT7E
 use std::rc::Rc;
-use winit::{event::WindowEvent, window::Window};
+use winit::event::WindowEvent;
+use winit::window::Window;
 
 fn main() {
     miniquad::run::<Stage>(Conf {
@@ -55,16 +56,18 @@ impl EventHandler for Stage {
         fs_server.submit_task("assets/ferris.png", 0);
 
         #[rustfmt::skip]
-        let vertices = [
+        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             Vertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },
             Vertex { pos : Vec2 { x:  0.5, y: -0.5 }, uv: Vec2 { x: 1., y: 0. } },
             Vertex { pos : Vec2 { x:  0.5, y:  0.5 }, uv: Vec2 { x: 1., y: 1. } },
             Vertex { pos : Vec2 { x: -0.5, y:  0.5 }, uv: Vec2 { x: 0., y: 1. } },
-        ];
-        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices);
+        ]);
 
-        let indicies = [0, 1, 2, 0, 2, 3];
-        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
+        #[rustfmt::skip]
+        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[
+            0, 1, 2,
+            0, 2, 3,
+        ]);
 
         let pipeline = ctx
             .new_pipeline(
@@ -79,10 +82,10 @@ impl EventHandler for Stage {
                     ..Default::default()
                 },
                 [
-                    VertexAttribute::new("in_pos", VertexFormat::F32x2),
-                    VertexAttribute::new("in_uv", VertexFormat::F32x2),
+                    Attribute::new("in_pos", VertexFormat::F32x2),
+                    Attribute::new("in_uv", VertexFormat::F32x2),
                 ],
-                [UniformDesc::new_scalar("offset", UniformType::F32x2)],
+                [UniformDesc::scalar("offset", UniformType::F32x2)],
                 ["tex"],
             )
             .unwrap();
@@ -107,26 +110,25 @@ impl Stage {
             return;
         };
 
-        self.ctx
-            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
-                for i in 0..10 {
-                    let t = t + i as f32 * 0.3;
-                    self.ctx.submit_drawcall(DrawCall {
-                        pipeline: &self.pipeline,
-                        base_element: 0,
-                        num_elements: 6,
-                        vertex_buffers: &bind_vertex_buffers![
-                            (&self.vertices) as <Vertex>::pos,
-                            (&self.vertices) as <Vertex>::uv,
-                        ],
-                        index_buffer: self.indicies.bind(),
-                        textures: &[texture.bind()],
-                        uniforms: &shader::Uniforms {
-                            offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
-                        },
-                    });
-                }
-            });
+        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
+            for i in 0..10 {
+                let t = t + i as f32 * 0.3;
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.pipeline,
+                    base_element: 0,
+                    num_elements: 6,
+                    vertex_buffers: &bind_vertex_buffers![
+                        (&self.vertices) as <Vertex>::pos,
+                        (&self.vertices) as <Vertex>::uv,
+                    ],
+                    index_buffer: self.indicies.bind(),
+                    textures: &[texture.bind()],
+                    uniforms: &shader::Uniforms {
+                        offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
+                    },
+                });
+            }
+        });
     }
 }
 

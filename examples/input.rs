@@ -1,8 +1,8 @@
-use std::rc::Rc;
+//! Opens a fullscreen window with green screen.
+//! The title of that should be "miniquad".
 
-///! Opens a fullscreen window with green screen.
-///! The title of that should be "miniquad".
 use miniquad::*;
+use std::rc::Rc;
 use winit::{
     event::{MouseButton, WindowEvent},
     keyboard::KeyCode,
@@ -52,9 +52,9 @@ impl EventHandler for Stage {
         self.input.handle_event(&event);
 
         match event {
-            WindowEvent::RedrawRequested => self
-                .ctx
-                .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {}),
+            WindowEvent::RedrawRequested => {
+                self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {})
+            }
             _ => (),
         }
     }

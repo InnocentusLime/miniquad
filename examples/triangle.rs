@@ -1,13 +1,15 @@
+//! Just draws a static triangle with different vertex colors assigned
+//! to each corner:
+//! * left -- red
+//! * right -- green
+//! * top -- blue
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
 use miniquad::*;
-///! Just draws a static triangle with different vertex colors assigned
-///! to each corner:
-///! * left -- red
-///! * right -- green
-///! * top -- blue
 use std::rc::Rc;
-use winit::{event::WindowEvent, window::Window};
+use winit::event::WindowEvent;
+use winit::window::Window;
 
 fn main() {
     miniquad::run::<Stage>(Conf::default());
@@ -32,15 +34,13 @@ impl EventHandler for Stage {
 
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
-        let vertices = [
+        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             Vertex { pos: vec2(-0.5, -0.5), color: RED },
             Vertex { pos: vec2(0.5, -0.5), color: GREEN },
             Vertex { pos: vec2(0.0,  0.5), color: BLUE },
-        ];
-        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices);
+        ]);
 
-        let indicies = [0, 1, 2];
-        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
+        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[0, 1, 2]);
 
         let pipeline = ctx
             .new_pipeline(
@@ -48,8 +48,8 @@ impl EventHandler for Stage {
                 shader::FRAGMENT,
                 PipelineParams::default(),
                 [
-                    VertexAttribute::new("in_pos", VertexFormat::F32x2),
-                    VertexAttribute::new("in_color", VertexFormat::F32x4),
+                    Attribute::new("in_pos", VertexFormat::F32x2),
+                    Attribute::new("in_color", VertexFormat::F32x4),
                 ],
                 [],
                 [],
@@ -67,21 +67,20 @@ impl EventHandler for Stage {
 
 impl Stage {
     pub fn draw(&mut self) {
-        self.ctx
-            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
-                self.ctx.submit_drawcall(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements: 3,
-                    vertex_buffers: &bind_vertex_buffers![
-                        (&self.vertices) as <Vertex>::pos,
-                        (&self.vertices) as <Vertex>::color,
-                    ],
-                    index_buffer: self.indicies.bind(),
-                    textures: &[],
-                    uniforms: &util::NoUniforms,
-                });
+        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
+            self.ctx.draw(DrawCall {
+                pipeline: &self.pipeline,
+                base_element: 0,
+                num_elements: 3,
+                vertex_buffers: &bind_vertex_buffers![
+                    (&self.vertices) as <Vertex>::pos,
+                    (&self.vertices) as <Vertex>::color,
+                ],
+                index_buffer: self.indicies.bind(),
+                textures: &[],
+                uniforms: &util::NoUniforms,
             });
+        });
     }
 }
 

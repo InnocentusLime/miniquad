@@ -18,7 +18,7 @@ pub struct Pipeline<U: Pod + 'static> {
     gl_prog: glow::Program,
     image_uniforms: Vec<glow::UniformLocation>,
     uniforms: Vec<ShaderUniform>,
-    attributes: Vec<(u32, VertexAttribute)>,
+    attributes: Vec<(u32, Attribute)>,
     params: PipelineParams,
     _phantom: PhantomData<fn(&U)>,
 }
@@ -29,7 +29,7 @@ impl<U: Pod + 'static> Pipeline<U> {
         vertex_shader_source: &str,
         fragment_shader_source: &str,
         params: PipelineParams,
-        attributes: impl IntoIterator<Item = VertexAttribute>,
+        attributes: impl IntoIterator<Item = Attribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = &'a str>,
     ) -> anyhow::Result<Pipeline<U>> {
@@ -302,8 +302,8 @@ fn create_program(
 fn get_pipeline_attributes(
     gl: &glow::Context,
     program: glow::Program,
-    attributes: impl IntoIterator<Item = VertexAttribute>,
-) -> anyhow::Result<Vec<(u32, VertexAttribute)>> {
+    attributes: impl IntoIterator<Item = Attribute>,
+) -> anyhow::Result<Vec<(u32, Attribute)>> {
     let mut vertex_layout = Vec::new();
     for attr in attributes.into_iter() {
         let Some(attr_loc) = (unsafe { gl.get_attrib_location(program, attr.name) }) else {
@@ -362,7 +362,7 @@ pub struct UniformDesc {
 }
 
 impl UniformDesc {
-    pub fn new_scalar(name: &str, uniform_type: UniformType) -> UniformDesc {
+    pub fn scalar(name: &str, uniform_type: UniformType) -> UniformDesc {
         UniformDesc {
             name: name.to_string(),
             uniform_type,
@@ -370,7 +370,7 @@ impl UniformDesc {
         }
     }
 
-    pub fn new_array(name: &str, uniform_type: UniformType, array_len: usize) -> UniformDesc {
+    pub fn array(name: &str, uniform_type: UniformType, array_len: usize) -> UniformDesc {
         UniformDesc {
             name: name.to_string(),
             uniform_type,
@@ -410,14 +410,14 @@ impl UniformType {
 }
 
 #[derive(Clone, Debug)]
-pub struct VertexAttribute {
+pub struct Attribute {
     pub name: &'static str,
     pub format: VertexFormat,
 }
 
-impl VertexAttribute {
-    pub const fn new(name: &'static str, format: VertexFormat) -> VertexAttribute {
-        VertexAttribute { name, format }
+impl Attribute {
+    pub const fn new(name: &'static str, format: VertexFormat) -> Attribute {
+        Attribute { name, format }
     }
 }
 

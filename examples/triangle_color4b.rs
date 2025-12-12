@@ -1,10 +1,12 @@
+//! Draws the same triangle as the `triangle` example, but
+//! using the byte based colors.
+
 use bytemuck::{Pod, Zeroable};
 use glam::{U8Vec4, Vec2, u8vec4, vec2};
 use miniquad::*;
-///! Draws the same triangle as the `triangle` example, but
-///! using the byte based colors.
 use std::rc::Rc;
-use winit::{event::WindowEvent, window::Window};
+use winit::event::WindowEvent;
+use winit::window::Window;
 
 fn main() {
     miniquad::run::<Stage>(Conf::default());
@@ -45,8 +47,8 @@ impl EventHandler for Stage {
                 shader::FRAGMENT,
                 PipelineParams::default(),
                 [
-                    VertexAttribute::new("in_pos", VertexFormat::F32x2),
-                    VertexAttribute::new("in_color", VertexFormat::U8x4),
+                    Attribute::new("in_pos", VertexFormat::F32x2),
+                    Attribute::new("in_color", VertexFormat::U8x4),
                 ],
                 [],
                 [],
@@ -64,21 +66,20 @@ impl EventHandler for Stage {
 
 impl Stage {
     fn draw(&mut self) {
-        self.ctx
-            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
-                self.ctx.submit_drawcall(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements: 3,
-                    vertex_buffers: &bind_vertex_buffers![
-                        (&self.vertices) as <Vertex>::pos,
-                        (&self.vertices) as <Vertex>::color,
-                    ],
-                    index_buffer: self.indicies.bind(),
-                    textures: &[],
-                    uniforms: &util::NoUniforms,
-                });
+        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
+            self.ctx.draw(DrawCall {
+                pipeline: &self.pipeline,
+                base_element: 0,
+                num_elements: 3,
+                vertex_buffers: &bind_vertex_buffers![
+                    (&self.vertices) as <Vertex>::pos,
+                    (&self.vertices) as <Vertex>::color,
+                ],
+                index_buffer: self.indicies.bind(),
+                textures: &[],
+                uniforms: &util::NoUniforms,
             });
+        });
     }
 }
 

@@ -1,16 +1,15 @@
+//! A rendering example. You can spawn entities by
+//! clicking. They should bounce around the screen
+//! and visually interact with each other.
+//! Should look like this:
+//! https://youtu.be/W52jTDKOzIk
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
 use miniquad::*;
-///! A rendering example. You can spawn entities by
-///! clicking. They should bounce around the screen
-///! and visually interact with each other.
-///! Should look like this:
-///! https://youtu.be/W52jTDKOzIk
 use std::rc::Rc;
-use winit::{
-    event::{ElementState, MouseButton, WindowEvent},
-    window::Window,
-};
+use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::window::Window;
 
 fn main() {
     miniquad::run::<Stage>(Conf::default());
@@ -64,16 +63,18 @@ impl EventHandler for Stage {
 
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
-        let vertices = [
+        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             Vertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },
             Vertex { pos : Vec2 { x:  1.0, y: -1.0 }, uv: Vec2 { x: 1., y: 0. } },
             Vertex { pos : Vec2 { x:  1.0, y:  1.0 }, uv: Vec2 { x: 1., y: 1. } },
             Vertex { pos : Vec2 { x: -1.0, y:  1.0 }, uv: Vec2 { x: 0., y: 1. } },
-        ];
-        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices);
+        ]);
 
-        let indicies = [0, 1, 2, 0, 2, 3];
-        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
+        #[rustfmt::skip]
+        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[
+            0, 1, 2,
+            0, 2, 3,
+        ]);
 
         let pipeline = ctx
             .new_pipeline(
@@ -81,13 +82,13 @@ impl EventHandler for Stage {
                 shader::FRAGMENT,
                 PipelineParams::default(),
                 [
-                    VertexAttribute::new("in_pos", VertexFormat::F32x2),
-                    VertexAttribute::new("in_uv", VertexFormat::F32x2),
+                    Attribute::new("in_pos", VertexFormat::F32x2),
+                    Attribute::new("in_uv", VertexFormat::F32x2),
                 ],
                 [
-                    UniformDesc::new_scalar("time", UniformType::F32),
-                    UniformDesc::new_scalar("blobs_count", UniformType::I32),
-                    UniformDesc::new_array("blobs_positions", UniformType::F32x2, 32),
+                    UniformDesc::scalar("time", UniformType::F32),
+                    UniformDesc::scalar("blobs_count", UniformType::I32),
+                    UniformDesc::array("blobs_positions", UniformType::F32x2, 32),
                 ],
                 [],
             )
@@ -142,21 +143,20 @@ impl Stage {
 
     fn draw(&mut self) {
         self.uniforms.time = self.last_frame.duration_since(self.start).as_secs_f32();
-        self.ctx
-            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
-                self.ctx.submit_drawcall(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements: 6,
-                    vertex_buffers: &bind_vertex_buffers![
-                        (&self.vertices) as <Vertex>::pos,
-                        (&self.vertices) as <Vertex>::uv,
-                    ],
-                    index_buffer: self.indicies.bind(),
-                    textures: &[],
-                    uniforms: &self.uniforms,
-                });
+        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
+            self.ctx.draw(DrawCall {
+                pipeline: &self.pipeline,
+                base_element: 0,
+                num_elements: 6,
+                vertex_buffers: &bind_vertex_buffers![
+                    (&self.vertices) as <Vertex>::pos,
+                    (&self.vertices) as <Vertex>::uv,
+                ],
+                index_buffer: self.indicies.bind(),
+                textures: &[],
+                uniforms: &self.uniforms,
             });
+        });
     }
 }
 

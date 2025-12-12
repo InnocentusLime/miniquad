@@ -114,7 +114,7 @@ impl GlContext {
         vertex_shader_source: &str,
         fragment_shader_source: &str,
         params: PipelineParams,
-        attributes: impl IntoIterator<Item = VertexAttribute>,
+        attributes: impl IntoIterator<Item = Attribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = &'a str>,
     ) -> anyhow::Result<Pipeline<U>> {
@@ -137,7 +137,7 @@ impl GlContext {
         RenderPass::new(self.clone(), color_img, depth_img)
     }
 
-    pub fn submit_drawcall<U: Pod + 'static>(&self, drawcall: DrawCall<U>) {
+    pub fn draw<U: Pod + 'static>(&self, drawcall: DrawCall<U>) {
         drawcall.pipeline.apply(
             drawcall.vertex_buffers,
             drawcall.index_buffer,

@@ -38,7 +38,7 @@ impl ShapeBatcher {
         basic_pipeline: &Pipeline<BasicPipelineUniform>,
     ) {
         let num_elements = self.finish();
-        ctx.submit_drawcall(DrawCall {
+        ctx.draw(DrawCall {
             pipeline: basic_pipeline,
             base_element: 0,
             num_elements,

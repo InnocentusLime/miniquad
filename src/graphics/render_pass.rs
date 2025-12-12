@@ -84,7 +84,7 @@ impl RenderPass {
         &self.color_textures
     }
 
-    pub fn perform(&self, pass_action: Clear, code: impl FnOnce(u32, u32)) {
+    pub fn pass(&self, clear: Clear, code: impl FnOnce(u32, u32)) {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_render_pass",
@@ -101,7 +101,7 @@ impl RenderPass {
             .unwrap();
         bind_and_setup_fb(
             &self.ctx.gl,
-            pass_action,
+            clear,
             Some(self.gl_fb),
             texture.width() as i32,
             texture.height() as i32,
@@ -125,7 +125,7 @@ impl Drop for RenderPass {
 }
 
 impl GlContext {
-    pub fn perform_default_render_pass(&self, pass_action: Clear, code: impl FnOnce(u32, u32)) {
+    pub fn default_pass(&self, pass_action: Clear, code: impl FnOnce(u32, u32)) {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_default_render_pass",
@@ -149,7 +149,7 @@ impl GlContext {
 
 fn bind_and_setup_fb(
     gl: &glow::Context,
-    pass_action: Clear,
+    clear: Clear,
     framebuffer: Option<glow::Framebuffer>,
     width: i32,
     height: i32,
@@ -168,26 +168,26 @@ fn bind_and_setup_fb(
 
     tracing::trace!(
         target: TARGET_NAME,
-        action=?pass_action,
+        clear=?clear,
         "clear",
     );
 
     let mut bits = 0;
-    if let Some(color) = pass_action.color {
+    if let Some(color) = clear.color {
         bits |= glow::COLOR_BUFFER_BIT;
         unsafe {
             gl.clear_color(color.r, color.g, color.b, color.a);
         }
     }
 
-    if let Some(v) = pass_action.depth {
+    if let Some(v) = clear.depth {
         bits |= glow::DEPTH_BUFFER_BIT;
         unsafe {
             gl.clear_depth_f32(v);
         }
     }
 
-    if let Some(v) = pass_action.stencil {
+    if let Some(v) = clear.stencil {
         bits |= glow::STENCIL_BUFFER_BIT;
         unsafe {
             gl.clear_stencil(v);

@@ -1,11 +1,13 @@
+//! An offscreen render example. Draws a cube that has
+//! images of rotating cubes on each side. Should look like this:
+//! https://youtu.be/isKW3nQ-jW4
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
 use miniquad::*;
-///! An offscreen render example. Draws a cube that has
-///! images of rotating cubes on each side. Should look like this:
-///! https://youtu.be/isKW3nQ-jW4
 use std::rc::Rc;
-use winit::{event::WindowEvent, window::Window};
+use winit::event::WindowEvent;
+use winit::window::Window;
 
 fn main() {
     miniquad::run::<Stage>(Conf::default());
@@ -55,7 +57,7 @@ impl EventHandler for Stage {
         let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
 
         #[rustfmt::skip]
-        let vertices_cube = &[
+        let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 0.0) },
             CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0),  uv: vec2(1.0, 0.0) },
             CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(1.0, 1.0) },
@@ -85,19 +87,17 @@ impl EventHandler for Stage {
             CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
             CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 1.0) },
             CubeVert { pos: vec3(1.0,  1.0, -1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
-        ];
-        let vertices_cube = VertexBuffer::new(ctx.clone(), BufferUsage::Immutable, vertices_cube);
+        ]);
 
         #[rustfmt::skip]
-        let indicies_cube = &[
+        let indicies_cube = ctx.new_index_buffer(BufferUsage::Immutable, &[
             0, 1, 2,  0, 2, 3,
             6, 5, 4,  7, 6, 4,
             8, 9, 10,  8, 10, 11,
             14, 13, 12,  15, 14, 12,
             16, 17, 18,  16, 18, 19,
             22, 21, 20,  23, 22, 20
-        ];
-        let indicies_cube = ctx.new_index_buffer(BufferUsage::Immutable, indicies_cube);
+        ]);
 
         let display_pipeline = ctx
             .new_pipeline(
@@ -108,11 +108,11 @@ impl EventHandler for Stage {
                     ..Default::default()
                 },
                 [
-                    VertexAttribute::new("in_pos", VertexFormat::F32x3),
-                    VertexAttribute::new("in_color", VertexFormat::F32x4),
-                    VertexAttribute::new("in_uv", VertexFormat::F32x2),
+                    Attribute::new("in_pos", VertexFormat::F32x3),
+                    Attribute::new("in_color", VertexFormat::F32x4),
+                    Attribute::new("in_uv", VertexFormat::F32x2),
                 ],
-                [UniformDesc::new_scalar("mvp", UniformType::F32x4x4)],
+                [UniformDesc::scalar("mvp", UniformType::F32x4x4)],
                 ["tex"],
             )
             .unwrap();
@@ -126,10 +126,10 @@ impl EventHandler for Stage {
                     ..Default::default()
                 },
                 [
-                    VertexAttribute::new("in_pos", VertexFormat::F32x3),
-                    VertexAttribute::new("in_color", VertexFormat::F32x4),
+                    Attribute::new("in_pos", VertexFormat::F32x3),
+                    Attribute::new("in_color", VertexFormat::F32x4),
                 ],
-                [UniformDesc::new_scalar("mvp", UniformType::F32x4x4)],
+                [UniformDesc::scalar("mvp", UniformType::F32x4x4)],
                 [],
             )
             .unwrap();
@@ -166,40 +166,38 @@ impl Stage {
         };
 
         // the offscreen pass, rendering a rotating, untextured cube into a render target image
-        self.offscreen_pass
-            .perform(Clear::depth_color(WHITE), |_, _| {
-                self.ctx.submit_drawcall(DrawCall {
-                    pipeline: &self.offscreen_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffers: &bind_vertex_buffers![
-                        (&self.vertices_cube) as <CubeVert>::pos,
-                        (&self.vertices_cube) as <CubeVert>::color,
-                    ],
-                    index_buffer: self.indicies_cube.bind(),
-                    textures: &[],
-                    uniforms: &vs_params,
-                });
+        self.offscreen_pass.pass(Clear::depth_color(WHITE), |_, _| {
+            self.ctx.draw(DrawCall {
+                pipeline: &self.offscreen_pipeline,
+                base_element: 0,
+                num_elements: 36,
+                vertex_buffers: &bind_vertex_buffers![
+                    (&self.vertices_cube) as <CubeVert>::pos,
+                    (&self.vertices_cube) as <CubeVert>::color,
+                ],
+                index_buffer: self.indicies_cube.bind(),
+                textures: &[],
+                uniforms: &vs_params,
             });
+        });
 
         // and the display-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
-        self.ctx
-            .perform_default_render_pass(Clear::depth_color(DARKBLUE), |_, _| {
-                self.ctx.submit_drawcall(DrawCall {
-                    pipeline: &self.display_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffers: &bind_vertex_buffers![
-                        (&self.vertices_cube) as <CubeVert>::pos,
-                        (&self.vertices_cube) as <CubeVert>::color,
-                        (&self.vertices_cube) as <CubeVert>::uv,
-                    ],
-                    index_buffer: self.indicies_cube.bind(),
-                    textures: &[self.offscreen_pass.color_attachments()[0].bind()],
-                    uniforms: &vs_params,
-                });
+        self.ctx.default_pass(Clear::depth_color(DARKBLUE), |_, _| {
+            self.ctx.draw(DrawCall {
+                pipeline: &self.display_pipeline,
+                base_element: 0,
+                num_elements: 36,
+                vertex_buffers: &bind_vertex_buffers![
+                    (&self.vertices_cube) as <CubeVert>::pos,
+                    (&self.vertices_cube) as <CubeVert>::color,
+                    (&self.vertices_cube) as <CubeVert>::uv,
+                ],
+                index_buffer: self.indicies_cube.bind(),
+                textures: &[self.offscreen_pass.color_attachments()[0].bind()],
+                uniforms: &vs_params,
             });
+        });
     }
 }
 
