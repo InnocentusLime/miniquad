@@ -9,13 +9,15 @@ pub use input::*;
 pub use shape_batcher::*;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec4};
+use glam::Vec2;
+
+use crate::Color;
 
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
 pub struct BasicVertex {
     pub pos: Vec2,
-    pub color: Vec4,
+    pub color: Color,
 }
 
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]

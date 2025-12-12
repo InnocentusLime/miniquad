@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec4, vec2, vec4};
+use glam::{Vec2, vec2};
 use miniquad::*;
 ///! Just draws a static triangle with different vertex colors assigned
 ///! to each corner:
@@ -33,9 +33,9 @@ impl EventHandler for Stage {
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
         let vertices = [
-            Vertex { pos: vec2(-0.5, -0.5), color: vec4(1., 0., 0., 1.) },
-            Vertex { pos: vec2(0.5, -0.5), color: vec4(0., 1., 0., 1.) },
-            Vertex { pos: vec2(0.0,  0.5), color: vec4(0., 0., 1., 1.) },
+            Vertex { pos: vec2(-0.5, -0.5), color: RED },
+            Vertex { pos: vec2(0.5, -0.5), color: GREEN },
+            Vertex { pos: vec2(0.0,  0.5), color: BLUE },
         ];
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices);
 
@@ -67,9 +67,8 @@ impl EventHandler for Stage {
 
 impl Stage {
     pub fn draw(&mut self) {
-        self.ctx.perform_default_render_pass(
-            Clear::clear_depth_color(0.0, 0.0, 0.0, 1.0),
-            |_, _| {
+        self.ctx
+            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
                 self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.pipeline,
                     base_element: 0,
@@ -82,8 +81,7 @@ impl Stage {
                     textures: &[],
                     uniforms: &util::NoUniforms,
                 });
-            },
-        );
+            });
     }
 }
 
@@ -91,7 +89,7 @@ impl Stage {
 #[derive(Default, Pod, Zeroable, Clone, Copy)]
 struct Vertex {
     pos: Vec2,
-    color: Vec4,
+    color: Color,
 }
 
 mod shader {

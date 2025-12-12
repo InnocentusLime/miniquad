@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use glow::HasContext;
 
-use crate::graphics::GlContext;
 use crate::graphics::texture::Texture;
+use crate::graphics::{Color, GlContext};
 
 static TARGET_NAME: &str = "gl.render_pass";
 
@@ -173,10 +173,10 @@ fn bind_and_setup_fb(
     );
 
     let mut bits = 0;
-    if let Some((r, g, b, a)) = pass_action.color {
+    if let Some(color) = pass_action.color {
         bits |= glow::COLOR_BUFFER_BIT;
         unsafe {
-            gl.clear_color(r, g, b, a);
+            gl.clear_color(color.r, color.g, color.b, color.a);
         }
     }
 
@@ -203,7 +203,7 @@ fn bind_and_setup_fb(
 
 #[derive(Debug, Clone, Copy)]
 pub struct Clear {
-    color: Option<(f32, f32, f32, f32)>,
+    color: Option<Color>,
     depth: Option<f32>,
     stencil: Option<i32>,
 }
@@ -215,9 +215,9 @@ impl Clear {
         stencil: None,
     };
 
-    pub const fn clear_depth_color(r: f32, g: f32, b: f32, a: f32) -> Clear {
+    pub const fn depth_color(color: Color) -> Clear {
         Clear {
-            color: Some((r, g, b, a)),
+            color: Some(color),
             depth: Some(1.),
             stencil: None,
         }

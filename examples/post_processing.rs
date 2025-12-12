@@ -200,7 +200,7 @@ impl Stage {
 
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
         self.offscreen_pass
-            .perform(Clear::clear_depth_color(1.0, 1.0, 1.0, 1.0), |_, _| {
+            .perform(Clear::depth_color(WHITE), |_, _| {
                 self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.offscreen_pipeline,
                     base_element: 0,
@@ -219,9 +219,8 @@ impl Stage {
 
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
-        self.ctx.perform_default_render_pass(
-            Clear::clear_depth_color(1.0, 1.0, 1.0, 1.0),
-            |_, _| {
+        self.ctx
+            .perform_default_render_pass(Clear::depth_color(WHITE), |_, _| {
                 self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.post_processing_pipeline,
                     base_element: 0,
@@ -236,8 +235,7 @@ impl Stage {
                         resolution: vec2(width, height),
                     },
                 });
-            },
-        );
+            });
     }
 }
 

@@ -107,9 +107,8 @@ impl Stage {
             return;
         };
 
-        self.ctx.perform_default_render_pass(
-            Clear::clear_depth_color(0.0, 0.0, 0.0, 1.0),
-            |_, _| {
+        self.ctx
+            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
                 for i in 0..10 {
                     let t = t + i as f32 * 0.3;
                     self.ctx.submit_drawcall(DrawCall {
@@ -127,8 +126,7 @@ impl Stage {
                         },
                     });
                 }
-            },
-        );
+            });
     }
 }
 

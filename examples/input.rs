@@ -52,10 +52,9 @@ impl EventHandler for Stage {
         self.input.handle_event(&event);
 
         match event {
-            WindowEvent::RedrawRequested => self.ctx.perform_default_render_pass(
-                Clear::clear_depth_color(0., 1.0, 0.0, 1.0),
-                |_, _| {},
-            ),
+            WindowEvent::RedrawRequested => self
+                .ctx
+                .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {}),
             _ => (),
         }
     }

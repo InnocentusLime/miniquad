@@ -2,11 +2,11 @@ use std::rc::Rc;
 
 use super::{BasicVertex, GeometryBatcher};
 use crate::{
-    BufferUsage, DrawCall, GlContext, IndexBuffer, Pipeline, VertexBuffer, bind_vertex_buffers,
-    util::BasicPipelineUniform,
+    BufferUsage, Color, DrawCall, GlContext, IndexBuffer, Pipeline, VertexBuffer,
+    bind_vertex_buffers, util::BasicPipelineUniform,
 };
 
-use glam::{Affine2, Mat4, Vec2, Vec4, vec2};
+use glam::{Affine2, Mat4, Vec2, vec2};
 
 #[derive(Debug)]
 pub struct ShapeBatcher(pub GeometryBatcher<BasicVertex>);
@@ -52,7 +52,7 @@ impl ShapeBatcher {
         });
     }
 
-    pub fn triangle(&mut self, color: Vec4, p1: Vec2, p2: Vec2, p3: Vec2) {
+    pub fn triangle(&mut self, color: Color, p1: Vec2, p2: Vec2, p3: Vec2) {
         let vertices = [
             BasicVertex { pos: p1, color },
             BasicVertex { pos: p2, color },
@@ -61,7 +61,7 @@ impl ShapeBatcher {
         self.0.extend(&vertices, &[0, 1, 2]);
     }
 
-    pub fn rect(&mut self, color: Vec4, center: Vec2, size: Vec2, rotation: f32) {
+    pub fn rect(&mut self, color: Color, center: Vec2, size: Vec2, rotation: f32) {
         let tf = Affine2::from_angle_translation(rotation, center);
         let v1 = tf.transform_point2(vec2(-size.x, size.y) * 0.5);
         let v2 = tf.transform_point2(vec2(-size.x, -size.y) * 0.5);
@@ -78,7 +78,7 @@ impl ShapeBatcher {
         );
     }
 
-    pub fn line(&mut self, color: Vec4, thickness: f32, p1: Vec2, p2: Vec2) {
+    pub fn line(&mut self, color: Color, thickness: f32, p1: Vec2, p2: Vec2) {
         let dn = (p2 - p1).perp().normalize_or_zero() * (0.5 * thickness);
         let v1 = p1 + dn;
         let v2 = p1 - dn;
@@ -95,7 +95,7 @@ impl ShapeBatcher {
         );
     }
 
-    pub fn triangle_lines(&mut self, color: Vec4, thickness: f32, p1: Vec2, p2: Vec2, p3: Vec2) {
+    pub fn triangle_lines(&mut self, color: Color, thickness: f32, p1: Vec2, p2: Vec2, p3: Vec2) {
         self.line(color, thickness, p1, p2);
         self.line(color, thickness, p2, p3);
         self.line(color, thickness, p3, p1);
@@ -103,7 +103,7 @@ impl ShapeBatcher {
 
     pub fn poly_lines(
         &mut self,
-        color: Vec4,
+        color: Color,
         thickness: f32,
         center: Vec2,
         rotation: f32,
@@ -120,13 +120,13 @@ impl ShapeBatcher {
         }
     }
 
-    pub fn circle_lines(&mut self, color: Vec4, thickness: f32, center: Vec2, radius: f32) {
+    pub fn circle_lines(&mut self, color: Color, thickness: f32, center: Vec2, radius: f32) {
         self.poly_lines(color, thickness, center, 0.0, 50, radius);
     }
 
     pub fn rect_lines(
         &mut self,
-        color: Vec4,
+        color: Color,
         thickness: f32,
         center: Vec2,
         size: Vec2,

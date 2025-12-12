@@ -96,9 +96,8 @@ impl Stage {
     fn draw(&mut self) {
         let t = Instant::now().duration_since(self.start).as_secs_f32();
 
-        self.ctx.perform_default_render_pass(
-            Clear::clear_depth_color(0.0, 0.0, 0.0, 1.0),
-            |_, _| {
+        self.ctx
+            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
                 for i in 0..10 {
                     let t = t + i as f32 * 0.3;
                     let uniforms = shader::Uniforms {
@@ -117,8 +116,7 @@ impl Stage {
                         uniforms: &uniforms,
                     });
                 }
-            },
-        );
+            });
     }
 }
 

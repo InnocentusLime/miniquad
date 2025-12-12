@@ -1,5 +1,6 @@
 mod buffer_usage;
 mod cache;
+mod color;
 mod index_buffer;
 mod pipeline;
 mod pipeline_params;
@@ -17,6 +18,7 @@ use glow::HasContext;
 use image::DynamicImage;
 
 pub use buffer_usage::*;
+pub use color::*;
 pub use index_buffer::*;
 pub use pipeline::*;
 pub use pipeline_params::*;

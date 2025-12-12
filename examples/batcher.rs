@@ -89,9 +89,8 @@ impl Stage {
         );
         let num_elements = self.batcher.finish();
 
-        self.ctx.perform_default_render_pass(
-            Clear::clear_depth_color(0.0, 0.0, 0.0, 1.0),
-            |_, _| {
+        self.ctx
+            .perform_default_render_pass(Clear::depth_color(BLACK), |_, _| {
                 self.ctx.submit_drawcall(DrawCall {
                     pipeline: &self.pipeline,
                     base_element: 0,
@@ -104,8 +103,7 @@ impl Stage {
                     textures: &[],
                     uniforms: &util::NoUniforms,
                 });
-            },
-        );
+            });
     }
 }
 
