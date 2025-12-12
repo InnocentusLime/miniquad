@@ -33,7 +33,7 @@ impl EventHandler for Stage {
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50);
         let pipeline = ctx
-            .new_pipeline::<&'static str, _>(
+            .new_pipeline(
                 shader::VERTEX,
                 shader::FRAGMENT,
                 PipelineParams::default(),

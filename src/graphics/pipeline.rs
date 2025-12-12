@@ -24,14 +24,14 @@ pub struct Pipeline<U: Pod + 'static> {
 }
 
 impl<U: Pod + 'static> Pipeline<U> {
-    pub fn new<S: Into<String>>(
+    pub fn new<'a>(
         ctx: Rc<GlContext>,
         vertex_shader_source: &str,
         fragment_shader_source: &str,
         params: PipelineParams,
         attributes: impl IntoIterator<Item = VertexAttribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
-        image_uniforms: impl IntoIterator<Item = S>,
+        image_uniforms: impl IntoIterator<Item = &'a str>,
     ) -> anyhow::Result<Pipeline<U>> {
         let mut cache = ctx.cache.borrow_mut();
 

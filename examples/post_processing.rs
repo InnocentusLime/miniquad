@@ -132,7 +132,7 @@ impl EventHandler for Stage {
             .unwrap();
 
         let offscreen_pipeline = ctx
-            .new_pipeline::<&'static str, _>(
+            .new_pipeline(
                 offscreen_shader::VERTEX,
                 offscreen_shader::FRAGMENT,
                 PipelineParams {

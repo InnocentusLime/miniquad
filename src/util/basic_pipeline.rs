@@ -8,7 +8,7 @@ use crate::{
 };
 
 pub fn make_basic_pipeline(ctx: &Rc<GlContext>) -> Pipeline<BasicPipelineUniform> {
-    ctx.new_pipeline::<&'static str, _>(
+    ctx.new_pipeline(
         BASIC_PIPELINE_VERTEX,
         BASIC_PIPELINE_FRAGMENT,
         PipelineParams::default(),

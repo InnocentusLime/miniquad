@@ -40,7 +40,7 @@ impl EventHandler for Stage {
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
 
         let pipeline = ctx
-            .new_pipeline::<&'static str, _>(
+            .new_pipeline(
                 shader::VERTEX,
                 shader::FRAGMENT,
                 PipelineParams::default(),

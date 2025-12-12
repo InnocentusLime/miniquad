@@ -107,14 +107,14 @@ impl GlContext {
         Texture::new(self.clone(), source, params)
     }
 
-    pub fn new_pipeline<S: Into<String>, U: Pod + 'static>(
+    pub fn new_pipeline<'a, U: Pod + 'static>(
         self: &Rc<Self>,
         vertex_shader_source: &str,
         fragment_shader_source: &str,
         params: PipelineParams,
         attributes: impl IntoIterator<Item = VertexAttribute>,
         uniforms: impl IntoIterator<Item = UniformDesc>,
-        image_uniforms: impl IntoIterator<Item = S>,
+        image_uniforms: impl IntoIterator<Item = &'a str>,
     ) -> anyhow::Result<Pipeline<U>> {
         Pipeline::new(
             self.clone(),
