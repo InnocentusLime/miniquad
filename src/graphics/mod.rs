@@ -96,7 +96,7 @@ impl GlContext {
         self: &Rc<Self>,
         width: u32,
         height: u32,
-        params: TextureParams,
+        params: Texture2DParams,
     ) -> Texture2D {
         Texture2D::new_empty(self.clone(), width, height, params)
     }
@@ -104,7 +104,7 @@ impl GlContext {
     pub fn new_texture(
         self: &Rc<Self>,
         source: impl Into<DynamicImage>,
-        params: TextureParams,
+        params: Texture2DParams,
     ) -> Texture2D {
         Texture2D::new(self.clone(), source, params)
     }
@@ -191,6 +191,6 @@ pub struct DrawCall<'a, U: PipelineUniforms> {
     pub num_elements: u32,
     pub vertex_buffers: &'a [VertexBufferBinding<'a>],
     pub index_buffer: IndexBufferBinding<'a>,
-    pub textures: &'a [TextureBinding<'a>],
+    pub textures: &'a [Texture2DBinding<'a>],
     pub uniforms: &'a U,
 }

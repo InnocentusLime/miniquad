@@ -41,16 +41,16 @@ impl EventHandler for Stage {
         let color_img = ctx.new_empty_texture(
             256,
             256,
-            TextureParams {
-                internal_format: TextureFormat::RGBA8,
+            Texture2DParams {
+                internal_format: Texture2DFormat::RGBA8,
                 ..Default::default()
             },
         );
         let depth_img = ctx.new_empty_texture(
             256,
             256,
-            TextureParams {
-                internal_format: TextureFormat::DepthU16,
+            Texture2DParams {
+                internal_format: Texture2DFormat::DepthU16,
                 ..Default::default()
             },
         );

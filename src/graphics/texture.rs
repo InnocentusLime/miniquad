@@ -10,17 +10,17 @@ use crate::graphics::GlContext;
 static TARGET_NAME: &str = "gl.texture";
 
 #[derive(Debug, Copy, Clone)]
-pub struct TextureParams {
-    pub internal_format: TextureFormat,
+pub struct Texture2DParams {
+    pub internal_format: Texture2DFormat,
     pub wrap: TextureWrap,
     pub min_filter: FilterMode,
     pub mag_filter: FilterMode,
 }
 
-impl Default for TextureParams {
+impl Default for Texture2DParams {
     fn default() -> Self {
-        TextureParams {
-            internal_format: TextureFormat::RGBA8,
+        Texture2DParams {
+            internal_format: Texture2DFormat::RGBA8,
             wrap: TextureWrap::Clamp,
             min_filter: FilterMode::Linear,
             mag_filter: FilterMode::Linear,
@@ -34,7 +34,7 @@ pub struct Texture2D {
     pub(crate) gl_tex: glow::Texture,
     width: Cell<u32>,
     height: Cell<u32>,
-    format: TextureFormat,
+    format: Texture2DFormat,
 }
 
 impl Texture2D {
@@ -42,7 +42,7 @@ impl Texture2D {
         ctx: Rc<GlContext>,
         width: u32,
         height: u32,
-        params: TextureParams,
+        params: Texture2DParams,
     ) -> Texture2D {
         let (internal_format, format, pixel_type) = gl_texture_format(params.internal_format);
         let gl_tex = create_and_bind_texture(&ctx, &params);
@@ -72,7 +72,7 @@ impl Texture2D {
     pub fn new(
         ctx: Rc<GlContext>,
         source: impl Into<DynamicImage>,
-        params: TextureParams,
+        params: Texture2DParams,
     ) -> Texture2D {
         let mut source = source.into();
         // OpenGL is expecting the image data to be upside down.
@@ -185,8 +185,8 @@ impl Texture2D {
         self.height.get()
     }
 
-    pub fn bind(&self) -> TextureBinding<'_> {
-        TextureBinding {
+    pub fn bind(&self) -> Texture2DBinding<'_> {
+        Texture2DBinding {
             gl_tex: self.gl_tex,
             _phantom: PhantomData,
         }
@@ -207,28 +207,28 @@ impl Drop for Texture2D {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct TextureBinding<'a> {
+pub struct Texture2DBinding<'a> {
     pub(crate) gl_tex: glow::Texture,
     _phantom: PhantomData<&'a glow::Texture>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum TextureFormat {
+pub enum Texture2DFormat {
     RGB8,
     RGBA8,
     DepthU16,
     DepthF32,
 }
 
-impl TextureFormat {
+impl Texture2DFormat {
     /// Returns the size in bytes of texture with `dimensions`.
     pub fn size(self, width: u32, height: u32) -> u32 {
         let square = width * height;
         match self {
-            TextureFormat::RGB8 => 3 * square,
-            TextureFormat::RGBA8 => 4 * square,
-            TextureFormat::DepthU16 => 2 * square,
-            TextureFormat::DepthF32 => 4 * square,
+            Texture2DFormat::RGB8 => 3 * square,
+            Texture2DFormat::RGBA8 => 4 * square,
+            Texture2DFormat::DepthU16 => 2 * square,
+            Texture2DFormat::DepthF32 => 4 * square,
         }
     }
 }
@@ -250,7 +250,7 @@ pub enum FilterMode {
     Nearest,
 }
 
-fn create_and_bind_texture(ctx: &GlContext, params: &TextureParams) -> glow::Texture {
+fn create_and_bind_texture(ctx: &GlContext, params: &Texture2DParams) -> glow::Texture {
     let mut cache = ctx.cache.borrow_mut();
     let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
     tracing::debug!(
@@ -265,7 +265,7 @@ fn create_and_bind_texture(ctx: &GlContext, params: &TextureParams) -> glow::Tex
     gl_tex
 }
 
-fn apply_texture_parameters(ctx: &GlContext, params: &TextureParams) {
+fn apply_texture_parameters(ctx: &GlContext, params: &Texture2DParams) {
     let wrap = match params.wrap {
         TextureWrap::Repeat => glow::REPEAT,
         TextureWrap::Mirror => glow::MIRRORED_REPEAT,
@@ -299,15 +299,15 @@ fn gl_filter(filter: FilterMode) -> u32 {
     }
 }
 
-fn gl_texture_format(format: TextureFormat) -> (u32, u32, u32) {
+fn gl_texture_format(format: Texture2DFormat) -> (u32, u32, u32) {
     match format {
-        TextureFormat::RGB8 => (glow::RGB, glow::RGB, glow::UNSIGNED_BYTE),
-        TextureFormat::RGBA8 => (glow::RGBA, glow::RGBA, glow::UNSIGNED_BYTE),
-        TextureFormat::DepthU16 => (
+        Texture2DFormat::RGB8 => (glow::RGB, glow::RGB, glow::UNSIGNED_BYTE),
+        Texture2DFormat::RGBA8 => (glow::RGBA, glow::RGBA, glow::UNSIGNED_BYTE),
+        Texture2DFormat::DepthU16 => (
             glow::DEPTH_COMPONENT16,
             glow::DEPTH_COMPONENT,
             glow::UNSIGNED_SHORT,
         ),
-        TextureFormat::DepthF32 => (glow::DEPTH_COMPONENT32F, glow::DEPTH_COMPONENT, glow::FLOAT),
+        Texture2DFormat::DepthF32 => (glow::DEPTH_COMPONENT32F, glow::DEPTH_COMPONENT, glow::FLOAT),
     }
 }

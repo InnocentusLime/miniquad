@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::graphics::vertex_buffer::VertexBufferBinding;
 use crate::graphics::{GlContext, PipelineParams, PrimitiveType};
-use crate::{IndexBufferBinding, TextureBinding};
+use crate::{IndexBufferBinding, Texture2DBinding};
 
 use anyhow::Context;
 use bytemuck::Pod;
@@ -81,7 +81,7 @@ impl<U: PipelineUniforms> Pipeline<U> {
         &self,
         vertex_buffers: &[VertexBufferBinding],
         index_buffer: IndexBufferBinding,
-        textures: &[TextureBinding],
+        textures: &[Texture2DBinding],
         uniforms: &U,
     ) {
         let mut cache = self.ctx.cache.borrow_mut();
@@ -166,7 +166,7 @@ impl<U: PipelineUniforms> Pipeline<U> {
         &self,
         vertex_buffers: &[VertexBufferBinding],
         index_buffer: IndexBufferBinding,
-        textures: &[TextureBinding],
+        textures: &[Texture2DBinding],
     ) {
         tracing::trace!(
             target: TARGET_NAME,

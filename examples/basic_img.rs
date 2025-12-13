@@ -43,8 +43,8 @@ impl EventHandler for Stage {
         let img = image::load_from_memory(&bytes).expect("Image load failed");
         self.texture = Some(self.ctx.new_texture(
             img,
-            TextureParams {
-                internal_format: TextureFormat::RGBA8,
+            Texture2DParams {
+                internal_format: Texture2DFormat::RGBA8,
                 wrap: TextureWrap::Clamp,
                 min_filter: FilterMode::Linear,
                 mag_filter: FilterMode::Linear,

@@ -52,8 +52,8 @@ impl EventHandler for Stage {
         let pixels = RgbaImage::from_raw(4, 4, gen_pixels()).unwrap();
         let texture = ctx.new_texture(
             pixels,
-            TextureParams {
-                internal_format: TextureFormat::RGBA8,
+            Texture2DParams {
+                internal_format: Texture2DFormat::RGBA8,
                 wrap: TextureWrap::Clamp,
                 min_filter: FilterMode::Linear,
                 mag_filter: FilterMode::Linear,
