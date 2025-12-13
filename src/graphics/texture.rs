@@ -29,7 +29,7 @@ impl Default for TextureParams {
 }
 
 #[derive(Debug)]
-pub struct Texture {
+pub struct Texture2D {
     ctx: Rc<GlContext>,
     pub(crate) gl_tex: glow::Texture,
     width: Cell<u32>,
@@ -37,13 +37,13 @@ pub struct Texture {
     format: TextureFormat,
 }
 
-impl Texture {
+impl Texture2D {
     pub fn new_empty(
         ctx: Rc<GlContext>,
         width: u32,
         height: u32,
         params: TextureParams,
-    ) -> Texture {
+    ) -> Texture2D {
         let (internal_format, format, pixel_type) = gl_texture_format(params.internal_format);
         let gl_tex = create_and_bind_texture(&ctx, &params);
         unsafe {
@@ -60,7 +60,7 @@ impl Texture {
             );
         }
         apply_texture_parameters(&ctx, &params);
-        Texture {
+        Texture2D {
             ctx,
             gl_tex,
             width: Cell::new(width),
@@ -73,7 +73,7 @@ impl Texture {
         ctx: Rc<GlContext>,
         source: impl Into<DynamicImage>,
         params: TextureParams,
-    ) -> Texture {
+    ) -> Texture2D {
         let mut source = source.into();
         // OpenGL is expecting the image data to be upside down.
         //
@@ -105,7 +105,7 @@ impl Texture {
         }
         apply_texture_parameters(&ctx, &params);
         ctx.check_no_gl_error();
-        Texture {
+        Texture2D {
             ctx,
             gl_tex,
             width: Cell::new(width),
@@ -193,7 +193,7 @@ impl Texture {
     }
 }
 
-impl Drop for Texture {
+impl Drop for Texture2D {
     fn drop(&mut self) {
         tracing::debug!(
             target: TARGET_NAME,

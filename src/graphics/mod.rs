@@ -97,16 +97,16 @@ impl GlContext {
         width: u32,
         height: u32,
         params: TextureParams,
-    ) -> Texture {
-        Texture::new_empty(self.clone(), width, height, params)
+    ) -> Texture2D {
+        Texture2D::new_empty(self.clone(), width, height, params)
     }
 
     pub fn new_texture(
         self: &Rc<Self>,
         source: impl Into<DynamicImage>,
         params: TextureParams,
-    ) -> Texture {
-        Texture::new(self.clone(), source, params)
+    ) -> Texture2D {
+        Texture2D::new(self.clone(), source, params)
     }
 
     pub fn new_pipeline<'a, U: PipelineUniforms>(
@@ -129,8 +129,8 @@ impl GlContext {
 
     pub fn new_render_pass(
         self: &Rc<Self>,
-        color_img: Vec<Texture>,
-        depth_img: Option<Texture>,
+        color_img: Vec<Texture2D>,
+        depth_img: Option<Texture2D>,
     ) -> RenderPass {
         RenderPass::new(self.clone(), color_img, depth_img)
     }

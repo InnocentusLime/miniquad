@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use glow::HasContext;
 
-use crate::graphics::texture::Texture;
+use crate::graphics::texture::Texture2D;
 use crate::graphics::{Color, GlContext};
 
 static TARGET_NAME: &str = "gl.render_pass";
@@ -11,15 +11,15 @@ static TARGET_NAME: &str = "gl.render_pass";
 pub struct RenderPass {
     ctx: Rc<GlContext>,
     pub(crate) gl_fb: glow::Framebuffer,
-    color_textures: Vec<Texture>,
-    depth_texture: Option<Texture>,
+    color_textures: Vec<Texture2D>,
+    depth_texture: Option<Texture2D>,
 }
 
 impl RenderPass {
     pub fn new(
         ctx: Rc<GlContext>,
-        color_img: Vec<Texture>,
-        depth_img: Option<Texture>,
+        color_img: Vec<Texture2D>,
+        depth_img: Option<Texture2D>,
     ) -> RenderPass {
         if color_img.is_empty() && depth_img.is_none() {
             panic!("Render pass should have at least one non-none target");
@@ -80,7 +80,7 @@ impl RenderPass {
         }
     }
 
-    pub fn color_attachments(&self) -> &[Texture] {
+    pub fn color_attachments(&self) -> &[Texture2D] {
         &self.color_textures
     }
 

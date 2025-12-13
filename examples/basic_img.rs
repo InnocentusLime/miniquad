@@ -23,7 +23,7 @@ struct Stage {
     pipeline: Pipeline<shader::Uniforms>,
     vertices: VertexBuffer<Vertex>,
     indicies: IndexBuffer,
-    texture: Option<Texture>,
+    texture: Option<Texture2D>,
 }
 
 impl EventHandler for Stage {
