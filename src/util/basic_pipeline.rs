@@ -4,7 +4,8 @@ use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
 use crate::{
-    Attribute, GlContext, Pipeline, PipelineParams, UniformDesc, UniformType, VertexFormat,
+    Attribute, GlContext, Pipeline, PipelineParams, PipelineUniforms, UniformDesc, UniformType,
+    VertexFormat,
 };
 
 pub fn make_basic_pipeline(ctx: &Rc<GlContext>) -> Pipeline<BasicPipelineUniform> {
@@ -16,7 +17,6 @@ pub fn make_basic_pipeline(ctx: &Rc<GlContext>) -> Pipeline<BasicPipelineUniform
             Attribute::new("in_pos", VertexFormat::F32x2),
             Attribute::new("in_color", VertexFormat::F32x4),
         ],
-        [UniformDesc::scalar("view_proj", UniformType::F32x4x4)],
         [],
     )
     .unwrap()
@@ -26,6 +26,10 @@ pub fn make_basic_pipeline(ctx: &Rc<GlContext>) -> Pipeline<BasicPipelineUniform
 #[derive(Pod, Zeroable, Clone, Copy)]
 pub struct BasicPipelineUniform {
     pub view_projection: Mat4,
+}
+
+impl PipelineUniforms for BasicPipelineUniform {
+    const FIELDS: &[UniformDesc] = &[UniformDesc::scalar("view_proj", UniformType::F32x4x4)];
 }
 
 pub const BASIC_PIPELINE_VERTEX: &str = r#"#version 100

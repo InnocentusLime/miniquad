@@ -112,7 +112,6 @@ impl EventHandler for Stage {
                     Attribute::new("in_color", VertexFormat::F32x4),
                     Attribute::new("in_uv", VertexFormat::F32x2),
                 ],
-                [UniformDesc::scalar("mvp", UniformType::F32x4x4)],
                 ["tex"],
             )
             .unwrap();
@@ -129,7 +128,6 @@ impl EventHandler for Stage {
                     Attribute::new("in_pos", VertexFormat::F32x3),
                     Attribute::new("in_color", VertexFormat::F32x4),
                 ],
-                [UniformDesc::scalar("mvp", UniformType::F32x4x4)],
                 [],
             )
             .unwrap();
@@ -211,6 +209,7 @@ pub struct CubeVert {
 
 mod display_shader {
     use bytemuck::{Pod, Zeroable};
+    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec4 in_pos;
@@ -244,6 +243,10 @@ mod display_shader {
     #[derive(Zeroable, Pod, Clone, Copy)]
     pub struct Uniforms {
         pub mvp: glam::Mat4,
+    }
+
+    impl PipelineUniforms for Uniforms {
+        const FIELDS: &[UniformDesc] = &[UniformDesc::scalar("mvp", UniformType::F32x4x4)];
     }
 }
 

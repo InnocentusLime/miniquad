@@ -128,7 +128,6 @@ impl EventHandler for Stage {
                     Attribute::new("pos", VertexFormat::F32x2),
                     Attribute::new("uv", VertexFormat::F32x2),
                 ],
-                [UniformDesc::scalar("resolution", UniformType::F32x2)],
                 ["tex"],
             )
             .unwrap();
@@ -145,7 +144,6 @@ impl EventHandler for Stage {
                     Attribute::new("pos", VertexFormat::F32x3),
                     Attribute::new("color0", VertexFormat::F32x4),
                 ],
-                [UniformDesc::scalar("mvp", UniformType::F32x4x4)],
                 [],
             )
             .unwrap();
@@ -256,6 +254,7 @@ pub struct QuadVert {
 
 mod post_processing_shader {
     use bytemuck::{Pod, Zeroable};
+    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec2 pos;
@@ -299,10 +298,15 @@ mod post_processing_shader {
     pub struct Uniforms {
         pub resolution: glam::Vec2,
     }
+
+    impl PipelineUniforms for Uniforms {
+        const FIELDS: &[UniformDesc] = &[UniformDesc::scalar("resolution", UniformType::F32x2)];
+    }
 }
 
 mod offscreen_shader {
     use bytemuck::{Pod, Zeroable};
+    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec4 pos;
@@ -331,5 +335,9 @@ mod offscreen_shader {
     #[derive(Pod, Zeroable, Clone, Copy)]
     pub struct Uniforms {
         pub mvp: glam::Mat4,
+    }
+
+    impl PipelineUniforms for Uniforms {
+        const FIELDS: &[UniformDesc] = &[UniformDesc::scalar("mvp", UniformType::F32x4x4)];
     }
 }

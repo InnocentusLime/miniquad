@@ -51,7 +51,6 @@ impl EventHandler for Stage {
                     Attribute::new("in_color", VertexFormat::U8x4),
                 ],
                 [],
-                [],
             )
             .unwrap();
 

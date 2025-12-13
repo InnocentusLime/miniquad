@@ -85,7 +85,6 @@ impl EventHandler for Stage {
                     Attribute::new("in_pos", VertexFormat::F32x2),
                     Attribute::new("in_uv", VertexFormat::F32x2),
                 ],
-                [UniformDesc::scalar("offset", UniformType::F32x2)],
                 ["tex"],
             )
             .unwrap();
@@ -142,6 +141,7 @@ struct Vertex {
 mod shader {
     use bytemuck::{Pod, Zeroable};
     use glam::Vec2;
+    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec2 in_pos;
@@ -169,5 +169,9 @@ mod shader {
     #[derive(Zeroable, Pod, Clone, Copy)]
     pub struct Uniforms {
         pub offset: Vec2,
+    }
+
+    impl PipelineUniforms for Uniforms {
+        const FIELDS: &[UniformDesc] = &[UniformDesc::scalar("offset", UniformType::F32x2)];
     }
 }

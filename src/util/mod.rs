@@ -11,7 +11,7 @@ pub use shape_batcher::*;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 
-use crate::Color;
+use crate::{Color, PipelineUniforms, UniformDesc};
 
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
@@ -23,3 +23,7 @@ pub struct BasicVertex {
 #[derive(Debug, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
 pub struct NoUniforms;
+
+impl PipelineUniforms for NoUniforms {
+    const FIELDS: &[UniformDesc] = &[];
+}

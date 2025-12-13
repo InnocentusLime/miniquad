@@ -13,7 +13,7 @@ use glow::HasContext;
 static TARGET_NAME: &str = "gl.pipeline";
 
 #[derive(Debug)]
-pub struct Pipeline<U: Pod + 'static> {
+pub struct Pipeline<U: PipelineUniforms> {
     ctx: Rc<GlContext>,
     gl_prog: glow::Program,
     image_uniforms: Vec<glow::UniformLocation>,
@@ -23,14 +23,13 @@ pub struct Pipeline<U: Pod + 'static> {
     _phantom: PhantomData<fn(&U)>,
 }
 
-impl<U: Pod + 'static> Pipeline<U> {
+impl<U: PipelineUniforms> Pipeline<U> {
     pub fn new<'a>(
         ctx: Rc<GlContext>,
         vertex_shader_source: &str,
         fragment_shader_source: &str,
         params: PipelineParams,
         attributes: impl IntoIterator<Item = Attribute>,
-        uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = &'a str>,
     ) -> anyhow::Result<Pipeline<U>> {
         let mut cache = ctx.cache.borrow_mut();
@@ -58,7 +57,7 @@ impl<U: Pod + 'static> Pipeline<U> {
 
         cache.bind_program(&ctx.gl, program);
         let attributes = get_pipeline_attributes(&ctx.gl, program, attributes)?;
-        let uniforms = get_pipeline_uniforms(&ctx.gl, program, uniforms)?;
+        let uniforms = get_pipeline_uniforms(&ctx.gl, program, U::FIELDS)?;
         let images = get_pipeline_images(&ctx.gl, program, image_uniforms)?;
 
         ctx.check_no_gl_error();
@@ -248,7 +247,7 @@ impl<U: Pod + 'static> Pipeline<U> {
     }
 }
 
-impl<U: Pod + 'static> Drop for Pipeline<U> {
+impl<U: PipelineUniforms> Drop for Pipeline<U> {
     fn drop(&mut self) {
         tracing::debug!(
             target: TARGET_NAME,
@@ -330,7 +329,7 @@ fn get_pipeline_images<S: Into<String>>(
 fn get_pipeline_uniforms(
     gl: &glow::Context,
     program: glow::Program,
-    uniforms: impl IntoIterator<Item = UniformDesc>,
+    uniforms: &[UniformDesc],
 ) -> anyhow::Result<Vec<ShaderUniform>> {
     uniforms
         .into_iter()
@@ -354,25 +353,33 @@ fn get_uniform_location(
         .ok_or_else(|| anyhow::anyhow!("uniform {name:?} not found"))
 }
 
-#[derive(Debug, Clone)]
+pub trait PipelineUniforms: Pod + 'static {
+    const FIELDS: &[UniformDesc];
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct UniformDesc {
-    pub name: String,
+    pub name: &'static str,
     pub uniform_type: UniformType,
     pub array_len: usize,
 }
 
 impl UniformDesc {
-    pub fn scalar(name: &str, uniform_type: UniformType) -> UniformDesc {
+    pub const fn scalar(name: &'static str, uniform_type: UniformType) -> UniformDesc {
         UniformDesc {
-            name: name.to_string(),
+            name: name,
             uniform_type,
             array_len: 1,
         }
     }
 
-    pub fn array(name: &str, uniform_type: UniformType, array_len: usize) -> UniformDesc {
+    pub const fn array(
+        name: &'static str,
+        uniform_type: UniformType,
+        array_len: usize,
+    ) -> UniformDesc {
         UniformDesc {
-            name: name.to_string(),
+            name: name,
             uniform_type,
             array_len,
         }
@@ -468,7 +475,7 @@ impl VertexFormat {
 #[derive(Debug)]
 struct ShaderUniform {
     #[allow(dead_code)]
-    name: String,
+    name: &'static str,
     gl_loc: glow::UniformLocation,
     uniform_type: UniformType,
     array_count: i32,

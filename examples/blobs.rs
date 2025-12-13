@@ -85,11 +85,6 @@ impl EventHandler for Stage {
                     Attribute::new("in_pos", VertexFormat::F32x2),
                     Attribute::new("in_uv", VertexFormat::F32x2),
                 ],
-                [
-                    UniformDesc::scalar("time", UniformType::F32),
-                    UniformDesc::scalar("blobs_count", UniformType::I32),
-                    UniformDesc::array("blobs_positions", UniformType::F32x2, 32),
-                ],
                 [],
             )
             .unwrap();
@@ -171,6 +166,7 @@ struct Vertex {
 mod shader {
     use bytemuck::{Pod, Zeroable};
     use glam::Vec2;
+    use miniquad::*;
 
     pub const VERTEX: &str = r#"#version 100
     attribute vec2 in_pos;
@@ -250,5 +246,13 @@ mod shader {
         pub time: f32,
         pub blobs_count: i32,
         pub blobs_positions: [Vec2; 32],
+    }
+
+    impl PipelineUniforms for Uniforms {
+        const FIELDS: &[UniformDesc] = &[
+            UniformDesc::scalar("time", UniformType::F32),
+            UniformDesc::scalar("blobs_count", UniformType::I32),
+            UniformDesc::array("blobs_positions", UniformType::F32x2, 32),
+        ];
     }
 }

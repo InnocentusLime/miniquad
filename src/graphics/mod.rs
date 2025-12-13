@@ -109,13 +109,12 @@ impl GlContext {
         Texture::new(self.clone(), source, params)
     }
 
-    pub fn new_pipeline<'a, U: Pod + 'static>(
+    pub fn new_pipeline<'a, U: PipelineUniforms>(
         self: &Rc<Self>,
         vertex_shader_source: &str,
         fragment_shader_source: &str,
         params: PipelineParams,
         attributes: impl IntoIterator<Item = Attribute>,
-        uniforms: impl IntoIterator<Item = UniformDesc>,
         image_uniforms: impl IntoIterator<Item = &'a str>,
     ) -> anyhow::Result<Pipeline<U>> {
         Pipeline::new(
@@ -124,7 +123,6 @@ impl GlContext {
             fragment_shader_source,
             params,
             attributes,
-            uniforms,
             image_uniforms,
         )
     }
@@ -137,7 +135,7 @@ impl GlContext {
         RenderPass::new(self.clone(), color_img, depth_img)
     }
 
-    pub fn draw<U: Pod + 'static>(&self, drawcall: DrawCall<U>) {
+    pub fn draw<U: PipelineUniforms>(&self, drawcall: DrawCall<U>) {
         drawcall.pipeline.apply(
             drawcall.vertex_buffers,
             drawcall.index_buffer,
@@ -187,7 +185,7 @@ impl Drop for GlContext {
     }
 }
 
-pub struct DrawCall<'a, U: Pod + 'static> {
+pub struct DrawCall<'a, U: PipelineUniforms> {
     pub pipeline: &'a Pipeline<U>,
     pub base_element: u32,
     pub num_elements: u32,
