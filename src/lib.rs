@@ -8,17 +8,18 @@ mod tracing_init;
 
 pub mod util;
 
-pub use bytemuck::offset_of;
+pub use bytemuck::zeroed;
+
 pub use fs::*;
-use glow::HasContext;
 pub use graphics::*;
-use tracing_subscriber::EnvFilter;
 pub use web_time::*;
 
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use glow::HasContext;
+use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;

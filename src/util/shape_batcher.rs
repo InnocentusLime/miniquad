@@ -3,7 +3,7 @@ use std::rc::Rc;
 use super::{BasicVertex, GeometryBatcher};
 use crate::{
     BufferUsage, Color, DrawCall, GlContext, IndexBuffer, Pipeline, VertexBuffer,
-    bind_vertex_buffers, util::BasicPipelineUniform,
+    util::{BasicPipelineMeta, BasicPipelineUniforms},
 };
 
 use glam::{Affine2, Mat4, Vec2, vec2};
@@ -35,20 +35,17 @@ impl ShapeBatcher {
         &mut self,
         ctx: &GlContext,
         view_projection: Mat4,
-        basic_pipeline: &Pipeline<BasicPipelineUniform>,
+        basic_pipeline: &Pipeline<BasicPipelineMeta>,
     ) {
         let num_elements = self.finish();
         ctx.draw(DrawCall {
             pipeline: basic_pipeline,
             base_element: 0,
             num_elements,
-            vertex_buffers: &bind_vertex_buffers!(
-                (&self.0.vertices) as <BasicVertex>::pos,
-                (&self.0.vertices) as <BasicVertex>::color,
-            ),
+            vertex_buffer: &self.0.vertices,
             index_buffer: self.0.indicies.bind(),
-            textures: &[],
-            uniforms: &BasicPipelineUniform { view_projection },
+            images: &[],
+            uniforms: &BasicPipelineUniforms { view_projection },
         });
     }
 

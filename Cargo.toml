@@ -21,7 +21,7 @@ tracing = "0.1.43"
 anyhow = "1"
 winit = { version = "0.30.12", features = ["rwh_06"] }
 glow = "0.16.0"
-bytemuck = "1.24.0"
+bytemuck = { version = "1.24.0", features = ["const_zeroed", "min_const_generics"] }
 glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
 tracing-subscriber = { version = "0.3.2", features = ["env-filter", "registry"] }
 egui_glow = { version = "0.33.2", features = ["winit"] }

@@ -16,18 +16,22 @@ pub struct PipelineParams {
     pub primitive_type: PrimitiveType,
 }
 
+pub const fn default_pipeline_params() -> PipelineParams {
+    PipelineParams {
+        cull_face: CullFace::Nothing,
+        front_face_order: FrontFaceOrder::CounterClockwise,
+        depth_test: None, // no depth test,
+        depth_write_offset: None,
+        blending: Blending::None,
+        stencil_test: None,
+        color_write: (true, true, true, true),
+        primitive_type: PrimitiveType::Triangles,
+    }
+}
+
 impl Default for PipelineParams {
     fn default() -> PipelineParams {
-        PipelineParams {
-            cull_face: CullFace::Nothing,
-            front_face_order: FrontFaceOrder::CounterClockwise,
-            depth_test: None, // no depth test,
-            depth_write_offset: None,
-            blending: Blending::None,
-            stencil_test: None,
-            color_write: (true, true, true, true),
-            primitive_type: PrimitiveType::Triangles,
-        }
+        default_pipeline_params()
     }
 }
 

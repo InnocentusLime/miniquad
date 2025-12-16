@@ -1,29 +1,28 @@
 mod buffer_usage;
 mod cache;
-mod color;
 mod index_buffer;
 mod pipeline;
 mod pipeline_params;
 mod render_pass;
 mod texture;
+mod ty;
 mod vertex_buffer;
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::Arc;
 
-use bytemuck::Pod;
 use cache::GlCache;
 use glow::HasContext;
 use image::DynamicImage;
 
 pub use buffer_usage::*;
-pub use color::*;
 pub use index_buffer::*;
 pub use pipeline::*;
 pub use pipeline_params::*;
 pub use render_pass::*;
 pub use texture::*;
+pub use ty::*;
 pub use vertex_buffer::*;
 
 #[derive(Debug)]
@@ -60,7 +59,7 @@ impl GlContext {
         self.client_area_size.get()
     }
 
-    pub fn new_empty_vertex_buffer<T: Pod + Default>(
+    pub fn new_empty_vertex_buffer<T: Vertex>(
         self: &Rc<Self>,
         usage: BufferUsage,
         size: usize,
@@ -68,7 +67,7 @@ impl GlContext {
         VertexBuffer::new_empty(self.clone(), usage, size)
     }
 
-    pub fn new_vertex_buffer<T: Pod + Default>(
+    pub fn new_vertex_buffer<T: Vertex>(
         self: &Rc<Self>,
         usage: BufferUsage,
         data: &[T],
@@ -76,7 +75,7 @@ impl GlContext {
         VertexBuffer::new(self.clone(), usage, data)
     }
 
-    pub fn new_empty_index_buffer<I: IndexBufferElement>(
+    pub fn new_empty_index_buffer<I: VertexIndex>(
         self: &Rc<Self>,
         usage: BufferUsage,
         size: usize,
@@ -84,7 +83,7 @@ impl GlContext {
         IndexBuffer::new_empty(self.clone(), usage, size)
     }
 
-    pub fn new_index_buffer<I: IndexBufferElement>(
+    pub fn new_index_buffer<I: VertexIndex>(
         self: &Rc<Self>,
         usage: BufferUsage,
         data: &[I],
@@ -109,22 +108,9 @@ impl GlContext {
         Texture2D::new(self.clone(), source, params)
     }
 
-    pub fn new_pipeline<'a, U: PipelineUniforms>(
-        self: &Rc<Self>,
-        vertex_shader_source: &str,
-        fragment_shader_source: &str,
-        params: PipelineParams,
-        attributes: impl IntoIterator<Item = Attribute>,
-        image_uniforms: impl IntoIterator<Item = &'a str>,
-    ) -> anyhow::Result<Pipeline<U>> {
-        Pipeline::new(
-            self.clone(),
-            vertex_shader_source,
-            fragment_shader_source,
-            params,
-            attributes,
-            image_uniforms,
-        )
+    #[track_caller]
+    pub fn new_pipeline<M: PipelineMeta>(self: &Rc<Self>) -> Pipeline<M> {
+        Pipeline::new(self.clone())
     }
 
     pub fn new_render_pass(
@@ -135,11 +121,11 @@ impl GlContext {
         RenderPass::new(self.clone(), color_img, depth_img)
     }
 
-    pub fn draw<U: PipelineUniforms>(&self, drawcall: DrawCall<U>) {
+    pub fn draw<'a, M: PipelineMeta>(&'a self, drawcall: DrawCall<'a, M>) {
         drawcall.pipeline.apply(
-            drawcall.vertex_buffers,
+            drawcall.vertex_buffer,
             drawcall.index_buffer,
-            drawcall.textures,
+            drawcall.images,
             drawcall.uniforms,
         );
 
@@ -164,6 +150,7 @@ impl GlContext {
     }
 
     #[cfg(debug_assertions)]
+    #[track_caller]
     pub(crate) fn check_no_gl_error(&self) {
         let err = unsafe { self.gl.get_error() };
         if err == glow::NO_ERROR {
@@ -185,12 +172,12 @@ impl Drop for GlContext {
     }
 }
 
-pub struct DrawCall<'a, U: PipelineUniforms> {
-    pub pipeline: &'a Pipeline<U>,
+pub struct DrawCall<'a, M: PipelineMeta> {
+    pub pipeline: &'a Pipeline<M>,
     pub base_element: u32,
     pub num_elements: u32,
-    pub vertex_buffers: &'a [VertexBufferBinding<'a>],
+    pub vertex_buffer: &'a VertexBuffer<M::Vertex>,
     pub index_buffer: IndexBufferBinding<'a>,
-    pub textures: &'a [Texture2DBinding<'a>],
-    pub uniforms: &'a U,
+    pub images: &'a M::Images<'a>,
+    pub uniforms: &'a M::Uniforms,
 }

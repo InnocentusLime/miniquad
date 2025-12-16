@@ -1,7 +1,6 @@
 //! Draws a bunch of shapes with the shape batcher.
 
 use glam::{Mat4, vec2};
-use miniquad::util::{ShapeBatcher, make_basic_pipeline};
 use miniquad::*;
 use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
@@ -12,8 +11,8 @@ fn main() {
 
 struct Stage {
     start: Instant,
-    pipeline: Pipeline<util::BasicPipelineUniform>,
-    batcher: ShapeBatcher,
+    pipeline: Pipeline<util::BasicPipelineMeta>,
+    batcher: util::ShapeBatcher,
     ctx: Rc<GlContext>,
 }
 
@@ -28,8 +27,8 @@ impl EventHandler for Stage {
     }
 
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
-        let batcher = ShapeBatcher::new_from_size(&ctx, 20_000, 20_000);
-        let pipeline = make_basic_pipeline(&ctx);
+        let batcher = util::ShapeBatcher::new_from_size(&ctx, 20_000, 20_000);
+        let pipeline = ctx.new_pipeline();
 
         Stage {
             pipeline,

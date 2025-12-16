@@ -9,14 +9,14 @@ use crate::graphics::{BufferUsage, GlContext};
 static TARGET_NAME: &str = "gl.index_buffer";
 
 #[derive(Debug)]
-pub struct IndexBuffer<T: IndexBufferElement = u16> {
+pub struct IndexBuffer<T: VertexIndex = u16> {
     ctx: Rc<GlContext>,
     pub(crate) gl_buf: glow::Buffer,
     size: usize,
     _phantom: PhantomData<&'static [T]>,
 }
 
-impl<T: IndexBufferElement> IndexBuffer<T> {
+impl<T: VertexIndex> IndexBuffer<T> {
     pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> IndexBuffer<T> {
         let size = size * std::mem::size_of::<T>();
         let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
@@ -80,7 +80,7 @@ impl<T: IndexBufferElement> IndexBuffer<T> {
     }
 }
 
-impl<T: IndexBufferElement> Drop for IndexBuffer<T> {
+impl<T: VertexIndex> Drop for IndexBuffer<T> {
     fn drop(&mut self) {
         tracing::debug!(
             target: TARGET_NAME,
@@ -100,13 +100,13 @@ pub struct IndexBufferBinding<'a> {
     _phantom: PhantomData<&'a glow::Buffer>,
 }
 
-pub trait IndexBufferElement: Pod {
+pub trait VertexIndex: Pod {
     const GL_TYPE: u32;
 
     fn offset_by(self, off: usize) -> Self;
 }
 
-impl IndexBufferElement for u8 {
+impl VertexIndex for u8 {
     const GL_TYPE: u32 = glow::UNSIGNED_BYTE;
 
     fn offset_by(self, off: usize) -> Self {
@@ -114,7 +114,7 @@ impl IndexBufferElement for u8 {
     }
 }
 
-impl IndexBufferElement for u16 {
+impl VertexIndex for u16 {
     const GL_TYPE: u32 = glow::UNSIGNED_SHORT;
 
     fn offset_by(self, off: usize) -> Self {
@@ -122,7 +122,7 @@ impl IndexBufferElement for u16 {
     }
 }
 
-impl IndexBufferElement for u32 {
+impl VertexIndex for u32 {
     const GL_TYPE: u32 = glow::UNSIGNED_SHORT;
 
     fn offset_by(self, off: usize) -> Self {

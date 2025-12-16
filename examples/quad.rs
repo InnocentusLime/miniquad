@@ -18,8 +18,8 @@ struct Stage {
     start: Instant,
     ctx: Rc<GlContext>,
 
-    pipeline: Pipeline<shader::Uniforms>,
-    vertices: VertexBuffer<Vertex>,
+    pipeline: Pipeline<Meta>,
+    vertices: VertexBuffer<ImgVertex>,
     indicies: IndexBuffer,
     texture: Texture2D,
 }
@@ -37,10 +37,10 @@ impl EventHandler for Stage {
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            Vertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },
-            Vertex { pos : Vec2 { x:  0.5, y: -0.5 }, uv: Vec2 { x: 1., y: 0. } },
-            Vertex { pos : Vec2 { x:  0.5, y:  0.5 }, uv: Vec2 { x: 1., y: 1. } },
-            Vertex { pos : Vec2 { x: -0.5, y:  0.5 }, uv: Vec2 { x: 0., y: 1. } },
+            ImgVertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },
+            ImgVertex { pos : Vec2 { x:  0.5, y: -0.5 }, uv: Vec2 { x: 1., y: 0. } },
+            ImgVertex { pos : Vec2 { x:  0.5, y:  0.5 }, uv: Vec2 { x: 1., y: 1. } },
+            ImgVertex { pos : Vec2 { x: -0.5, y:  0.5 }, uv: Vec2 { x: 0., y: 1. } },
         ]);
 
         #[rustfmt::skip]
@@ -60,18 +60,7 @@ impl EventHandler for Stage {
             },
         );
 
-        let pipeline = ctx
-            .new_pipeline(
-                shader::VERTEX,
-                shader::FRAGMENT,
-                PipelineParams::default(),
-                [
-                    Attribute::new("in_pos", VertexFormat::F32x2),
-                    Attribute::new("in_uv", VertexFormat::F32x2),
-                ],
-                ["tex"],
-            )
-            .unwrap();
+        let pipeline = ctx.new_pipeline();
 
         Stage {
             pipeline,
@@ -95,13 +84,10 @@ impl Stage {
                     pipeline: &self.pipeline,
                     base_element: 0,
                     num_elements: 6,
-                    vertex_buffers: &bind_vertex_buffers![
-                        (&self.vertices) as <Vertex>::pos,
-                        (&self.vertices) as <Vertex>::uv,
-                    ],
+                    vertex_buffer: &self.vertices,
                     index_buffer: self.indicies.bind(),
-                    textures: &[self.texture.bind()],
-                    uniforms: &shader::Uniforms {
+                    images: &[self.texture.bind()],
+                    uniforms: &Uniforms {
                         offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
                     },
                 });
@@ -111,48 +97,45 @@ impl Stage {
 }
 
 #[repr(C)]
-#[derive(Default, Pod, Zeroable, Clone, Copy)]
-struct Vertex {
-    pos: Vec2,
-    uv: Vec2,
+#[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
+pub struct ImgVertex {
+    pub pos: Vec2,
+    pub uv: Vec2,
 }
 
-mod shader {
-    use bytemuck::{Pod, Zeroable};
-    use glam::Vec2;
-    use miniquad::*;
+impl Vertex for ImgVertex {
+    const LAYOUT: &'static [VertexField] =
+        &[attribute_of!(ImgVertex, pos), attribute_of!(ImgVertex, uv)];
+}
 
-    pub const VERTEX: &str = r#"#version 100
-    attribute vec2 in_pos;
-    attribute vec2 in_uv;
+pub struct Meta;
 
-    uniform vec2 offset;
+impl PipelineMeta for Meta {
+    const VERTEX_SHADER: &'static str = include_str!("shaders/with_offset.vert");
+    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_texture.frag");
 
-    varying lowp vec2 texcoord;
+    const IMAGES_NAMES: &'static [&'static str] = &["tex"];
+    type Images<'a> = [Texture2DBinding<'a>; 1];
+    type Vertex = ImgVertex;
+    type Uniforms = Uniforms;
+    const PARAMS: PipelineParams = PipelineParams {
+        blending: Blending::All(BlendFunc {
+            equation: BlendEquation::Add,
+            source: BlendFactor::Value(BlendValue::SrcAlpha),
+            dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
+        }),
+        ..default_pipeline_params()
+    };
+}
 
-    void main() {
-        gl_Position = vec4(in_pos + offset, 0, 1);
-        texcoord = in_uv;
-    }"#;
+#[repr(C)]
+#[derive(Debug, Zeroable, Pod, Clone, Copy)]
+pub struct Uniforms {
+    pub offset: Vec2,
+}
 
-    pub const FRAGMENT: &str = r#"#version 100
-    varying lowp vec2 texcoord;
-
-    uniform sampler2D tex;
-
-    void main() {
-        gl_FragColor = texture2D(tex, texcoord);
-    }"#;
-
-    #[repr(C)]
-    #[derive(Zeroable, Pod, Clone, Copy)]
-    pub struct Uniforms {
-        pub offset: Vec2,
-    }
-
-    impl PipelineUniforms for Uniforms {
-        const FIELDS: &[UniformDesc] = &[UniformDesc::scalar("offset", UniformType::F32x2)];
-    }
+impl UniformBlock for Uniforms {
+    const FIELDS: &'static [UniformField] = &[uniform_of!(Uniforms, offset)];
 }
 
 #[rustfmt::skip]

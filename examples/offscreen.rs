@@ -14,10 +14,11 @@ fn main() {
 }
 
 struct Stage {
+    vertices_display_cube: VertexBuffer<CubeDisplayVert>,
     vertices_cube: VertexBuffer<CubeVert>,
     indicies_cube: IndexBuffer,
-    display_pipeline: Pipeline<display_shader::Uniforms>,
-    offscreen_pipeline: Pipeline<display_shader::Uniforms>,
+    display_pipeline: Pipeline<DisplayMeta>,
+    offscreen_pipeline: Pipeline<OffscreenMeta>,
     offscreen_pass: RenderPass,
     rx: f32,
     ry: f32,
@@ -57,37 +58,48 @@ impl EventHandler for Stage {
         let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
 
         #[rustfmt::skip]
-        let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 0.0) },
-            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0),  uv: vec2(1.0, 0.0) },
-            CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0, -1.0),  color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 1.0) },
+        let vertices_display_cube = [
+            CubeDisplayVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0),  uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { pos: vec3(-1.0,  1.0, -1.0),  color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 1.0) },
 
-            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
-            CubeVert { pos: vec3(1.0, -1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
-            CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0),  uv: vec2(1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0, -1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0),  uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
 
-            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
-            CubeVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
-            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
 
-            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 0.0) },
-            CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 0.0) },
-            CubeVert { pos: vec3(1.0,  1.0,  1.0), color: vec4 (1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 1.0) },
-            CubeVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0,  1.0,  1.0), color: vec4 (1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 1.0) },
 
-            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
-            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
-            CubeVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
-            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
 
-            CubeVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
-            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
-            CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 1.0) },
-            CubeVert { pos: vec3(1.0,  1.0, -1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
-        ]);
+            CubeDisplayVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { pos: vec3(1.0,  1.0, -1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
+        ];
+        let vertices_cube = vertices_display_cube
+            .into_iter()
+            .map(|v| CubeVert {
+                pos: v.pos,
+                color: v.color,
+            })
+            .collect::<Vec<_>>();
+
+        let vertices_display_cube =
+            ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices_display_cube);
+        let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices_cube);
 
         #[rustfmt::skip]
         let indicies_cube = ctx.new_index_buffer(BufferUsage::Immutable, &[
@@ -99,41 +111,12 @@ impl EventHandler for Stage {
             22, 21, 20,  23, 22, 20
         ]);
 
-        let display_pipeline = ctx
-            .new_pipeline(
-                display_shader::VERTEX,
-                display_shader::FRAGMENT,
-                PipelineParams {
-                    depth_test: Some(Comparison::LessOrEqual),
-                    ..Default::default()
-                },
-                [
-                    Attribute::new("in_pos", VertexFormat::F32x3),
-                    Attribute::new("in_color", VertexFormat::F32x4),
-                    Attribute::new("in_uv", VertexFormat::F32x2),
-                ],
-                ["tex"],
-            )
-            .unwrap();
-
-        let offscreen_pipeline = ctx
-            .new_pipeline(
-                offscreen_shader::VERTEX,
-                offscreen_shader::FRAGMENT,
-                PipelineParams {
-                    depth_test: Some(Comparison::LessOrEqual),
-                    ..Default::default()
-                },
-                [
-                    Attribute::new("in_pos", VertexFormat::F32x3),
-                    Attribute::new("in_color", VertexFormat::F32x4),
-                ],
-                [],
-            )
-            .unwrap();
+        let display_pipeline = ctx.new_pipeline();
+        let offscreen_pipeline = ctx.new_pipeline();
 
         Stage {
             vertices_cube,
+            vertices_display_cube,
             indicies_cube,
             display_pipeline,
             offscreen_pipeline,
@@ -156,12 +139,7 @@ impl Stage {
             vec3(0.0, 1.0, 0.0),
         );
         let view_proj = proj * view;
-
         let model = Mat4::from_rotation_y(self.ry) * Mat4::from_rotation_x(self.rx);
-
-        let vs_params = display_shader::Uniforms {
-            mvp: view_proj * model,
-        };
 
         // the offscreen pass, rendering a rotating, untextured cube into a render target image
         self.offscreen_pass.pass(Clear::depth_color(WHITE), |_, _| {
@@ -169,13 +147,12 @@ impl Stage {
                 pipeline: &self.offscreen_pipeline,
                 base_element: 0,
                 num_elements: 36,
-                vertex_buffers: &bind_vertex_buffers![
-                    (&self.vertices_cube) as <CubeVert>::pos,
-                    (&self.vertices_cube) as <CubeVert>::color,
-                ],
+                vertex_buffer: &self.vertices_cube,
                 index_buffer: self.indicies_cube.bind(),
-                textures: &[],
-                uniforms: &vs_params,
+                images: &[],
+                uniforms: &Uniforms {
+                    mvp: view_proj * model,
+                },
             });
         });
 
@@ -186,90 +163,83 @@ impl Stage {
                 pipeline: &self.display_pipeline,
                 base_element: 0,
                 num_elements: 36,
-                vertex_buffers: &bind_vertex_buffers![
-                    (&self.vertices_cube) as <CubeVert>::pos,
-                    (&self.vertices_cube) as <CubeVert>::color,
-                    (&self.vertices_cube) as <CubeVert>::uv,
-                ],
+                vertex_buffer: &self.vertices_display_cube,
                 index_buffer: self.indicies_cube.bind(),
-                textures: &[self.offscreen_pass.color_attachments()[0].bind()],
-                uniforms: &vs_params,
+                images: &[self.offscreen_pass.color_attachments()[0].bind()],
+                uniforms: &Uniforms {
+                    mvp: view_proj * model,
+                },
             });
         });
     }
 }
 
 #[repr(C)]
-#[derive(Default, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 pub struct CubeVert {
+    pub pos: Vec3,
+    pub color: Vec4,
+}
+
+impl Vertex for CubeVert {
+    const LAYOUT: &'static [VertexField] =
+        &[attribute_of!(CubeVert, pos), attribute_of!(CubeVert, color)];
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
+pub struct CubeDisplayVert {
     pub pos: Vec3,
     pub color: Vec4,
     pub uv: Vec2,
 }
 
-mod display_shader {
-    use bytemuck::{Pod, Zeroable};
-    use miniquad::*;
-
-    pub const VERTEX: &str = r#"#version 100
-    attribute vec4 in_pos;
-    attribute vec4 in_color;
-    attribute vec2 in_uv;
-
-    varying lowp vec4 color;
-    varying lowp vec2 uv;
-
-    uniform mat4 mvp;
-
-    void main() {
-        gl_Position = mvp * in_pos;
-        color = in_color;
-        uv = in_uv;
-    }
-    "#;
-
-    pub const FRAGMENT: &str = r#"#version 100
-    varying lowp vec4 color;
-    varying lowp vec2 uv;
-
-    uniform sampler2D tex;
-
-    void main() {
-        gl_FragColor = color * texture2D(tex, uv);
-    }
-    "#;
-
-    #[repr(C)]
-    #[derive(Zeroable, Pod, Clone, Copy)]
-    pub struct Uniforms {
-        pub mvp: glam::Mat4,
-    }
-
-    impl PipelineUniforms for Uniforms {
-        const FIELDS: &[UniformDesc] = &[UniformDesc::scalar("mvp", UniformType::F32x4x4)];
-    }
+impl Vertex for CubeDisplayVert {
+    const LAYOUT: &'static [VertexField] = &[
+        attribute_of!(CubeDisplayVert, pos),
+        attribute_of!(CubeDisplayVert, color),
+        attribute_of!(CubeDisplayVert, uv),
+    ];
 }
 
-mod offscreen_shader {
-    pub const VERTEX: &str = r#"#version 100
-    attribute vec3 in_pos;
-    attribute vec4 in_color;
+pub struct DisplayMeta;
 
-    varying lowp vec4 color;
+impl PipelineMeta for DisplayMeta {
+    const VERTEX_SHADER: &'static str = include_str!("shaders/mvp_color_texture.vert");
+    const FRAGMENT_SHADER: &'static str = include_str!("shaders/color_texture.frag");
 
-    uniform mat4 mvp;
+    const IMAGES_NAMES: &'static [&'static str] = &["tex"];
+    type Images<'a> = [Texture2DBinding<'a>; 1];
+    type Vertex = CubeDisplayVert;
+    type Uniforms = Uniforms;
+    const PARAMS: PipelineParams = PipelineParams {
+        depth_test: Some(Comparison::LessOrEqual),
+        ..default_pipeline_params()
+    };
+}
 
-    void main() {
-        gl_Position = mvp * vec4(in_pos, 1.0);
-        color = in_color;
-    }
-    "#;
+pub struct OffscreenMeta;
 
-    pub const FRAGMENT: &str = r#"#version 100
-    varying lowp vec4 color;
+impl PipelineMeta for OffscreenMeta {
+    const VERTEX_SHADER: &'static str = include_str!("shaders/mvp_color.vert");
+    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_color.frag");
 
-    void main() {
-        gl_FragColor = color;
-    }
-    "#;
+    const IMAGES_NAMES: &'static [&'static str] = &[];
+    type Images<'a> = [Texture2DBinding<'a>; 0];
+    type Vertex = CubeVert;
+    type Uniforms = Uniforms;
+    const PARAMS: PipelineParams = PipelineParams {
+        depth_test: Some(Comparison::LessOrEqual),
+        ..default_pipeline_params()
+    };
+}
+
+#[repr(C)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+pub struct Uniforms {
+    pub mvp: glam::Mat4,
+}
+
+impl UniformBlock for Uniforms {
+    const FIELDS: &'static [UniformField] = &[uniform_of!(Uniforms, mvp)];
 }

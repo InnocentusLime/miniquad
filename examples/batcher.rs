@@ -4,9 +4,9 @@
 //! * right -- green
 //! * top -- blue
 
-use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec4, vec2, vec4};
-use miniquad::{util::GeometryBatcher, *};
+use glam::vec2;
+use miniquad::util::{BasicVertex, GeometryBatcher};
+use miniquad::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
@@ -17,8 +17,8 @@ fn main() {
 
 struct Stage {
     start: Instant,
-    pipeline: Pipeline<util::NoUniforms>,
-    batcher: GeometryBatcher<Vertex>,
+    pipeline: Pipeline<Meta>,
+    batcher: GeometryBatcher<BasicVertex>,
     ctx: Rc<GlContext>,
 }
 
@@ -34,18 +34,7 @@ impl EventHandler for Stage {
 
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50);
-        let pipeline = ctx
-            .new_pipeline(
-                shader::VERTEX,
-                shader::FRAGMENT,
-                PipelineParams::default(),
-                [
-                    Attribute::new("in_pos", VertexFormat::F32x2),
-                    Attribute::new("in_color", VertexFormat::F32x4),
-                ],
-                [],
-            )
-            .unwrap();
+        let pipeline = ctx.new_pipeline();
 
         Stage {
             pipeline,
@@ -64,27 +53,27 @@ impl Stage {
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                Vertex { pos: vec2(-0.5, -0.5) + dr, color: vec4(1., 0., 0., 1.) },
-                Vertex { pos: vec2(0.5, -0.5) + dr, color: vec4(0., 1., 0., 1.) },
-                Vertex { pos: vec2(0.0,  0.5) + dr, color: vec4(0., 0., 1., 1.) },
+                BasicVertex { pos: vec2(-0.5, -0.5) + dr, color: RED },
+                BasicVertex { pos: vec2(0.5, -0.5) + dr, color: GREEN },
+                BasicVertex { pos: vec2(0.0,  0.5) + dr, color: BLUE },
             ],
             &[0, 1, 2],
         );
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                Vertex { pos: vec2(0.0, -0.5), color: vec4(1., 0., 0., 1.) },
-                Vertex { pos: vec2(1.0, -0.5), color: vec4(0., 1., 0., 1.) },
-                Vertex { pos: vec2(0.5 + 0.5 * t.sin(),  1.0), color: vec4(0., 0., 1., 1.) },
+                BasicVertex { pos: vec2(0.0, -0.5), color: RED },
+                BasicVertex { pos: vec2(1.0, -0.5), color: GREEN },
+                BasicVertex { pos: vec2(0.5 + 0.5 * t.sin(),  1.0), color: BLUE },
             ],
             &[0, 1, 2],
         );
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                Vertex { pos: vec2(-1.0, 0.0), color: vec4(1., 0., 0., 1.) },
-                Vertex { pos: vec2(-1.0, -1.0), color: vec4(0., 1., 0., 1.) },
-                Vertex { pos: vec2(0.0,  -1.0), color: vec4(0., 0., 1., 1.) },
+                BasicVertex { pos: vec2(-1.0, 0.0), color: RED },
+                BasicVertex { pos: vec2(-1.0, -1.0), color: GREEN },
+                BasicVertex { pos: vec2(0.0,  -1.0), color: BLUE },
             ],
             &[0, 1, 2],
         );
@@ -95,41 +84,24 @@ impl Stage {
                 pipeline: &self.pipeline,
                 base_element: 0,
                 num_elements,
-                vertex_buffers: &bind_vertex_buffers![
-                    (&self.batcher.vertices) as <Vertex>::pos,
-                    (&self.batcher.vertices) as <Vertex>::color,
-                ],
+                vertex_buffer: &self.batcher.vertices,
                 index_buffer: self.batcher.indicies.bind(),
-                textures: &[],
+                images: &[],
                 uniforms: &util::NoUniforms,
             });
         });
     }
 }
 
-#[repr(C)]
-#[derive(Default, Pod, Zeroable, Clone, Copy)]
-struct Vertex {
-    pos: Vec2,
-    color: Vec4,
-}
+pub struct Meta;
 
-mod shader {
-    pub const VERTEX: &str = r#"#version 100
-    attribute vec2 in_pos;
-    attribute vec4 in_color;
+impl PipelineMeta for Meta {
+    const VERTEX_SHADER: &'static str = include_str!("shaders/basic_vert.vert");
+    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_color.frag");
 
-    varying lowp vec4 color;
-
-    void main() {
-        gl_Position = vec4(in_pos, 0, 1);
-        color = in_color;
-    }"#;
-
-    pub const FRAGMENT: &str = r#"#version 100
-    varying lowp vec4 color;
-
-    void main() {
-        gl_FragColor = color;
-    }"#;
+    const IMAGES_NAMES: &'static [&'static str] = &[];
+    type Images<'a> = [Texture2DBinding<'a>; 0];
+    type Vertex = miniquad::util::BasicVertex;
+    type Uniforms = miniquad::util::NoUniforms;
+    const PARAMS: PipelineParams = default_pipeline_params();
 }

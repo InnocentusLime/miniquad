@@ -4,7 +4,9 @@ use crate::Conf;
 
 use glow::HasContext;
 use glutin::config::{Api, Config, ConfigTemplateBuilder};
-use glutin::context::{ContextAttributesBuilder, PossiblyCurrentContext};
+use glutin::context::{
+    ContextApi, ContextAttributesBuilder, GlProfile, PossiblyCurrentContext, Version,
+};
 use glutin::context::{NotCurrentGlContext, PossiblyCurrentGlContext};
 use glutin::display::{Display, GetGlDisplay, GlDisplay};
 use glutin::surface::{GlSurface, Surface, SwapInterval, WindowSurface};
@@ -107,6 +109,8 @@ fn create_surface_and_context(
         .expect("Window has not raw handle")
         .as_raw();
     let context_attributes = ContextAttributesBuilder::new()
+        .with_profile(GlProfile::Core)
+        .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
         .with_debug(is_debug)
         .build(Some(raw_window_handle));
     let gl_context = unsafe {

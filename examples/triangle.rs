@@ -16,8 +16,8 @@ fn main() {
 }
 
 struct Stage {
-    pipeline: Pipeline<util::NoUniforms>,
-    vertices: VertexBuffer<Vertex>,
+    pipeline: Pipeline<Meta>,
+    vertices: VertexBuffer<TriangleVertex>,
     indicies: IndexBuffer,
     ctx: Rc<GlContext>,
 }
@@ -35,25 +35,12 @@ impl EventHandler for Stage {
     fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            Vertex { pos: vec2(-0.5, -0.5), color: RED },
-            Vertex { pos: vec2(0.5, -0.5), color: GREEN },
-            Vertex { pos: vec2(0.0,  0.5), color: BLUE },
+            TriangleVertex { pos: vec2(-0.5, -0.5), color: RED },
+            TriangleVertex { pos: vec2(0.5, -0.5), color: GREEN },
+            TriangleVertex { pos: vec2(0.0,  0.5), color: BLUE },
         ]);
-
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[0, 1, 2]);
-
-        let pipeline = ctx
-            .new_pipeline(
-                shader::VERTEX,
-                shader::FRAGMENT,
-                PipelineParams::default(),
-                [
-                    Attribute::new("in_pos", VertexFormat::F32x2),
-                    Attribute::new("in_color", VertexFormat::F32x4),
-                ],
-                [],
-            )
-            .unwrap();
+        let pipeline = ctx.new_pipeline();
 
         Stage {
             pipeline,
@@ -71,12 +58,9 @@ impl Stage {
                 pipeline: &self.pipeline,
                 base_element: 0,
                 num_elements: 3,
-                vertex_buffers: &bind_vertex_buffers![
-                    (&self.vertices) as <Vertex>::pos,
-                    (&self.vertices) as <Vertex>::color,
-                ],
+                vertex_buffer: &self.vertices,
                 index_buffer: self.indicies.bind(),
-                textures: &[],
+                images: &[],
                 uniforms: &util::NoUniforms,
             });
         });
@@ -84,28 +68,28 @@ impl Stage {
 }
 
 #[repr(C)]
-#[derive(Default, Pod, Zeroable, Clone, Copy)]
-struct Vertex {
-    pos: Vec2,
-    color: Color,
+#[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
+pub struct TriangleVertex {
+    pub pos: Vec2,
+    pub color: Color,
 }
 
-mod shader {
-    pub const VERTEX: &str = r#"#version 100
-    attribute vec2 in_pos;
-    attribute vec4 in_color;
+impl Vertex for TriangleVertex {
+    const LAYOUT: &'static [VertexField] = &[
+        attribute_of!(TriangleVertex, pos),
+        attribute_of!(TriangleVertex, color),
+    ];
+}
 
-    varying lowp vec4 color;
+pub struct Meta;
 
-    void main() {
-        gl_Position = vec4(in_pos, 0, 1);
-        color = in_color;
-    }"#;
+impl PipelineMeta for Meta {
+    const VERTEX_SHADER: &'static str = include_str!("shaders/basic_vert.vert");
+    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_color.frag");
 
-    pub const FRAGMENT: &str = r#"#version 100
-    varying lowp vec4 color;
-
-    void main() {
-        gl_FragColor = color;
-    }"#;
+    const IMAGES_NAMES: &'static [&'static str] = &[];
+    type Images<'a> = [Texture2DBinding<'a>; 0];
+    type Vertex = TriangleVertex;
+    type Uniforms = util::NoUniforms;
+    const PARAMS: PipelineParams = default_pipeline_params();
 }

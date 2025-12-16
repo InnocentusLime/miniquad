@@ -1,18 +1,16 @@
 use std::rc::Rc;
 
-use bytemuck::Pod;
-
-use crate::{BufferUsage, GlContext, IndexBuffer, IndexBufferElement, VertexBuffer};
+use crate::{BufferUsage, GlContext, IndexBuffer, Vertex, VertexBuffer, VertexIndex};
 
 #[derive(Debug)]
-pub struct GeometryBatcher<T: Pod + Default, I: IndexBufferElement = u16> {
-    pub vertices: VertexBuffer<T>,
+pub struct GeometryBatcher<V: Vertex, I: VertexIndex = u16> {
+    pub vertices: VertexBuffer<V>,
     pub indicies: IndexBuffer<I>,
-    client_vertices: Vec<T>,
+    client_vertices: Vec<V>,
     client_indicies: Vec<I>,
 }
 
-impl<T: Pod + Default, I: IndexBufferElement> GeometryBatcher<T, I> {
+impl<V: Vertex, I: VertexIndex> GeometryBatcher<V, I> {
     pub fn new_from_size(ctx: &Rc<GlContext>, vertices_size: usize, indicies_size: usize) -> Self {
         Self::new(
             ctx.new_empty_vertex_buffer(BufferUsage::Stream, vertices_size),
@@ -20,7 +18,7 @@ impl<T: Pod + Default, I: IndexBufferElement> GeometryBatcher<T, I> {
         )
     }
 
-    pub fn new(vertices: VertexBuffer<T>, indicies: IndexBuffer<I>) -> Self {
+    pub fn new(vertices: VertexBuffer<V>, indicies: IndexBuffer<I>) -> Self {
         let client_vertices = Vec::with_capacity(vertices.size());
         let client_indicies = Vec::with_capacity(indicies.size());
         GeometryBatcher {
@@ -31,7 +29,7 @@ impl<T: Pod + Default, I: IndexBufferElement> GeometryBatcher<T, I> {
         }
     }
 
-    pub fn extend(&mut self, vertices: &[T], indicies: &[I]) {
+    pub fn extend(&mut self, vertices: &[V], indicies: &[I]) {
         let index_off = self.client_vertices.len();
 
         assert!(
