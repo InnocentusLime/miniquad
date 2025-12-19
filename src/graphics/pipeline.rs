@@ -4,8 +4,7 @@ use std::rc::Rc;
 
 use crate::graphics::{GlContext, PipelineParams, PrimitiveType};
 use crate::{
-    ImagesBlock, IndexBufferBinding, Texture2DBinding, UniformBlock, UniformField, Vertex,
-    VertexBuffer, VertexField, apply_attributes_impl, apply_uniforms_impl,
+    apply_attributes_impl, apply_uniforms_impl, ImagesBlock, IndexBufferBinding, Texture2D, UniformBlock, UniformField, Vertex, VertexBuffer, VertexField
 };
 
 use glow::HasContext;
@@ -26,7 +25,7 @@ impl<M: PipelineMeta> Pipeline<M> {
             M::VERTEX_SHADER,
             M::FRAGMENT_SHADER,
             M::PARAMS,
-            M::IMAGES_NAMES,
+            M::Images::names(&M::IMAGES_NAMES),
             M::Vertex::LAYOUT,
             M::Uniforms::FIELDS,
         );
@@ -44,7 +43,7 @@ impl<M: PipelineMeta> Pipeline<M> {
         &'a self,
         vertex_buffer: &'a VertexBuffer<M::Vertex>,
         index_buffer: IndexBufferBinding,
-        images: &'a M::Images<'a>,
+        images: <M::Images as ImagesBlock>::Borrow<'a>,
         uniforms: &'a M::Uniforms,
     ) {
         #[cfg(debug_assertions)]
@@ -59,7 +58,7 @@ impl<M: PipelineMeta> Pipeline<M> {
         self.raw.apply(
             vertex_buffer.gl_buf,
             index_buffer.gl_buf,
-            images.as_slice(),
+            M::Images::as_slice(images),
             bytemuck::bytes_of(uniforms),
             M::Uniforms::FIELDS,
             std::mem::size_of::<M::Vertex>(),
@@ -72,8 +71,9 @@ pub trait PipelineMeta: 'static {
     const VERTEX_SHADER: &'static str;
     const FRAGMENT_SHADER: &'static str;
 
-    const IMAGES_NAMES: &'static [&'static str];
-    type Images<'a>: ImagesBlock<'a>;
+    type Images: ImagesBlock;
+    const IMAGES_NAMES: &'static <Self::Images as ImagesBlock>::Names;
+
     type Vertex: Vertex;
     type Uniforms: UniformBlock;
     const PARAMS: PipelineParams;
@@ -136,7 +136,7 @@ impl PipelineRaw {
         &self,
         vertex_buffer: glow::Buffer,
         index_buffer: glow::Buffer,
-        images: &[Texture2DBinding],
+        images: &[&Texture2D],
         uniform_data: &[u8],
         uniform_layout: &[UniformField],
         attribute_size: usize,

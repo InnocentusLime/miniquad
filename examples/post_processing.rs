@@ -196,7 +196,7 @@ impl Stage {
                 num_elements: 6,
                 vertex_buffer: &self.vertices_quad,
                 index_buffer: self.indicies_quad.bind(),
-                images: &[self.offscreen_pass.color_attachments()[0].bind()],
+                images: &[&self.offscreen_pass.color_attachments()[0]],
                 uniforms: &PostProcessingUniforms {
                     resolution: vec2(width, height),
                 },
@@ -232,11 +232,11 @@ impl Vertex for QuadVert {
 pub struct PostProcessingMeta;
 
 impl PipelineMeta for PostProcessingMeta {
-    const VERTEX_SHADER: &'static str = include_str!("shaders/basic_texture.vert");
-    const FRAGMENT_SHADER: &'static str = include_str!("shaders/gaus_blur.frag");
+    const VERTEX_SHADER: &str = include_str!("shaders/basic_texture.vert");
+    const FRAGMENT_SHADER: &str = include_str!("shaders/gaus_blur.frag");
 
-    const IMAGES_NAMES: &'static [&'static str] = &["tex"];
-    type Images<'a> = [Texture2DBinding<'a>; 1];
+    const IMAGES_NAMES: &[&str; 1] = &["tex"];
+    type Images = [Texture2D; 1];
     type Vertex = QuadVert;
     type Uniforms = PostProcessingUniforms;
     const PARAMS: PipelineParams = default_pipeline_params();
@@ -255,11 +255,11 @@ impl UniformBlock for PostProcessingUniforms {
 pub struct OffscreenMeta;
 
 impl PipelineMeta for OffscreenMeta {
-    const VERTEX_SHADER: &'static str = include_str!("shaders/mvp_color.vert");
-    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_color.frag");
+    const VERTEX_SHADER: &str = include_str!("shaders/mvp_color.vert");
+    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
 
-    const IMAGES_NAMES: &'static [&'static str] = &[];
-    type Images<'a> = [Texture2DBinding<'a>; 0];
+    const IMAGES_NAMES: &[&str; 0] = &[];
+    type Images = [Texture2D; 0];
     type Vertex = CubeVert;
     type Uniforms = OffscreenUniforms;
     const PARAMS: PipelineParams = PipelineParams {

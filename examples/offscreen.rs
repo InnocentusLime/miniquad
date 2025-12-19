@@ -165,7 +165,7 @@ impl Stage {
                 num_elements: 36,
                 vertex_buffer: &self.vertices_display_cube,
                 index_buffer: self.indicies_cube.bind(),
-                images: &[self.offscreen_pass.color_attachments()[0].bind()],
+                images: &[&self.offscreen_pass.color_attachments()[0]],
                 uniforms: &Uniforms {
                     mvp: view_proj * model,
                 },
@@ -205,11 +205,11 @@ impl Vertex for CubeDisplayVert {
 pub struct DisplayMeta;
 
 impl PipelineMeta for DisplayMeta {
-    const VERTEX_SHADER: &'static str = include_str!("shaders/mvp_color_texture.vert");
-    const FRAGMENT_SHADER: &'static str = include_str!("shaders/color_texture.frag");
+    const VERTEX_SHADER: &str = include_str!("shaders/mvp_color_texture.vert");
+    const FRAGMENT_SHADER: &str = include_str!("shaders/color_texture.frag");
 
-    const IMAGES_NAMES: &'static [&'static str] = &["tex"];
-    type Images<'a> = [Texture2DBinding<'a>; 1];
+    const IMAGES_NAMES: &[&str; 1] = &["tex"];
+    type Images = [Texture2D; 1];
     type Vertex = CubeDisplayVert;
     type Uniforms = Uniforms;
     const PARAMS: PipelineParams = PipelineParams {
@@ -221,11 +221,11 @@ impl PipelineMeta for DisplayMeta {
 pub struct OffscreenMeta;
 
 impl PipelineMeta for OffscreenMeta {
-    const VERTEX_SHADER: &'static str = include_str!("shaders/mvp_color.vert");
-    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_color.frag");
+    const VERTEX_SHADER: &str = include_str!("shaders/mvp_color.vert");
+    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
 
-    const IMAGES_NAMES: &'static [&'static str] = &[];
-    type Images<'a> = [Texture2DBinding<'a>; 0];
+    const IMAGES_NAMES: &[&str; 0] = &[];
+    type Images = [Texture2D; 0];
     type Vertex = CubeVert;
     type Uniforms = Uniforms;
     const PARAMS: PipelineParams = PipelineParams {

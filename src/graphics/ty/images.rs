@@ -1,17 +1,24 @@
 use std::fmt::Debug;
 
-use crate::Texture2DBinding;
+use crate::Texture2D;
 
-pub trait ImagesBlock<'a>: Debug + 'a {
-    const LEN: usize;
+pub trait ImagesBlock {
+    type Names;
+    type Borrow<'a>: Debug;
 
-    fn as_slice(&'a self) -> &'a [Texture2DBinding<'a>];
+    fn as_slice<'a>(x: Self::Borrow<'a>) -> &'a [&'a Texture2D];
+    fn names(x: &'static Self::Names) -> &'static [&'static str];
 }
 
-impl<'a, const N: usize> ImagesBlock<'a> for [Texture2DBinding<'a>; N] {
-    const LEN: usize = N;
+impl<const N: usize> ImagesBlock for [Texture2D; N] {
+    type Names = [&'static str; N];
+    type Borrow<'a> = &'a [&'a Texture2D; N];
 
-    fn as_slice(&'a self) -> &'a [Texture2DBinding<'a>] {
-        self.as_slice()
+    fn as_slice<'a>(x: Self::Borrow<'a>) -> &'a [&'a Texture2D] {
+        x.as_slice()
+    }
+
+    fn names(x: &'static Self::Names) -> &'static [&'static str] {
+        x.as_slice()
     }
 }

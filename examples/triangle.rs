@@ -84,11 +84,11 @@ impl Vertex for TriangleVertex {
 pub struct Meta;
 
 impl PipelineMeta for Meta {
-    const VERTEX_SHADER: &'static str = include_str!("shaders/basic_vert.vert");
-    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_color.frag");
+    const VERTEX_SHADER: &str = include_str!("shaders/basic_vert.vert");
+    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
 
-    const IMAGES_NAMES: &'static [&'static str] = &[];
-    type Images<'a> = [Texture2DBinding<'a>; 0];
+    const IMAGES_NAMES: &[&str; 0] = &[];
+    type Images = [Texture2D; 0];
     type Vertex = TriangleVertex;
     type Uniforms = util::NoUniforms;
     const PARAMS: PipelineParams = default_pipeline_params();

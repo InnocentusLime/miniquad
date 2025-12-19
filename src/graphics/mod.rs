@@ -178,6 +178,6 @@ pub struct DrawCall<'a, M: PipelineMeta> {
     pub num_elements: u32,
     pub vertex_buffer: &'a VertexBuffer<M::Vertex>,
     pub index_buffer: IndexBufferBinding<'a>,
-    pub images: &'a M::Images<'a>,
+    pub images: <M::Images as ImagesBlock>::Borrow<'a>,
     pub uniforms: &'a M::Uniforms,
 }

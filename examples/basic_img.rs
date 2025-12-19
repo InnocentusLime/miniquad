@@ -100,7 +100,7 @@ impl Stage {
                     num_elements: 6,
                     vertex_buffer: &self.vertices,
                     index_buffer: self.indicies.bind(),
-                    images: &[texture.bind()],
+                    images: &[texture],
                     uniforms: &Uniforms {
                         offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),
                     },
@@ -125,11 +125,11 @@ impl Vertex for ImgVertex {
 pub struct Meta;
 
 impl PipelineMeta for Meta {
-    const VERTEX_SHADER: &'static str = include_str!("shaders/with_offset.vert");
-    const FRAGMENT_SHADER: &'static str = include_str!("shaders/basic_texture.frag");
+    const VERTEX_SHADER: &str = include_str!("shaders/with_offset.vert");
+    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_texture.frag");
 
-    const IMAGES_NAMES: &'static [&'static str] = &["tex"];
-    type Images<'a> = [Texture2DBinding<'a>; 1];
+    const IMAGES_NAMES: &[&str; 1] = &["tex"];
+    type Images = [Texture2D; 1];
     type Vertex = ImgVertex;
     type Uniforms = Uniforms;
     const PARAMS: PipelineParams = PipelineParams {

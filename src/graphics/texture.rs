@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::{cell::Cell, marker::PhantomData};
+use std::cell::Cell;
 
 use glow::{HasContext, PixelUnpackData};
 use image::DynamicImage;
@@ -184,13 +184,6 @@ impl Texture2D {
     pub fn height(&self) -> u32 {
         self.height.get()
     }
-
-    pub fn bind(&self) -> Texture2DBinding<'_> {
-        Texture2DBinding {
-            gl_tex: self.gl_tex,
-            _phantom: PhantomData,
-        }
-    }
 }
 
 impl Drop for Texture2D {
@@ -204,12 +197,6 @@ impl Drop for Texture2D {
             self.ctx.gl.delete_texture(self.gl_tex);
         }
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct Texture2DBinding<'a> {
-    pub(crate) gl_tex: glow::Texture,
-    _phantom: PhantomData<&'a glow::Texture>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
