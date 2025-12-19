@@ -29,6 +29,7 @@ impl<V: Vertex, I: VertexIndex> GeometryBatcher<V, I> {
         }
     }
 
+    #[track_caller]
     pub fn extend(&mut self, vertices: &[V], indicies: &[I]) {
         let index_off = self.client_vertices.len();
 
