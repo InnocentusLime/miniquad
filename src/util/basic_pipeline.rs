@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
 use crate::{
-    PipelineMeta, PipelineParams, Texture2D, UniformBlock, UniformField, default_pipeline_params,
+    NoImages, PipelineMeta, PipelineParams, UniformBlock, UniformField, default_pipeline_params,
     uniform_of, util::BasicVertex,
 };
 
@@ -12,8 +12,8 @@ impl PipelineMeta for BasicPipelineMeta {
     const VERTEX_SHADER: &str = include_str!("shader/basic_pipeline.vert");
     const FRAGMENT_SHADER: &str = include_str!("shader/basic_pipeline.frag");
 
-    const IMAGES_NAMES: &[&str; 0] = &[];
-    type Images = [Texture2D; 0];
+    const IMAGES_NAMES: () = ();
+    type Images = NoImages;
     type Vertex = BasicVertex;
     type Uniforms = BasicPipelineUniforms;
     const PARAMS: PipelineParams = default_pipeline_params();

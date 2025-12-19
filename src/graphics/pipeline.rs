@@ -59,7 +59,7 @@ impl<M: PipelineMeta> Pipeline<M> {
         self.raw.apply(
             vertex_buffer.gl_buf,
             index_buffer.gl_buf,
-            M::Images::as_slice(images),
+            M::Images::as_slice(&images),
             bytemuck::bytes_of(uniforms),
             M::Uniforms::FIELDS,
             std::mem::size_of::<M::Vertex>(),
@@ -73,7 +73,7 @@ pub trait PipelineMeta: 'static {
     const FRAGMENT_SHADER: &'static str;
 
     type Images: ImagesBlock;
-    const IMAGES_NAMES: &'static <Self::Images as ImagesBlock>::Names;
+    const IMAGES_NAMES: <Self::Images as ImagesBlock>::Names;
 
     type Vertex: Vertex;
     type Uniforms: UniformBlock;

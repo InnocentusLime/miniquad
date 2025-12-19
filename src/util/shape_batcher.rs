@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use super::{BasicVertex, GeometryBatcher};
 use crate::{
-    BufferUsage, Color, DrawCall, GlContext, IndexBuffer, Pipeline, VertexBuffer,
+    BufferUsage, Color, DrawCall, GlContext, IndexBuffer, NoImages, Pipeline, VertexBuffer,
     util::{BasicPipelineMeta, BasicPipelineUniforms},
 };
 
@@ -44,7 +44,7 @@ impl ShapeBatcher {
             num_elements,
             vertex_buffer: &self.0.vertices,
             index_buffer: &self.0.indicies,
-            images: &[],
+            images: &NoImages,
             uniforms: &BasicPipelineUniforms { view_projection },
         });
     }
