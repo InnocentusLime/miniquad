@@ -14,6 +14,7 @@ macro_rules! attribute_of {
             gl_type,
             component_count,
             off: std::mem::offset_of!($Type, $field),
+            sz: std::mem::size_of_val(&sample.$field),
         }
     }};
 }
@@ -69,6 +70,7 @@ pub struct VertexField {
     pub gl_type: u32,
     pub component_count: usize,
     pub off: usize,
+    pub sz: usize,
 }
 
 impl VertexFieldTy for f32 {

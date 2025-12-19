@@ -21,6 +21,12 @@ pub struct Pipeline<M: PipelineMeta> {
 impl<M: PipelineMeta> Pipeline<M> {
     #[track_caller]
     pub fn new(ctx: Rc<GlContext>) -> Pipeline<M> {
+        debug_assert_eq!(
+            Self::sz_vert_fields(),
+            std::mem::size_of::<M::Vertex>(),
+            "vertex layout mismatch",
+        );
+
         let raw = PipelineRaw::new(
             ctx,
             M::VERTEX_SHADER,
@@ -47,6 +53,12 @@ impl<M: PipelineMeta> Pipeline<M> {
         images: <M::Images as ImagesBlock>::Borrow<'a>,
         uniforms: &'a M::Uniforms,
     ) {
+        debug_assert_eq!(
+            M::Images::as_slice(&images).len(),
+            M::Images::names(&M::IMAGES_NAMES).len(),
+            "image inputs mismatch",
+        );
+
         #[cfg(debug_assertions)]
         tracing::trace!(
             target: TARGET_NAME,
@@ -65,6 +77,16 @@ impl<M: PipelineMeta> Pipeline<M> {
             std::mem::size_of::<M::Vertex>(),
             M::Vertex::LAYOUT,
         );
+    }
+
+    const fn sz_vert_fields() -> usize {
+        let mut res = 0;
+        let mut idx = 0;
+        while idx < M::Vertex::LAYOUT.len() {
+            res += M::Vertex::LAYOUT[idx].sz;
+            idx += 1;
+        }
+        res
     }
 }
 
