@@ -11,7 +11,7 @@ pub use shape_batcher::*;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 
-use crate::{Color, UniformBlock, UniformField, Vertex, VertexField, attribute_of};
+use crate::{Color, Vertex, VertexField, attribute_of};
 
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
@@ -25,12 +25,4 @@ impl Vertex for BasicVertex {
         attribute_of!(BasicVertex, pos),
         attribute_of!(BasicVertex, color),
     ];
-}
-
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
-#[repr(C)]
-pub struct NoUniforms;
-
-impl UniformBlock for NoUniforms {
-    const FIELDS: &'static [UniformField] = &[];
 }

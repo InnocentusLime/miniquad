@@ -1,8 +1,16 @@
 use std::fmt::Debug;
 
-use bytemuck::Pod;
+use bytemuck::{Pod, Zeroable};
 use glam::{IVec2, IVec3, IVec4, Mat4, Vec2, Vec3, Vec4};
 use glow::HasContext;
+
+#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[repr(C)]
+pub struct NoUniforms;
+
+impl UniformBlock for NoUniforms {
+    const FIELDS: &'static [UniformField] = &[];
+}
 
 #[macro_export]
 macro_rules! uniform_of {

@@ -87,7 +87,7 @@ impl Stage {
                 vertex_buffer: &self.batcher.vertices,
                 index_buffer: &self.batcher.indicies,
                 images: &[],
-                uniforms: &util::NoUniforms,
+                uniforms: &NoUniforms,
             });
         });
     }
@@ -101,7 +101,7 @@ impl PipelineMeta for Meta {
 
     const IMAGES_NAMES: &[&str; 0] = &[];
     type Images = [Texture2D; 0];
-    type Vertex = miniquad::util::BasicVertex;
-    type Uniforms = miniquad::util::NoUniforms;
+    type Vertex = util::BasicVertex;
+    type Uniforms = NoUniforms;
     const PARAMS: PipelineParams = default_pipeline_params();
 }

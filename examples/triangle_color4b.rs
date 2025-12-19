@@ -61,7 +61,7 @@ impl Stage {
                 vertex_buffer: &self.vertices,
                 index_buffer: &self.indicies,
                 images: &[],
-                uniforms: &util::NoUniforms,
+                uniforms: &NoUniforms,
             });
         });
     }
@@ -90,6 +90,6 @@ impl PipelineMeta for Meta {
     const IMAGES_NAMES: &[&str; 0] = &[];
     type Images = [Texture2D; 0];
     type Vertex = TriangleVertex;
-    type Uniforms = util::NoUniforms;
+    type Uniforms = NoUniforms;
     const PARAMS: PipelineParams = default_pipeline_params();
 }
