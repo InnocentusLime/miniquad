@@ -43,7 +43,7 @@ impl ShapeBatcher {
             base_element: 0,
             num_elements,
             vertex_buffer: &self.0.vertices,
-            index_buffer: self.0.indicies.bind(),
+            index_buffer: &self.0.indicies,
             images: &[],
             uniforms: &BasicPipelineUniforms { view_projection },
         });

@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use std::rc::Rc;
+use std::{fmt::Debug, marker::PhantomData};
 
 use bytemuck::Pod;
 use glow::HasContext;
@@ -69,15 +69,6 @@ impl<T: VertexIndex> IndexBuffer<T> {
         };
         self.ctx.check_no_gl_error();
     }
-
-    pub fn bind(&self) -> IndexBufferBinding<'_> {
-        IndexBufferBinding {
-            sz_elem: std::mem::size_of::<T>() as i32,
-            gl_type: T::GL_TYPE,
-            gl_buf: self.gl_buf,
-            _phantom: PhantomData,
-        }
-    }
 }
 
 impl<T: VertexIndex> Drop for IndexBuffer<T> {
@@ -92,15 +83,7 @@ impl<T: VertexIndex> Drop for IndexBuffer<T> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct IndexBufferBinding<'a> {
-    pub(crate) sz_elem: i32,
-    pub(crate) gl_type: u32,
-    pub(crate) gl_buf: glow::Buffer,
-    _phantom: PhantomData<&'a glow::Buffer>,
-}
-
-pub trait VertexIndex: Pod {
+pub trait VertexIndex: Pod + Debug {
     const GL_TYPE: u32;
 
     fn offset_by(self, off: usize) -> Self;

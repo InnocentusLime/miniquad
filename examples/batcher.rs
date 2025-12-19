@@ -85,7 +85,7 @@ impl Stage {
                 base_element: 0,
                 num_elements,
                 vertex_buffer: &self.batcher.vertices,
-                index_buffer: self.batcher.indicies.bind(),
+                index_buffer: &self.batcher.indicies,
                 images: &[],
                 uniforms: &util::NoUniforms,
             });

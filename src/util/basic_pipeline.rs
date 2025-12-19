@@ -2,7 +2,8 @@ use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
 use crate::{
-    default_pipeline_params, uniform_of, util::BasicVertex, PipelineMeta, PipelineParams, Texture2D, UniformBlock, UniformField
+    PipelineMeta, PipelineParams, Texture2D, UniformBlock, UniformField, default_pipeline_params,
+    uniform_of, util::BasicVertex,
 };
 
 pub struct BasicPipelineMeta;

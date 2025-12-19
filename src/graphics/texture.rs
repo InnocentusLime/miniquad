@@ -1,5 +1,5 @@
-use std::rc::Rc;
 use std::cell::Cell;
+use std::rc::Rc;
 
 use glow::{HasContext, PixelUnpackData};
 use image::DynamicImage;

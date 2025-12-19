@@ -4,7 +4,8 @@ use std::rc::Rc;
 
 use crate::graphics::{GlContext, PipelineParams, PrimitiveType};
 use crate::{
-    apply_attributes_impl, apply_uniforms_impl, ImagesBlock, IndexBufferBinding, Texture2D, UniformBlock, UniformField, Vertex, VertexBuffer, VertexField
+    ImagesBlock, IndexBuffer, Texture2D, UniformBlock, UniformField, Vertex, VertexBuffer,
+    VertexField, VertexIndex, apply_attributes_impl, apply_uniforms_impl,
 };
 
 use glow::HasContext;
@@ -39,10 +40,10 @@ impl<M: PipelineMeta> Pipeline<M> {
         self.raw.params.primitive_type
     }
 
-    pub(crate) fn apply<'a>(
+    pub(crate) fn apply<'a, I: VertexIndex>(
         &'a self,
         vertex_buffer: &'a VertexBuffer<M::Vertex>,
-        index_buffer: IndexBufferBinding,
+        index_buffer: &'a IndexBuffer<I>,
         images: <M::Images as ImagesBlock>::Borrow<'a>,
         uniforms: &'a M::Uniforms,
     ) {

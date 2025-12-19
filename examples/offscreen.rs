@@ -148,7 +148,7 @@ impl Stage {
                 base_element: 0,
                 num_elements: 36,
                 vertex_buffer: &self.vertices_cube,
-                index_buffer: self.indicies_cube.bind(),
+                index_buffer: &self.indicies_cube,
                 images: &[],
                 uniforms: &Uniforms {
                     mvp: view_proj * model,
@@ -164,7 +164,7 @@ impl Stage {
                 base_element: 0,
                 num_elements: 36,
                 vertex_buffer: &self.vertices_display_cube,
-                index_buffer: self.indicies_cube.bind(),
+                index_buffer: &self.indicies_cube,
                 images: &[&self.offscreen_pass.color_attachments()[0]],
                 uniforms: &Uniforms {
                     mvp: view_proj * model,

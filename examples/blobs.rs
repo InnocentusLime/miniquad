@@ -133,7 +133,7 @@ impl Stage {
                 base_element: 0,
                 num_elements: 6,
                 vertex_buffer: &self.vertices,
-                index_buffer: self.indicies.bind(),
+                index_buffer: &self.indicies,
                 images: &[],
                 uniforms: &self.uniforms,
             });

@@ -179,7 +179,7 @@ impl Stage {
                 base_element: 0,
                 num_elements: 36,
                 vertex_buffer: &self.vertices_cube,
-                index_buffer: self.indicies_cube.bind(),
+                index_buffer: &self.indicies_cube,
                 images: &[],
                 uniforms: &OffscreenUniforms {
                     mvp: view_proj * model,
@@ -195,7 +195,7 @@ impl Stage {
                 base_element: 0,
                 num_elements: 6,
                 vertex_buffer: &self.vertices_quad,
-                index_buffer: self.indicies_quad.bind(),
+                index_buffer: &self.indicies_quad,
                 images: &[&self.offscreen_pass.color_attachments()[0]],
                 uniforms: &PostProcessingUniforms {
                     resolution: vec2(width, height),

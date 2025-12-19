@@ -99,7 +99,7 @@ impl Stage {
                     base_element: 0,
                     num_elements: 6,
                     vertex_buffer: &self.vertices,
-                    index_buffer: self.indicies.bind(),
+                    index_buffer: &self.indicies,
                     images: &[texture],
                     uniforms: &Uniforms {
                         offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5),

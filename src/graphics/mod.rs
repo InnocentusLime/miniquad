@@ -121,7 +121,11 @@ impl GlContext {
         RenderPass::new(self.clone(), color_img, depth_img)
     }
 
-    pub fn draw<'a, M: PipelineMeta>(&'a self, drawcall: DrawCall<'a, M>) {
+    pub fn draw<'a, M, I>(&'a self, drawcall: DrawCall<'a, M, I>)
+    where
+        M: PipelineMeta,
+        I: VertexIndex,
+    {
         drawcall.pipeline.apply(
             drawcall.vertex_buffer,
             drawcall.index_buffer,
@@ -129,7 +133,8 @@ impl GlContext {
             drawcall.uniforms,
         );
 
-        let offset = drawcall.index_buffer.sz_elem * (drawcall.base_element as i32);
+        let sz_elem = std::mem::size_of::<I>() as i32;
+        let offset = sz_elem * drawcall.base_element as i32;
         let mode = match drawcall.pipeline.primitive_type() {
             PrimitiveType::Triangles => glow::TRIANGLES,
             PrimitiveType::Lines => glow::LINES,
@@ -140,7 +145,7 @@ impl GlContext {
             self.gl.draw_elements_instanced(
                 mode,
                 drawcall.num_elements as i32,
-                drawcall.index_buffer.gl_type,
+                I::GL_TYPE,
                 offset,
                 1,
             );
@@ -172,12 +177,12 @@ impl Drop for GlContext {
     }
 }
 
-pub struct DrawCall<'a, M: PipelineMeta> {
+pub struct DrawCall<'a, M: PipelineMeta, I: VertexIndex = u16> {
     pub pipeline: &'a Pipeline<M>,
     pub base_element: u32,
     pub num_elements: u32,
     pub vertex_buffer: &'a VertexBuffer<M::Vertex>,
-    pub index_buffer: IndexBufferBinding<'a>,
+    pub index_buffer: &'a IndexBuffer<I>,
     pub images: <M::Images as ImagesBlock>::Borrow<'a>,
     pub uniforms: &'a M::Uniforms,
 }
