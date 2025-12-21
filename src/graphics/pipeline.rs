@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
+use crate::GLSL_VERSION;
 use crate::graphics::{GlContext, PipelineParams, PrimitiveType};
 use crate::{
     ImagesBlock, IndexBuffer, Texture2D, UniformBlock, UniformField, Vertex, VertexBuffer,
@@ -122,10 +123,13 @@ impl PipelineRaw {
         attributes: &[VertexField],
         uniforms: &[UniformField],
     ) -> PipelineRaw {
-        let vertex = compile_shader(&ctx.gl, glow::VERTEX_SHADER, "vertex shader", vertex);
+        let vertex = format!("{GLSL_VERSION}\n{vertex}");
+        let fragment = format!("{GLSL_VERSION}\n{fragment}");
+
+        let vertex = compile_shader(&ctx.gl, glow::VERTEX_SHADER, "vertex shader", &vertex);
         tracing::debug!(target: TARGET_NAME, "compiled vertex shader: {vertex:?}");
 
-        let fragment = compile_shader(&ctx.gl, glow::FRAGMENT_SHADER, "fragment shader", fragment);
+        let fragment = compile_shader(&ctx.gl, glow::FRAGMENT_SHADER, "fragment shader", &fragment);
         tracing::debug!(target: TARGET_NAME, "compiled fragment shader: {fragment:?}");
 
         let gl_prog = create_program(&ctx.gl, vertex, fragment);

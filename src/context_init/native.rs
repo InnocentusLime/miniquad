@@ -17,6 +17,8 @@ use winit::dpi::PhysicalSize;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::Window;
 
+pub const GLSL_VERSION: &str = "#version 330 core";
+
 pub fn start_app<T>(event_loop: EventLoop<T>, mut app: impl ApplicationHandler<T> + 'static) {
     event_loop.run_app(&mut app).expect("failed to run app");
 }

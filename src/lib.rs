@@ -10,6 +10,7 @@ pub mod util;
 
 pub use bytemuck::zeroed;
 
+pub use context_init::GLSL_VERSION;
 pub use fs::*;
 pub use graphics::*;
 pub use web_time::*;
