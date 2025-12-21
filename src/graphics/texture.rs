@@ -1,6 +1,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use glam::{uvec2, UVec2};
 use glow::{HasContext, PixelUnpackData};
 use image::DynamicImage;
 use image::metadata::Orientation;
@@ -165,8 +166,8 @@ impl Texture2D {
         }
     }
 
-    pub fn size(&self, width: u32, height: u32) -> usize {
-        self.format.size(width, height) as usize
+    pub fn data_size(&self) -> usize {
+        self.format.data_size(self.width(), self.height()) as usize
     }
 
     pub fn generate_mipmaps(&self) {
@@ -175,6 +176,10 @@ impl Texture2D {
         unsafe {
             self.ctx.gl.generate_mipmap(glow::TEXTURE_2D);
         }
+    }
+
+    pub fn size(&self) -> UVec2 {
+        uvec2(self.width(), self.height())
     }
 
     pub fn width(&self) -> u32 {
@@ -209,7 +214,7 @@ pub enum Texture2DFormat {
 
 impl Texture2DFormat {
     /// Returns the size in bytes of texture with `dimensions`.
-    pub fn size(self, width: u32, height: u32) -> u32 {
+    pub fn data_size(self, width: u32, height: u32) -> u32 {
         let square = width * height;
         match self {
             Texture2DFormat::RGB8 => 3 * square,
