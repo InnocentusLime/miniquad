@@ -3,6 +3,7 @@
 
 use core::f32;
 use glam::{Affine2, Mat4, uvec2, vec2};
+use miniquad::util::SpriteBatcher;
 use miniquad::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
@@ -55,7 +56,7 @@ impl EventHandler for Stage {
         fs_server.submit_task("assets/GB-Tileset.png", 0);
 
         let pipeline = ctx.new_pipeline();
-        let batcher = util::SpriteBatcher::new_from_size(&ctx, 20);
+        let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000);
 
         Stage {
             start: Instant::now(),
@@ -94,6 +95,8 @@ impl Stage {
                     0.0,
                     100.0,
                 );
+                put_tilemap(&mut self.batcher);
+
                 self.batcher.add_sprite(util::Sprite {
                     tex_rect_pos: uvec2(48, 192),
                     tex_rect_size: uvec2(16, 16),
@@ -116,5 +119,41 @@ impl Stage {
                 self.batcher
                     .draw(&self.ctx, view_projection, &self.pipeline, texture);
             });
+    }
+}
+
+fn put_tilemap(batcher: &mut SpriteBatcher) {
+    let tiles = [
+        util::Sprite {
+            tex_rect_pos: uvec2(32, 192),
+            tex_rect_size: uvec2(16, 16),
+            color: WHITE,
+            transform: Affine2::IDENTITY,
+        },
+        util::Sprite {
+            tex_rect_pos: uvec2(32, 176),
+            tex_rect_size: uvec2(16, 16),
+            color: WHITE,
+            transform: Affine2::IDENTITY,
+        },
+        util::Sprite {
+            tex_rect_pos: uvec2(16, 176),
+            tex_rect_size: uvec2(16, 16),
+            color: WHITE,
+            transform: Affine2::IDENTITY,
+        },
+    ];
+
+    let side = 16;
+    for x in 0..side {
+        for y in 0..side {
+            batcher.add_sprite(util::Sprite {
+                transform: Affine2::from_translation(vec2(
+                    x as f32 * 16.0 + 8.0,
+                    y as f32 * 16.0 + 8.0,
+                )),
+                ..tiles[(x ^ 6 * y) % 3]
+            });
+        }
     }
 }
