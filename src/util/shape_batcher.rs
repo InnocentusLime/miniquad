@@ -31,6 +31,7 @@ impl ShapeBatcher {
         self.0.finish()
     }
 
+    #[track_caller]
     pub fn basic_draw(
         &mut self,
         ctx: &GlContext,
