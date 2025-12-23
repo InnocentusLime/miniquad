@@ -121,6 +121,7 @@ impl GlContext {
         RenderPass::new(self.clone(), color_img, depth_img)
     }
 
+    #[track_caller]
     pub fn draw<'a, M, I>(&'a self, drawcall: DrawCall<'a, M, I>)
     where
         M: PipelineMeta,
