@@ -27,6 +27,11 @@ impl<M: PipelineMeta> Pipeline<M> {
             std::mem::size_of::<M::Vertex>(),
             "vertex layout mismatch",
         );
+        debug_assert_eq!(
+            Self::sz_uni_fields(),
+            std::mem::size_of::<M::Uniforms>(),
+            "uniform layout mismatch",
+        );
 
         let raw = PipelineRaw::new(
             ctx,
@@ -85,6 +90,16 @@ impl<M: PipelineMeta> Pipeline<M> {
         let mut idx = 0;
         while idx < M::Vertex::LAYOUT.len() {
             res += M::Vertex::LAYOUT[idx].sz;
+            idx += 1;
+        }
+        res
+    }
+
+    const fn sz_uni_fields() -> usize {
+        let mut res = 0;
+        let mut idx = 0;
+        while idx < M::Uniforms::FIELDS.len() {
+            res += M::Uniforms::FIELDS[idx].sz;
             idx += 1;
         }
         res
