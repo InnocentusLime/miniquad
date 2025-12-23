@@ -1,0 +1,120 @@
+//! A simple rendering example, similar to quad, but instead
+//! loads an image from file, using file loading capabilities.
+
+use core::f32;
+use glam::{Affine2, Mat4, uvec2, vec2};
+use miniquad::*;
+use std::rc::Rc;
+use winit::event::WindowEvent;
+use winit::window::Window;
+
+fn main() {
+    miniquad::run::<Stage>(Conf {
+        fs_root: "examples/".into(),
+        ..Conf::default()
+    });
+}
+
+struct Stage {
+    start: Instant,
+    ctx: Rc<GlContext>,
+    _fs_server: FsServerHandle,
+
+    pipeline: Pipeline<util::BasicSpritePipelineMeta>,
+    batcher: util::SpriteBatcher,
+    texture: Option<Texture2D>,
+}
+
+impl EventHandler for Stage {
+    fn update(&mut self) {}
+
+    fn window_event(&mut self, event: WindowEvent, _window: &Window) {
+        match event {
+            WindowEvent::RedrawRequested => self.draw(),
+            _ => (),
+        }
+    }
+
+    fn file_ready(&mut self, event: FileReady) {
+        let Ok(bytes) = event.bytes_result else {
+            return;
+        };
+        let img = image::load_from_memory(&bytes).expect("Image load failed");
+        self.texture = Some(self.ctx.new_texture(
+            img,
+            Texture2DParams {
+                internal_format: Texture2DFormat::RGBA8,
+                wrap: TextureWrap::Clamp,
+                min_filter: FilterMode::Nearest,
+                mag_filter: FilterMode::Nearest,
+            },
+        ));
+    }
+
+    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Stage {
+        fs_server.submit_task("assets/GB-Tileset.png", 0);
+
+        let pipeline = ctx.new_pipeline();
+        let batcher = util::SpriteBatcher::new_from_size(&ctx, 20);
+
+        Stage {
+            start: Instant::now(),
+            batcher,
+            pipeline,
+            _fs_server: fs_server,
+            texture: None,
+            ctx,
+        }
+    }
+}
+
+impl Stage {
+    fn draw(&mut self) {
+        let t = Instant::now().duration_since(self.start).as_secs_f32();
+
+        let Some(texture) = self.texture.as_ref() else {
+            return;
+        };
+
+        let char_x = 16.0 + (t.sin() + 1.0) * 0.5 * 48.0;
+        let saw_x = t * 3.0;
+        let saw = 4.0 * (saw_x.fract() - 0.5).abs() - 1.0;
+        let char_tf = Affine2::from_angle_translation(
+            saw * f32::consts::FRAC_PI_6 * t.cos(),
+            vec2(char_x, 24.0),
+        );
+
+        self.ctx
+            .default_pass(Clear::depth_color(BLACK), |width, height| {
+                let view_projection = Mat4::orthographic_rh_gl(
+                    0.0,
+                    width as f32 / 8.0,
+                    height as f32 / 8.0,
+                    0.0,
+                    0.0,
+                    100.0,
+                );
+                self.batcher.add_sprite(util::Sprite {
+                    tex_rect_pos: uvec2(48, 192),
+                    tex_rect_size: uvec2(16, 16),
+                    color: WHITE,
+                    transform: Affine2::from_translation(vec2(16.0, 16.0)),
+                });
+                self.batcher.add_sprite(util::Sprite {
+                    tex_rect_pos: uvec2(64, 208),
+                    tex_rect_size: uvec2(17, 16),
+                    color: WHITE,
+                    transform: Affine2::from_translation(vec2(64.0, 16.0)),
+                });
+
+                self.batcher.add_sprite(util::Sprite {
+                    tex_rect_pos: uvec2(64, 48),
+                    tex_rect_size: uvec2(16, 16),
+                    color: WHITE,
+                    transform: char_tf,
+                });
+                self.batcher
+                    .draw(&self.ctx, view_projection, &self.pipeline, texture);
+            });
+    }
+}

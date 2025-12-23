@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use glam::{uvec2, UVec2};
+use glam::{UVec2, uvec2};
 use glow::{HasContext, PixelUnpackData};
 use image::DynamicImage;
 use image::metadata::Orientation;

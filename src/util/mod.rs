@@ -2,11 +2,13 @@ mod basic_pipeline;
 mod geometry_batcher;
 mod input;
 mod shape_batcher;
+mod sprite_batcher;
 
 pub use basic_pipeline::*;
 pub use geometry_batcher::*;
 pub use input::*;
 pub use shape_batcher::*;
+pub use sprite_batcher::*;
 
 use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
