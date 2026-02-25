@@ -8,7 +8,8 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::Window;
 
-pub const GLSL_VERSION: &str = "#version 300 es";
+// WebGL does not have a default precision mode. We must specify it explicitly.
+pub const GLSL_VERSION: &str = "#version 300 es\nprecision mediump float;";
 
 pub fn start_app<T>(event_loop: EventLoop<T>, app: impl ApplicationHandler<T> + 'static) {
     event_loop.spawn_app(app);
