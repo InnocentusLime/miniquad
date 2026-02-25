@@ -66,7 +66,9 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         match &mut self.state {
             AppState::Boot => self.init(event_loop),
-            AppState::Ready { .. } => unimplemented!("Restoring of applications is not supported"),
+            AppState::Ready { .. } => {
+                tracing::info!(target: TARGET_NAME, "the application has been restored");
+            }
         }
     }
 
