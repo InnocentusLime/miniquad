@@ -1,22 +1,22 @@
 //! Draws a bunch of shapes with the shape batcher.
 
 use glam::{Mat4, vec2};
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    mimiq::run::<App>(Conf::default());
 }
 
-struct Stage {
+struct App {
     start: Instant,
     pipeline: Pipeline<util::BasicPipelineMeta>,
     batcher: util::ShapeBatcher,
     ctx: Rc<GlContext>,
 }
 
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
@@ -26,11 +26,11 @@ impl EventHandler for Stage {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
         let batcher = util::ShapeBatcher::new_from_size(&ctx, 20_000, 20_000);
         let pipeline = ctx.new_pipeline();
 
-        Stage {
+        App {
             pipeline,
             batcher,
             ctx,
@@ -39,7 +39,7 @@ impl EventHandler for Stage {
     }
 }
 
-impl Stage {
+impl App {
     pub fn draw(&mut self) {
         let t = Instant::now().duration_since(self.start).as_secs_f32();
 

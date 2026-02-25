@@ -5,16 +5,16 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
 use image::RgbaImage;
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    mimiq::run::<App>(Conf::default());
 }
 
-struct Stage {
+struct App {
     start: Instant,
     ctx: Rc<GlContext>,
 
@@ -24,7 +24,7 @@ struct Stage {
     texture: Texture2D,
 }
 
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
@@ -34,7 +34,7 @@ impl EventHandler for Stage {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             ImgVertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },
@@ -62,7 +62,7 @@ impl EventHandler for Stage {
 
         let pipeline = ctx.new_pipeline();
 
-        Stage {
+        App {
             pipeline,
             vertices,
             indicies,
@@ -73,7 +73,7 @@ impl EventHandler for Stage {
     }
 }
 
-impl Stage {
+impl App {
     fn draw(&mut self) {
         let t = Instant::now().duration_since(self.start).as_secs_f32();
 

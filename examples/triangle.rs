@@ -6,23 +6,23 @@
 
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    mimiq::run::<App>(Conf::default());
 }
 
-struct Stage {
+struct App {
     pipeline: Pipeline<Meta>,
     vertices: VertexBuffer<TriangleVertex>,
     indicies: IndexBuffer,
     ctx: Rc<GlContext>,
 }
 
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
@@ -32,7 +32,7 @@ impl EventHandler for Stage {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             TriangleVertex { pos: vec2(-0.5, -0.5), color: RED },
@@ -42,7 +42,7 @@ impl EventHandler for Stage {
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[0, 1, 2]);
         let pipeline = ctx.new_pipeline();
 
-        Stage {
+        App {
             pipeline,
             indicies,
             vertices,
@@ -51,7 +51,7 @@ impl EventHandler for Stage {
     }
 }
 
-impl Stage {
+impl App {
     pub fn draw(&mut self) {
         self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
             self.ctx.draw(DrawCall {

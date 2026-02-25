@@ -6,16 +6,16 @@
 
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::window::Window;
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    mimiq::run::<App>(Conf::default());
 }
 
-struct Stage {
+struct App {
     mouse_pos: Vec2,
     pipeline: Pipeline<Meta>,
     vertices: VertexBuffer<BlobVertex>,
@@ -27,7 +27,7 @@ struct Stage {
     last_frame: Instant,
 }
 
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {
         let new_frame = Instant::now();
         let delta = new_frame.duration_since(self.last_frame).as_secs_f32();
@@ -61,7 +61,7 @@ impl EventHandler for Stage {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             BlobVertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },
@@ -85,7 +85,7 @@ impl EventHandler for Stage {
         };
 
         let time = Instant::now();
-        Stage {
+        App {
             pipeline,
             vertices,
             indicies,
@@ -99,7 +99,7 @@ impl EventHandler for Stage {
     }
 }
 
-impl Stage {
+impl App {
     fn mouse_motion_event(&mut self, pos: Vec2) {
         self.mouse_pos = pos;
         let Vec2 { x, y } = self.mouse_pos;

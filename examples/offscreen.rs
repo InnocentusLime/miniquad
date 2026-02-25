@@ -4,16 +4,16 @@
 
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    mimiq::run::<App>(Conf::default());
 }
 
-struct Stage {
+struct App {
     vertices_display_cube: VertexBuffer<CubeDisplayVert>,
     vertices_cube: VertexBuffer<CubeVert>,
     indicies_cube: IndexBuffer,
@@ -25,7 +25,7 @@ struct Stage {
     ctx: Rc<GlContext>,
 }
 
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {
         self.rx += 0.01;
         self.ry += 0.03;
@@ -38,7 +38,7 @@ impl EventHandler for Stage {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
         let color_img = ctx.new_empty_texture(
             256,
             256,
@@ -114,7 +114,7 @@ impl EventHandler for Stage {
         let display_pipeline = ctx.new_pipeline();
         let offscreen_pipeline = ctx.new_pipeline();
 
-        Stage {
+        App {
             vertices_cube,
             vertices_display_cube,
             indicies_cube,
@@ -128,7 +128,7 @@ impl EventHandler for Stage {
     }
 }
 
-impl Stage {
+impl App {
     pub fn draw(&mut self) {
         let (width, height) = self.ctx.screen_size();
         let (width, height) = (width as f32, height as f32);

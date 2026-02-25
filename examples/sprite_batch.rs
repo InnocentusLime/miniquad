@@ -3,20 +3,20 @@
 
 use core::f32;
 use glam::{Affine2, Mat4, uvec2, vec2};
-use miniquad::util::SpriteBatcher;
-use miniquad::*;
+use mimiq::util::SpriteBatcher;
+use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    miniquad::run::<Stage>(Conf {
+    mimiq::run::<App>(Conf {
         fs_root: "examples/".into(),
         ..Conf::default()
     });
 }
 
-struct Stage {
+struct App {
     start: Instant,
     ctx: Rc<GlContext>,
     _fs_server: FsServerHandle,
@@ -26,7 +26,7 @@ struct Stage {
     texture: Option<Texture2D>,
 }
 
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
@@ -52,13 +52,13 @@ impl EventHandler for Stage {
         ));
     }
 
-    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> App {
         fs_server.submit_task("assets/GB-Tileset.png", 0);
 
         let pipeline = ctx.new_pipeline();
         let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000);
 
-        Stage {
+        App {
             start: Instant::now(),
             batcher,
             pipeline,
@@ -69,7 +69,7 @@ impl EventHandler for Stage {
     }
 }
 
-impl Stage {
+impl App {
     fn draw(&mut self) {
         let t = Instant::now().duration_since(self.start).as_secs_f32();
 

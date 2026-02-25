@@ -3,19 +3,19 @@
 
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    miniquad::run::<Stage>(Conf {
+    mimiq::run::<App>(Conf {
         fs_root: "examples/".into(),
         ..Conf::default()
     });
 }
 
-struct Stage {
+struct App {
     start: Instant,
     ctx: Rc<GlContext>,
     _fs_server: FsServerHandle,
@@ -26,7 +26,7 @@ struct Stage {
     texture: Option<Texture2D>,
 }
 
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
@@ -52,7 +52,7 @@ impl EventHandler for Stage {
         ));
     }
 
-    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Stage {
+    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> App {
         fs_server.submit_task("assets/ferris.png", 0);
 
         #[rustfmt::skip]
@@ -71,7 +71,7 @@ impl EventHandler for Stage {
 
         let pipeline = ctx.new_pipeline();
 
-        Stage {
+        App {
             pipeline,
             _fs_server: fs_server,
             vertices,
@@ -83,7 +83,7 @@ impl EventHandler for Stage {
     }
 }
 
-impl Stage {
+impl App {
     fn draw(&mut self) {
         let t = Instant::now().duration_since(self.start).as_secs_f32();
 

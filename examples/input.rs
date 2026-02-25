@@ -1,7 +1,7 @@
 //! Opens a fullscreen window with green screen.
-//! The title of that should be "miniquad".
+//! The title of that should be "mimiq".
 
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use winit::{
     event::{MouseButton, WindowEvent},
@@ -9,14 +9,14 @@ use winit::{
 };
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    mimiq::run::<App>(Conf::default());
 }
 
-struct Stage {
+struct App {
     ctx: Rc<GlContext>,
     input: util::InputTracker,
 }
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {
         let key = KeyCode::KeyA;
         let button = MouseButton::Left;
@@ -60,7 +60,7 @@ impl EventHandler for Stage {
     }
 
     fn init(ctx: Rc<GlContext>, _fs_server: FsServerHandle) -> Self {
-        Stage {
+        App {
             ctx,
             input: util::InputTracker::new(),
         }

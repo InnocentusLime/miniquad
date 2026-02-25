@@ -1,13 +1,13 @@
 [package]
-name = "miniquad"
-version = "0.4.8"
-authors = ["not-fl3 <not.fl3@gmail.com>"]
+name = "mimiq"
+version = "0.1.0"
+authors = ["InnocentusLime <innocentuslime.help@gmail.com>", "not-fl3 <not.fl3@gmail.com>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-homepage = "https://github.com/not-fl3/miniquad"
-repository = "https://github.com/not-fl3/miniquad"
+homepage = "https://github.com/innocentuslime/miniquad"
+repository = "https://github.com/innocentuslime/miniquad"
 description = """
-Cross-platform window context and rendering library.
+A thin OpenGL+winit wrapper for quickly making apps, inspired by miniquad
 """
 readme = "README.md"
 exclude = ["examples/"]
@@ -18,29 +18,29 @@ categories = ["rendering::graphics-api"]
 egui = ["dep:egui", "dep:egui_glow"]
 
 [dependencies]
-image = { version = "0.25.9", features = ["png"], default-features = false }
-web-time = "1.1.0" # Okay to make it a global dep. It just falls back to std
-tracing = "0.1.43"
+image = { version = "0.25", features = ["png"], default-features = false }
+web-time = "1.1" # Okay to make it a global dep. It just falls back to std
+tracing = "0.1"
 anyhow = "1"
-winit = { version = "0.30.12", features = ["rwh_06"] }
-glow = "0.16.0"
-bytemuck = { version = "1.24.0", features = ["const_zeroed", "min_const_generics"] }
-glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
-tracing-subscriber = { version = "0.3.2", features = ["env-filter", "registry"] }
+winit = { version = "0.30", features = ["rwh_06"] }
+glow = "0.16"
+bytemuck = { version = "1.24", features = ["const_zeroed", "min_const_generics"] }
+glam = { version = "0.30", features = ["scalar-math", "bytemuck"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
 # Opt
-egui_glow = { version = "0.33.2", features = ["winit"], optional = true }
-egui = { version = "0.33.2", optional = true }
+egui_glow = { version = "0.33", features = ["winit"], optional = true }
+egui = { version = "0.33", optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-glutin = "0.32.3"
-glutin-winit = "0.5.0"
-raw-window-handle = "0.6.2"
+glutin = "0.32"
+glutin-winit = "0.5"
+raw-window-handle = "0.6"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
-web-sys = { version = "0.3.83", features = ["Response", "Location"] }
-wasm-bindgen = "0.2.106"
-tracing-web = "0.1.3"
-console_error_panic_hook = "0.1.7"
+web-sys = { version = "0.3", features = ["Response", "Location"] }
+wasm-bindgen = "0.2"
+tracing-web = "0.1"
+console_error_panic_hook = "0.1"
 
 [dev-dependencies]
 quad-rand = "0.1"

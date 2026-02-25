@@ -1,19 +1,19 @@
 //! Demonstrates how to handle raw winit events.
 //! Press some keys and use your mouse to see some logs!
 
-use miniquad::*;
+use mimiq::*;
 use std::rc::Rc;
 use tracing::info;
 use winit::event::WindowEvent;
 
 fn main() {
-    miniquad::run::<Stage>(Conf::default());
+    mimiq::run::<App>(Conf::default());
 }
 
-struct Stage {
+struct App {
     ctx: Rc<GlContext>,
 }
-impl EventHandler for Stage {
+impl EventHandler for App {
     fn update(&mut self) {}
 
     fn window_event(&mut self, event: winit::event::WindowEvent, _window: &winit::window::Window) {
@@ -38,6 +38,6 @@ impl EventHandler for Stage {
     }
 
     fn init(ctx: Rc<GlContext>, _fs_server: FsServerHandle) -> Self {
-        Stage { ctx }
+        App { ctx }
     }
 }
