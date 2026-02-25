@@ -111,6 +111,7 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
             handler,
             platform,
             gl_context,
+            #[cfg(feature = "egui")]
             egui_glow,
             ..
         } = &mut self.state
@@ -118,10 +119,12 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
             return;
         };
 
+        #[cfg(feature = "egui")]
         let _ = egui_glow.on_window_event(window, &event);
         if matches!(event, WindowEvent::RedrawRequested) {
             gl_context.recapture_gl();
             handler.window_event(event, window);
+            #[cfg(feature = "egui")]
             egui_glow.paint(window);
 
             tracing::trace!(target: TARGET_NAME, "finish_frame");
@@ -138,6 +141,7 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
         let AppState::Ready {
             window,
             handler,
+            #[cfg(feature = "egui")]
             egui_glow,
             ..
         } = &mut self.state
@@ -146,6 +150,7 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
         };
 
         handler.update();
+        #[cfg(feature = "egui")]
         egui_glow.run(window, |egui_ctx| handler.egui(egui_ctx));
 
         window.request_redraw();
@@ -163,6 +168,7 @@ impl<T: EventHandler> App<T> {
         let gl_context = Rc::new(GlContext::new(glow.clone(), (800, 600)));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
+        #[cfg(feature = "egui")]
         let egui_glow = Box::new(egui_glow::EguiGlow::new(
             event_loop,
             glow.clone(),
@@ -177,6 +183,7 @@ impl<T: EventHandler> App<T> {
             platform,
             gl_context,
             handler,
+            #[cfg(feature = "egui")]
             egui_glow,
         }
     }
@@ -184,11 +191,17 @@ impl<T: EventHandler> App<T> {
 
 impl<T> Drop for App<T> {
     fn drop(&mut self) {
-        let AppState::Ready { egui_glow, .. } = &mut self.state else {
-            return;
-        };
-        egui_glow.destroy();
+        #[cfg(feature = "egui")]
+        egui_drop(self);
     }
+}
+
+#[cfg(feature = "egui")]
+fn egui_drop<T>(app: &mut App<T>) {
+    let AppState::Ready { egui_glow, .. } = &mut app.state else {
+        return;
+    };
+    egui_glow.destroy();
 }
 
 enum AppState<T> {
@@ -197,6 +210,7 @@ enum AppState<T> {
         window: Window,
         platform: PlatformContext,
         gl_context: Rc<GlContext>,
+        #[cfg(feature = "egui")]
         egui_glow: Box<egui_glow::EguiGlow>,
         handler: T,
     },
@@ -270,6 +284,7 @@ pub trait EventHandler: 'static {
     /// Note that in this case drawing from update may lead to crashes.
     fn update(&mut self);
 
+    #[cfg(feature = "egui")]
     fn egui(&mut self, _egui_ctx: &egui::Context) {}
 
     fn window_event(&mut self, event: WindowEvent, window: &Window);

@@ -14,6 +14,9 @@ exclude = ["examples/"]
 keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
+[features]
+egui = ["dep:egui", "dep:egui_glow"]
+
 [dependencies]
 image = { version = "0.25.9", features = ["png"], default-features = false }
 web-time = "1.1.0" # Okay to make it a global dep. It just falls back to std
@@ -24,8 +27,9 @@ glow = "0.16.0"
 bytemuck = { version = "1.24.0", features = ["const_zeroed", "min_const_generics"] }
 glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
 tracing-subscriber = { version = "0.3.2", features = ["env-filter", "registry"] }
-egui_glow = { version = "0.33.2", features = ["winit"] }
-egui = "0.33.2"
+# Opt
+egui_glow = { version = "0.33.2", features = ["winit"], optional = true }
+egui = { version = "0.33.2", optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 glutin = "0.32.3"
@@ -44,3 +48,8 @@ glam = { version = "0.30.9", features = ["scalar-math", "bytemuck"] }
 tracing = "0.1.43"
 quad-rand = "0.1"
 egui = "0.33.2"
+
+[[example]]
+name = "egui"
+path = "examples/egui.rs"
+required-features = ["egui"]
