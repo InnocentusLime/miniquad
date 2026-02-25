@@ -37,8 +37,7 @@ pub fn run<T: EventHandler>(conf: Conf) {
     #[cfg(target_family = "wasm")]
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
-    let filter = EnvFilter::builder().parse_lossy("debug");
-    tracing_init::init_tracing_subscriber(filter);
+    tracing_init::init_tracing_subscriber(conf.filter.clone());
     tracing::info!(target: TARGET_NAME, conf=?conf, "starting");
 
     let event_loop = EventLoop::<FileReady>::with_user_event().build().unwrap();
