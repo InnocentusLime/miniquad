@@ -9,5 +9,5 @@ uniform vec2 width_height;
 void main() {
     vec2 finuv = v_texcoord / width_height;
     finuv.y = 1.0 - finuv.y;
-    f_color = v_color * texture2D(tex, finuv);
+    f_color = v_color * texture(tex, finuv);
 }
