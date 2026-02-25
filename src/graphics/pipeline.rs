@@ -65,7 +65,6 @@ impl<M: PipelineMeta> Pipeline<M> {
             "image inputs mismatch",
         );
 
-        #[cfg(debug_assertions)]
         tracing::trace!(
             target: TARGET_NAME,
             gl_prog = ?self.raw.gl_prog,
