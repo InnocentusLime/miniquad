@@ -20,7 +20,7 @@ egui = ["dep:egui", "dep:egui_glow"]
 [dependencies]
 image = { version = "0.25", features = ["png"], default-features = false }
 web-time = "1.1" # Okay to make it a global dep. It just falls back to std
-tracing = "0.1"
+tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_info"] }
 anyhow = "1"
 winit = { version = "0.30", features = ["rwh_06"] }
 glow = "0.16"
