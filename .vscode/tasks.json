@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run webapp",
+            "type": "shell",
+            "command": "docker",
+            "problemMatcher": [],
+            "args": [
+                "run",
+                "--rm",
+                "-p", 
+                "8080:80",
+                "--name", 
+                "mimiqex", 
+                "mimiqex",
+            ],
+            "dependsOn": ["Docker prune"]
+        },
+        {
+            "label": "Docker prune",
+            "type": "shell",
+            "command": "docker",
+            "args": ["image", "prune", "-f"],
+            "dependsOn": ["Build webapp image"]
+        },
+        {
+            "label": "Build webapp image",
+            "type": "shell",
+            "command": "docker",
+            "problemMatcher": [],
+            "args": ["build", "-t", "mimiqex", "."]
+        }
+    ]
+}

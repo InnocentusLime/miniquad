@@ -2,4 +2,4 @@
 /dist
 **/*.rs.bk
 Cargo.lock
-/.vscode
+/.vscode/settings.json
