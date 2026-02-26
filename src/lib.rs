@@ -24,7 +24,7 @@ use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::{Icon, Window, WindowAttributes};
 
 use crate::context_init::*;
@@ -40,17 +40,18 @@ pub fn run<T: EventHandler>(conf: Conf) {
     tracing_init::init_tracing_subscriber(conf.filter.clone());
     tracing::info!(target: TARGET_NAME, conf=?conf, "starting");
 
-    let event_loop = EventLoop::<FileReady>::with_user_event().build().unwrap();
+    let event_loop = EventLoop::<AppEvent>::with_user_event().build().unwrap();
     let proxy = event_loop.create_proxy();
     event_loop.set_control_flow(ControlFlow::Poll);
 
     start_app(
         event_loop,
         App::<T> {
-            fs_server: FsServer::start(proxy, conf.fs_root.clone()),
+            fs_server: FsServer::start(proxy.clone(), conf.fs_root.clone()),
             conf,
             state: AppState::Boot,
             last_update: Instant::now(),
+            proxy,
         },
     );
 }
@@ -60,23 +61,32 @@ struct App<T> {
     fs_server: FsServer,
     state: AppState<T>,
     last_update: Instant,
+    proxy: EventLoopProxy<AppEvent>,
 }
 
-impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
+impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         match &mut self.state {
-            AppState::Boot => self.init(event_loop),
+            AppState::Boot => self.init(event_loop, self.proxy.clone()),
             AppState::Ready { .. } => {
                 tracing::info!(target: TARGET_NAME, "the application has been restored");
             }
         }
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: FileReady) {
-        let AppState::Ready { handler, .. } = &mut self.state else {
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: AppEvent) {
+        let AppState::Ready {
+            window, handler, ..
+        } = &mut self.state
+        else {
             return;
         };
-        handler.file_ready(event);
+        match event {
+            AppEvent::FileReady(event) => handler.file_ready(event),
+            AppEvent::NewSize(size) => {
+                let _ = window.request_inner_size(size.0);
+            }
+        }
     }
 
     fn window_event(
@@ -163,8 +173,8 @@ impl<T: EventHandler> ApplicationHandler<FileReady> for App<T> {
 }
 
 impl<T: EventHandler> App<T> {
-    fn init(&mut self, event_loop: &ActiveEventLoop) {
-        let (window, platform) = create_ctx_and_window(event_loop, &self.conf);
+    fn init(&mut self, event_loop: &ActiveEventLoop, proxy: EventLoopProxy<AppEvent>) {
+        let (window, platform) = create_ctx_and_window(event_loop, proxy, &self.conf);
         let glow = Arc::new(platform.make_glow_context(self.conf.is_debug));
         let gl_context = Rc::new(GlContext::new(glow.clone(), (800, 600)));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
@@ -289,4 +299,11 @@ pub trait EventHandler: 'static {
     fn egui(&mut self, _egui_ctx: &egui::Context) {}
 
     fn window_event(&mut self, event: WindowEvent, window: &Window);
+}
+
+#[derive(Debug)]
+pub(crate) enum AppEvent {
+    FileReady(FileReady),
+    #[allow(dead_code)]
+    NewSize(NewSize),
 }

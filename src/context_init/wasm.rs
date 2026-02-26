@@ -1,10 +1,17 @@
-use crate::Conf;
+use crate::context_init::NewSize;
+use crate::{AppEvent, Conf};
 
+use wasm_bindgen::JsValue;
+use wasm_bindgen::convert::TryFromJsValue;
+use wasm_bindgen::prelude::{Closure, ScopedClosure};
+use web_sys::js_sys::{Array, Function};
 use web_sys::wasm_bindgen::JsCast;
-use web_sys::{HtmlCanvasElement, WebGl2RenderingContext};
+use web_sys::{
+    Element, HtmlCanvasElement, ResizeObserver, ResizeObserverEntry, WebGl2RenderingContext,
+};
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::platform::web::{EventLoopExtWebSys, WindowAttributesExtWebSys};
 use winit::window::Window;
 
@@ -17,6 +24,7 @@ pub fn start_app<T>(event_loop: EventLoop<T>, app: impl ApplicationHandler<T> + 
 
 pub fn create_ctx_and_window(
     event_loop: &ActiveEventLoop,
+    proxy: EventLoopProxy<AppEvent>,
     conf: &Conf,
 ) -> (Window, PlatformContext) {
     let webgl_canvas = get_canvas();
@@ -26,6 +34,7 @@ pub fn create_ctx_and_window(
         .expect("failed to create window");
 
     make_window_occupy_page(&window);
+    spawn_size_observer(proxy);
     let webgl_context = get_canvas_webgl2_context(&webgl_canvas);
 
     (
@@ -48,19 +57,47 @@ fn get_canvas() -> HtmlCanvasElement {
         .expect("app_canvas element is not a canvas")
 }
 
-// FIXME: hacky and doesn't respond to element size changes
 fn make_window_occupy_page(gl_window: &Window) {
     let window = web_sys::window().expect("\"window\" not found");
     let document = window.document().expect("window has no \"document\"");
     let document = document
         .document_element()
         .expect("document has not document element");
+    let size = get_parent_element_size(&document);
+    let _ = gl_window.request_inner_size(size);
+}
+
+fn spawn_size_observer(proxy: EventLoopProxy<AppEvent>) {
+    let window = web_sys::window().expect("\"window\" not found");
+    let document = window.document().expect("window has no \"document\"");
+    let document = document
+        .document_element()
+        .expect("document has not document element");
+    let callback_closure: ScopedClosure<'static, dyn FnMut(JsValue, JsValue)> =
+        Closure::new(move |entries: JsValue, _observer: JsValue| {
+            let arr = Array::from(&entries);
+            let entry = arr.get(0);
+            let entry =
+                ResizeObserverEntry::try_from_js_value(entry).expect("not an observer entry");
+            let parent = entry.target();
+            let sz = get_parent_element_size(&parent);
+            let _ = proxy.send_event(AppEvent::NewSize(NewSize(sz)));
+        });
+    let callback = Function::from_closure(callback_closure);
+    let observer = ResizeObserver::new(&callback).expect("failed to create the size observer");
+    observer.observe(&document);
+
+    std::mem::forget(callback);
+}
+
+fn get_parent_element_size(parent: &Element) -> PhysicalSize<u32> {
+    let window = web_sys::window().expect("\"window\" not found");
     let dpi = window.device_pixel_ratio();
     let (width, height) = (
-        (document.client_width() as f64 * dpi).round(),
-        (document.client_height() as f64 * dpi).round(),
+        (parent.client_width() as f64 * dpi).round(),
+        (parent.client_height() as f64 * dpi).round(),
     );
-    let _ = gl_window.request_inner_size(PhysicalSize::new(width as u32, height as u32));
+    PhysicalSize::new(width as u32, height as u32)
 }
 
 fn get_canvas_webgl2_context(webgl_canvas: &HtmlCanvasElement) -> WebGl2RenderingContext {

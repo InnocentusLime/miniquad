@@ -1,3 +1,5 @@
+use crate::AppEvent;
+
 use super::{FileReady, TARGET_NAME};
 
 use std::path::PathBuf;
@@ -39,7 +41,7 @@ pub(crate) struct FsServer {
 }
 
 impl FsServer {
-    pub(crate) fn start(event_loop_proxy: EventLoopProxy<FileReady>, fs_root: PathBuf) -> FsServer {
+    pub(crate) fn start(event_loop_proxy: EventLoopProxy<AppEvent>, fs_root: PathBuf) -> FsServer {
         let (snd, rcv) = channel();
         let worker_thread = spawn(move || {
             fs_server_worker(rcv, event_loop_proxy);
@@ -59,7 +61,7 @@ impl FsServer {
     }
 }
 
-fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<FileReady>) {
+fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent>) {
     while let Ok(task) = task_queue.recv() {
         let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path).map_err(Into::into);
         match &file_content {
@@ -75,10 +77,10 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<FileRead
             ),
         }
 
-        let send_res = proxy.send_event(FileReady {
+        let send_res = proxy.send_event(AppEvent::FileReady(FileReady {
             user_id: task.user_id,
             bytes_result: file_content,
-        });
+        }));
         if send_res.is_err() {
             tracing::debug!(target: TARGET_NAME, "terminating: event loop closed");
         }

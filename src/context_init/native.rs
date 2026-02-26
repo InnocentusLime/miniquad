@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use crate::Conf;
+use crate::{AppEvent, Conf};
 
 use glow::HasContext;
 use glutin::config::{Api, Config, ConfigTemplateBuilder};
@@ -14,7 +14,7 @@ use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasWindowHandle;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
 pub const GLSL_VERSION: &str = "#version 330 core";
@@ -25,6 +25,7 @@ pub fn start_app<T>(event_loop: EventLoop<T>, mut app: impl ApplicationHandler<T
 
 pub fn create_ctx_and_window(
     event_loop: &ActiveEventLoop,
+    _proxy: EventLoopProxy<AppEvent>,
     conf: &Conf,
 ) -> (Window, PlatformContext) {
     let (window, gl_display, gl_config) = create_window_and_gl_config(event_loop, conf);

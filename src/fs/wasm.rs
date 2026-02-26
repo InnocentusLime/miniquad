@@ -1,5 +1,7 @@
 use std::{path::PathBuf, str::FromStr};
 
+use crate::AppEvent;
+
 use super::{FileReady, TARGET_NAME};
 
 use wasm_bindgen::prelude::*;
@@ -8,7 +10,7 @@ use winit::event_loop::EventLoopProxy;
 
 pub struct FsServerHandle {
     page_url: PathBuf,
-    event_loop_proxy: EventLoopProxy<FileReady>,
+    event_loop_proxy: EventLoopProxy<AppEvent>,
 }
 
 impl FsServerHandle {
@@ -37,14 +39,11 @@ impl FsServerHandle {
 
 pub(crate) struct FsServer {
     page_url: PathBuf,
-    event_loop_proxy: EventLoopProxy<FileReady>,
+    event_loop_proxy: EventLoopProxy<AppEvent>,
 }
 
 impl FsServer {
-    pub(crate) fn start(
-        event_loop_proxy: EventLoopProxy<FileReady>,
-        _fs_root: PathBuf,
-    ) -> FsServer {
+    pub(crate) fn start(event_loop_proxy: EventLoopProxy<AppEvent>, _fs_root: PathBuf) -> FsServer {
         let window = web_sys::window().expect("\"window\" not found");
         let page_url = window
             .location()
@@ -70,7 +69,7 @@ impl FsServer {
     }
 }
 
-fn fetch_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<FileReady>) {
+fn fetch_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<AppEvent>) {
     tracing::debug!(
         target: TARGET_NAME,
         user_id=user_id,
@@ -83,10 +82,10 @@ fn fetch_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<FileReady>) 
             "{e:?}"
         );
         proxy
-            .send_event(FileReady {
+            .send_event(AppEvent::FileReady(FileReady {
                 user_id,
                 bytes_result: Err(e),
-            })
+            }))
             .expect("Loop died");
     }
 }
@@ -94,7 +93,7 @@ fn fetch_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<FileReady>) 
 fn fetch_handler_impl(
     val: JsValue,
     user_id: u64,
-    proxy: EventLoopProxy<FileReady>,
+    proxy: EventLoopProxy<AppEvent>,
 ) -> anyhow::Result<()> {
     let response = match val.dyn_into::<web_sys::Response>() {
         Ok(x) => x,
@@ -117,7 +116,7 @@ fn fetch_handler_impl(
     Ok(())
 }
 
-fn array_buffer_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<FileReady>) {
+fn array_buffer_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<AppEvent>) {
     tracing::info!(
         target: TARGET_NAME,
         user_id=user_id,
@@ -125,10 +124,10 @@ fn array_buffer_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<FileR
     );
     let bytes = Uint8Array::new(&val).to_vec();
     proxy
-        .send_event(FileReady {
+        .send_event(AppEvent::FileReady(FileReady {
             user_id,
             bytes_result: Ok(bytes),
-        })
+        }))
         .expect("Loop died");
 }
 
