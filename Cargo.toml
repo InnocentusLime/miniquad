@@ -49,3 +49,11 @@ quad-rand = "0.1"
 name = "egui"
 path = "examples/egui.rs"
 required-features = ["egui"]
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+codegen-units = 1
+lto = "thin"
+strip = true
+panic = "abort"
