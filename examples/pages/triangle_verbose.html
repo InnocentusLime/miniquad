@@ -38,8 +38,8 @@
     <canvas id="app_canvas" tabindex='1'>
     </canvas>
     <script type="module">
-        import { initSync } from "/triangle_verbose.js";
-        fetch("triangle_verbose_bg.wasm")
+        import { initSync } from "./triangle_verbose.js";
+        fetch("./triangle_verbose_bg.wasm")
             .then((response) => response.arrayBuffer())
             .then((bytes) => initSync({module: bytes}));
     </script>

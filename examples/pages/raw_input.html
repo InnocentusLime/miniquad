@@ -38,8 +38,8 @@
     <canvas id="app_canvas" tabindex='1'>
     </canvas>
     <script type="module">
-        import { initSync } from "/raw_input.js";
-        fetch("raw_input_bg.wasm")
+        import { initSync } from "./raw_input.js";
+        fetch("./raw_input_bg.wasm")
             .then((response) => response.arrayBuffer())
             .then((bytes) => initSync({module: bytes}));
     </script>

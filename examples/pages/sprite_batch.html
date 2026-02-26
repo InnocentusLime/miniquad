@@ -38,8 +38,8 @@
     <canvas id="app_canvas" tabindex='1'>
     </canvas>
     <script type="module">
-        import { initSync } from "/sprite_batch.js";
-        fetch("sprite_batch_bg.wasm")
+        import { initSync } from "./sprite_batch.js";
+        fetch("./sprite_batch_bg.wasm")
             .then((response) => response.arrayBuffer())
             .then((bytes) => initSync({module: bytes}));
     </script>

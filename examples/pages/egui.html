@@ -38,8 +38,8 @@
     <canvas id="app_canvas" tabindex='1'>
     </canvas>
     <script type="module">
-        import { initSync } from "/egui.js";
-        fetch("egui_bg.wasm")
+        import { initSync } from "./egui.js";
+        fetch("./egui_bg.wasm")
             .then((response) => response.arrayBuffer())
             .then((bytes) => initSync({module: bytes}));
     </script>
