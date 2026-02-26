@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use super::{FileReady, TARGET_NAME};
 
@@ -7,7 +7,7 @@ use web_sys::js_sys::{JSON, Uint8Array};
 use winit::event_loop::EventLoopProxy;
 
 pub struct FsServerHandle {
-    page_url: String,
+    page_url: PathBuf,
     event_loop_proxy: EventLoopProxy<FileReady>,
 }
 
@@ -23,7 +23,7 @@ impl FsServerHandle {
         let window = web_sys::window().expect("\"window\" not found");
         let proxy = self.event_loop_proxy.clone();
         let then_callback = Closure::new(move |val| fetch_handler(val, user_id, &proxy));
-        let url = format!("{}{path}", self.page_url);
+        let url = self.page_url.join(path).to_string_lossy().into_owned();
 
         tracing::debug!(
             target: TARGET_NAME,
@@ -36,7 +36,7 @@ impl FsServerHandle {
 }
 
 pub(crate) struct FsServer {
-    page_url: String,
+    page_url: PathBuf,
     event_loop_proxy: EventLoopProxy<FileReady>,
 }
 
@@ -50,6 +50,12 @@ impl FsServer {
             .location()
             .pathname()
             .expect("Could not get location.pathname");
+        let mut page_url = PathBuf::from_str(&page_url).expect("Page url parse");
+        if let Some(ext) = page_url.extension()
+            && ext == "html"
+        {
+            page_url.pop();
+        }
         FsServer {
             page_url,
             event_loop_proxy,
