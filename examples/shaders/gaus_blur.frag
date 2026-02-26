@@ -3,6 +3,8 @@ in vec2 texcoord;
 uniform sampler2D tex;
 uniform vec2 resolution;
 
+out vec4 f_color;
+
 // Source: https://github.com/Jam3/glsl-fast-gaussian-blur/blob/master/5.glsl
 vec4 blur5(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
     vec4 color = vec4(0.0);
@@ -14,5 +16,5 @@ vec4 blur5(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
 }
 
 void main() {
-    gl_FragColor = blur5(tex, texcoord, resolution, vec2(3.0));
+    f_color = blur5(tex, texcoord, resolution, vec2(3.0));
 }
