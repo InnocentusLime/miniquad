@@ -23,7 +23,7 @@ use glow::HasContext;
 use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::WindowEvent;
+use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::{Icon, Window, WindowAttributes};
 
@@ -50,7 +50,6 @@ pub fn run<T: EventHandler>(conf: Conf) {
             fs_server: FsServer::start(proxy.clone(), conf.fs_root.clone()),
             conf,
             state: AppState::Boot,
-            last_update: Instant::now(),
             proxy,
         },
     );
@@ -60,7 +59,6 @@ struct App<T> {
     conf: Conf,
     fs_server: FsServer,
     state: AppState<T>,
-    last_update: Instant,
     proxy: EventLoopProxy<AppEvent>,
 }
 
@@ -71,6 +69,39 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
             AppState::Ready { .. } => {
                 tracing::info!(target: TARGET_NAME, "the application has been restored");
             }
+        }
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+        match cause {
+            StartCause::ResumeTimeReached {
+                requested_resume, ..
+            } => {
+                let tick_duration = self.tick_duration();
+                event_loop
+                    .set_control_flow(ControlFlow::WaitUntil(requested_resume + tick_duration));
+
+                let AppState::Ready {
+                    window,
+                    handler,
+                    #[cfg(feature = "egui")]
+                    egui_glow,
+                    ..
+                } = &mut self.state
+                else {
+                    return;
+                };
+
+                handler.update(tick_duration);
+
+                #[cfg(feature = "egui")]
+                egui_glow.run(window, |egui_ctx| handler.egui(egui_ctx));
+                window.request_redraw();
+            }
+            StartCause::Init => event_loop.set_control_flow(ControlFlow::WaitUntil(
+                Instant::now() + self.tick_duration(),
+            )),
+            _ => (),
         }
     }
 
@@ -147,29 +178,6 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
             handler.window_event(event, window);
         }
     }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let AppState::Ready {
-            window,
-            handler,
-            #[cfg(feature = "egui")]
-            egui_glow,
-            ..
-        } = &mut self.state
-        else {
-            return;
-        };
-
-        handler.update();
-        #[cfg(feature = "egui")]
-        egui_glow.run(window, |egui_ctx| handler.egui(egui_ctx));
-
-        window.request_redraw();
-        event_loop.set_control_flow(ControlFlow::WaitUntil(
-            self.last_update + Duration::from_millis(16),
-        ));
-        self.last_update = Instant::now();
-    }
 }
 
 impl<T: EventHandler> App<T> {
@@ -197,6 +205,10 @@ impl<T: EventHandler> App<T> {
             #[cfg(feature = "egui")]
             egui_glow,
         }
+    }
+
+    fn tick_duration(&self) -> Duration {
+        Duration::from_secs(1) / self.conf.target_tickrate
     }
 }
 
@@ -245,6 +257,7 @@ pub struct Conf {
     /// Do not use the filter to disable debug! and trace! events altogether.
     /// Use tracing macros for setting max level instead
     pub filter: EnvFilter,
+    pub target_tickrate: u32,
 }
 
 impl Default for Conf {
@@ -254,6 +267,7 @@ impl Default for Conf {
             window_attributes: default_window_attributes(),
             fs_root: PathBuf::new(),
             filter: default_log_filter(),
+            target_tickrate: 60,
         }
     }
 }
@@ -293,7 +307,7 @@ pub trait EventHandler: 'static {
     /// When the app is in background, Android destroys the rendering surface,
     /// while app is still alive and can do some usefull calculations.
     /// Note that in this case drawing from update may lead to crashes.
-    fn update(&mut self);
+    fn update(&mut self, dt: Duration);
 
     #[cfg(feature = "egui")]
     fn egui(&mut self, _egui_ctx: &egui::Context) {}

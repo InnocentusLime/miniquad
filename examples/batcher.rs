@@ -16,14 +16,16 @@ fn main() {
 }
 
 struct App {
-    start: Instant,
+    total_time: Duration,
     pipeline: Pipeline<Meta>,
     batcher: GeometryBatcher<BasicVertex>,
     ctx: Rc<GlContext>,
 }
 
 impl EventHandler for App {
-    fn update(&mut self) {}
+    fn update(&mut self, dt: Duration) {
+        self.total_time += dt;
+    }
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
         match event {
@@ -40,14 +42,14 @@ impl EventHandler for App {
             pipeline,
             batcher,
             ctx,
-            start: Instant::now(),
+            total_time: Duration::ZERO,
         }
     }
 }
 
 impl App {
     pub fn draw(&mut self) {
-        let t = Instant::now().duration_since(self.start).as_secs_f32();
+        let t = self.total_time.as_secs_f32();
         let dr = vec2(t.cos(), t.sin());
 
         #[rustfmt::skip]

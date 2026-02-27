@@ -23,15 +23,13 @@ struct App {
     uniforms: Uniforms,
     blobs_velocities: [(f32, f32); 32],
     ctx: Rc<GlContext>,
-    start: Instant,
-    last_frame: Instant,
+    total_time: Duration,
 }
 
 impl EventHandler for App {
-    fn update(&mut self) {
-        let new_frame = Instant::now();
-        let delta = new_frame.duration_since(self.last_frame).as_secs_f32();
-        self.last_frame = new_frame;
+    fn update(&mut self, dt: Duration) {
+        let delta = dt.as_secs_f32();
+        self.total_time += dt;
 
         for i in 1..self.uniforms.blobs_count as usize {
             self.uniforms.blobs_positions[i].x += self.blobs_velocities[i].0 * delta * 0.1;
@@ -84,7 +82,6 @@ impl EventHandler for App {
             blobs_positions: [vec2(0., 0.); 32],
         };
 
-        let time = Instant::now();
         App {
             pipeline,
             vertices,
@@ -93,8 +90,7 @@ impl EventHandler for App {
             mouse_pos: Vec2::ZERO,
             blobs_velocities: [(0., 0.); 32],
             ctx,
-            last_frame: time,
-            start: time,
+            total_time: Duration::ZERO,
         }
     }
 }
@@ -126,7 +122,7 @@ impl App {
     }
 
     fn draw(&mut self) {
-        self.uniforms.time = self.last_frame.duration_since(self.start).as_secs_f32();
+        self.uniforms.time = self.total_time.as_secs_f32();
         self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
             self.ctx.draw(DrawCall {
                 pipeline: &self.pipeline,

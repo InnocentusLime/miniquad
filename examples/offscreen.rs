@@ -26,9 +26,9 @@ struct App {
 }
 
 impl EventHandler for App {
-    fn update(&mut self) {
-        self.rx += 0.01;
-        self.ry += 0.03;
+    fn update(&mut self, dt: Duration) {
+        self.rx += 0.6 * dt.as_secs_f32();
+        self.ry += 1.8 * dt.as_secs_f32();
     }
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {

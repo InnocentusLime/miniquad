@@ -27,7 +27,7 @@ struct App {
 }
 
 impl EventHandler for App {
-    fn update(&mut self) {}
+    fn update(&mut self, _dt: Duration) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
         match event {

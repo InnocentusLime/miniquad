@@ -19,7 +19,7 @@ struct App {
     ctx: Rc<GlContext>,
 }
 impl EventHandler for App {
-    fn update(&mut self) {}
+    fn update(&mut self, _dt: Duration) {}
 
     fn window_event(&mut self, event: winit::event::WindowEvent, _window: &winit::window::Window) {
         if matches!(event, WindowEvent::RedrawRequested) {

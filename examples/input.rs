@@ -17,7 +17,7 @@ struct App {
     input: util::InputTracker,
 }
 impl EventHandler for App {
-    fn update(&mut self) {
+    fn update(&mut self, _dt: Duration) {
         let key = KeyCode::KeyA;
         let button = MouseButton::Left;
 
