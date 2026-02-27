@@ -17,7 +17,7 @@ fn main() {
 }
 
 struct App {
-    start: Instant,
+    total_time: Duration,
     ctx: Rc<GlContext>,
     _fs_server: FsServerHandle,
 
@@ -27,7 +27,9 @@ struct App {
 }
 
 impl EventHandler for App {
-    fn update(&mut self) {}
+    fn update(&mut self, dt: Duration) {
+        self.total_time += dt;
+    }
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
         match event {
@@ -59,7 +61,7 @@ impl EventHandler for App {
         let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000);
 
         App {
-            start: Instant::now(),
+            total_time: Duration::ZERO,
             batcher,
             pipeline,
             _fs_server: fs_server,
@@ -71,7 +73,7 @@ impl EventHandler for App {
 
 impl App {
     fn draw(&mut self) {
-        let t = Instant::now().duration_since(self.start).as_secs_f32();
+        let t = self.total_time.as_secs_f32();
 
         let Some(texture) = self.texture.as_ref() else {
             return;

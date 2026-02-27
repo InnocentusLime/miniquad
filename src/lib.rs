@@ -23,7 +23,7 @@ use glow::HasContext;
 use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::WindowEvent;
+use winit::event::{StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::{Icon, Window, WindowAttributes};
 
@@ -47,20 +47,20 @@ pub fn run<T: EventHandler>(conf: Conf) {
     start_app(
         event_loop,
         App::<T> {
+            last_tick: Instant::now(),
             fs_server: FsServer::start(proxy.clone(), conf.fs_root.clone()),
             conf,
             state: AppState::Boot,
-            last_update: Instant::now(),
             proxy,
         },
     );
 }
 
 struct App<T> {
+    last_tick: Instant,
     conf: Conf,
     fs_server: FsServer,
     state: AppState<T>,
-    last_update: Instant,
     proxy: EventLoopProxy<AppEvent>,
 }
 
@@ -71,6 +71,13 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
             AppState::Ready { .. } => {
                 tracing::info!(target: TARGET_NAME, "the application has been restored");
             }
+        }
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
+        match cause {
+            StartCause::Init => event_loop.set_control_flow(ControlFlow::Wait),
+            _ => (),
         }
     }
 
@@ -133,6 +140,12 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
         #[cfg(feature = "egui")]
         let _ = egui_glow.on_window_event(window, &event);
         if matches!(event, WindowEvent::RedrawRequested) {
+            let new_tick = Instant::now();
+            let dt = new_tick - self.last_tick;
+            self.last_tick = new_tick;
+
+            handler.update(dt);
+
             gl_context.recapture_gl();
             handler.window_event(event, window);
             #[cfg(feature = "egui")]
@@ -143,32 +156,17 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
                 gl_context.gl.finish();
             }
             platform.swap_buffers();
+
+            // NOTE: This is the best thing we can do for WASM.
+            //       The problem is that using WaitUntil allocates extra memory and
+            //       also doesn't let us to fully go in-sync with monitor FPS.
+            //       For a game a stable 60FPS is more valuable than shaking between 55 and 50.
+            //       Because of that we keep the loop in Wait mode and re-issue request_redraw.
+            //       Callers get the frame delta-time between frames and can decide at what rate to update.
+            window.request_redraw();
         } else {
             handler.window_event(event, window);
         }
-    }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let AppState::Ready {
-            window,
-            handler,
-            #[cfg(feature = "egui")]
-            egui_glow,
-            ..
-        } = &mut self.state
-        else {
-            return;
-        };
-
-        handler.update();
-        #[cfg(feature = "egui")]
-        egui_glow.run(window, |egui_ctx| handler.egui(egui_ctx));
-
-        window.request_redraw();
-        event_loop.set_control_flow(ControlFlow::WaitUntil(
-            self.last_update + Duration::from_millis(16),
-        ));
-        self.last_update = Instant::now();
     }
 }
 
@@ -197,6 +195,10 @@ impl<T: EventHandler> App<T> {
             #[cfg(feature = "egui")]
             egui_glow,
         }
+    }
+
+    fn tick_duration(&self) -> Duration {
+        Duration::from_secs(1) / self.conf.target_tickrate
     }
 }
 
@@ -245,6 +247,7 @@ pub struct Conf {
     /// Do not use the filter to disable debug! and trace! events altogether.
     /// Use tracing macros for setting max level instead
     pub filter: EnvFilter,
+    pub target_tickrate: u32,
 }
 
 impl Default for Conf {
@@ -254,6 +257,7 @@ impl Default for Conf {
             window_attributes: default_window_attributes(),
             fs_root: PathBuf::new(),
             filter: default_log_filter(),
+            target_tickrate: 60,
         }
     }
 }
@@ -293,7 +297,7 @@ pub trait EventHandler: 'static {
     /// When the app is in background, Android destroys the rendering surface,
     /// while app is still alive and can do some usefull calculations.
     /// Note that in this case drawing from update may lead to crashes.
-    fn update(&mut self);
+    fn update(&mut self, dt: Duration);
 
     #[cfg(feature = "egui")]
     fn egui(&mut self, _egui_ctx: &egui::Context) {}
