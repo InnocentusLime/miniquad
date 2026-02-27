@@ -25,6 +25,7 @@ RUN <<EOF
     cargo build --example triangle_verbose --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example triangle --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example window_conf --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example timing --target wasm32-unknown-unknown --profile wasm-release
     wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/basic_img.wasm
     wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/batcher.wasm
     wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/blobs.wasm
@@ -40,6 +41,7 @@ RUN <<EOF
     wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/triangle_verbose.wasm
     wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/triangle.wasm
     wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/window_conf.wasm
+    wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/timing.wasm
 EOF
 
 FROM httpd:trixie 
