@@ -88,7 +88,7 @@ impl EventHandler for App {
 
 impl App {
     fn draw(&mut self) {
-        let t = Instant::now().duration_since(self.start).as_secs_f32();
+        let t = self.total_time.as_secs_f32();
 
         let Some(texture) = self.texture.as_ref() else {
             return;
