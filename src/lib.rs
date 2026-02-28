@@ -196,10 +196,6 @@ impl<T: EventHandler> App<T> {
             egui_glow,
         }
     }
-
-    fn tick_duration(&self) -> Duration {
-        Duration::from_secs(1) / self.conf.target_tickrate
-    }
 }
 
 impl<T> Drop for App<T> {
@@ -247,7 +243,6 @@ pub struct Conf {
     /// Do not use the filter to disable debug! and trace! events altogether.
     /// Use tracing macros for setting max level instead
     pub filter: EnvFilter,
-    pub target_tickrate: u32,
 }
 
 impl Default for Conf {
@@ -257,7 +252,6 @@ impl Default for Conf {
             window_attributes: default_window_attributes(),
             fs_root: PathBuf::new(),
             filter: default_log_filter(),
-            target_tickrate: 60,
         }
     }
 }
