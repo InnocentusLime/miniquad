@@ -134,6 +134,11 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
             let dt = new_tick - self.last_tick;
             self.last_tick = new_tick;
 
+            #[cfg(feature = "egui")]
+            egui_glow.run(&window, |egui_ctx| {
+                handler.egui(egui_ctx);
+            });
+
             handler.update(dt);
 
             gl_context.recapture_gl();
