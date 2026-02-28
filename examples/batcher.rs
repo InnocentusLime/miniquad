@@ -38,12 +38,7 @@ impl EventHandler for App {
         let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50);
         let pipeline = ctx.new_pipeline();
 
-        App {
-            pipeline,
-            batcher,
-            ctx,
-            total_time: Duration::ZERO,
-        }
+        App { pipeline, batcher, ctx, total_time: Duration::ZERO }
     }
 }
 

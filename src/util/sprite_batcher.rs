@@ -47,10 +47,7 @@ impl SpriteBatcher {
 
         // Texcoords
         let tex_top_left = sprite.tex_rect_pos.as_vec2();
-        let Vec2 {
-            x: tex_width,
-            y: tex_height,
-        } = sprite.tex_rect_size.as_vec2();
+        let Vec2 { x: tex_width, y: tex_height } = sprite.tex_rect_size.as_vec2();
 
         // (-1.0, 1.0)
         let p1 = center - horizontal + vertical;
@@ -66,26 +63,10 @@ impl SpriteBatcher {
         let t4 = tex_top_left;
 
         let vertices = &[
-            SpriteVertex {
-                pos: p1,
-                texcoord: t1,
-                color,
-            },
-            SpriteVertex {
-                pos: p2,
-                texcoord: t2,
-                color,
-            },
-            SpriteVertex {
-                pos: p3,
-                texcoord: t3,
-                color,
-            },
-            SpriteVertex {
-                pos: p4,
-                texcoord: t4,
-                color,
-            },
+            SpriteVertex { pos: p1, texcoord: t1, color },
+            SpriteVertex { pos: p2, texcoord: t2, color },
+            SpriteVertex { pos: p3, texcoord: t3, color },
+            SpriteVertex { pos: p4, texcoord: t4, color },
         ];
 
         self.0.extend(vertices, INDICIES);

@@ -55,10 +55,7 @@ impl FsServer {
         {
             page_url.pop();
         }
-        FsServer {
-            page_url,
-            event_loop_proxy,
-        }
+        FsServer { page_url, event_loop_proxy }
     }
 
     pub fn get_handle(&self) -> FsServerHandle {

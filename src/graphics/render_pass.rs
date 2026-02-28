@@ -72,12 +72,7 @@ impl RenderPass {
         }
 
         ctx.check_no_gl_error();
-        RenderPass {
-            ctx,
-            gl_fb,
-            color_textures: color_img,
-            depth_texture: depth_img,
-        }
+        RenderPass { ctx, gl_fb, color_textures: color_img, depth_texture: depth_img }
     }
 
     pub fn color_attachments(&self) -> &[Texture2D] {
@@ -209,17 +204,9 @@ pub struct Clear {
 }
 
 impl Clear {
-    pub const NOTHING: Clear = Clear {
-        color: None,
-        depth: None,
-        stencil: None,
-    };
+    pub const NOTHING: Clear = Clear { color: None, depth: None, stencil: None };
 
     pub const fn depth_color(color: Color) -> Clear {
-        Clear {
-            color: Some(color),
-            depth: Some(1.),
-            stencil: None,
-        }
+        Clear { color: Some(color), depth: Some(1.), stencil: None }
     }
 }

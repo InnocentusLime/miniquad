@@ -21,12 +21,7 @@ impl<V: Vertex, I: VertexIndex> GeometryBatcher<V, I> {
     pub fn new(vertices: VertexBuffer<V>, indicies: IndexBuffer<I>) -> Self {
         let client_vertices = Vec::with_capacity(vertices.size());
         let client_indicies = Vec::with_capacity(indicies.size());
-        GeometryBatcher {
-            vertices,
-            indicies,
-            client_vertices,
-            client_indicies,
-        }
+        GeometryBatcher { vertices, indicies, client_vertices, client_indicies }
     }
 
     #[track_caller]

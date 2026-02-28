@@ -28,12 +28,7 @@ impl<T: VertexIndex> IndexBuffer<T> {
             );
         }
         ctx.check_no_gl_error();
-        IndexBuffer {
-            ctx,
-            gl_buf,
-            size,
-            _phantom: PhantomData,
-        }
+        IndexBuffer { ctx, gl_buf, size, _phantom: PhantomData }
     }
 
     pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> IndexBuffer<T> {
@@ -44,12 +39,7 @@ impl<T: VertexIndex> IndexBuffer<T> {
                 .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, super::gl_usage(usage));
         }
         ctx.check_no_gl_error();
-        IndexBuffer {
-            ctx,
-            gl_buf,
-            size: data.len(),
-            _phantom: PhantomData,
-        }
+        IndexBuffer { ctx, gl_buf, size: data.len(), _phantom: PhantomData }
     }
 
     pub fn size(&self) -> usize {

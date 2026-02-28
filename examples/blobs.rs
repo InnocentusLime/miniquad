@@ -76,11 +76,7 @@ impl EventHandler for App {
 
         let pipeline = ctx.new_pipeline();
 
-        let uniforms = Uniforms {
-            time: 0.,
-            blobs_count: 1,
-            blobs_positions: [vec2(0., 0.); 32],
-        };
+        let uniforms = Uniforms { time: 0., blobs_count: 1, blobs_positions: [vec2(0., 0.); 32] };
 
         App {
             pipeline,
@@ -145,10 +141,8 @@ pub struct BlobVertex {
 }
 
 impl Vertex for BlobVertex {
-    const LAYOUT: &'static [VertexField] = &[
-        attribute_of!(BlobVertex, pos),
-        attribute_of!(BlobVertex, uv),
-    ];
+    const LAYOUT: &'static [VertexField] =
+        &[attribute_of!(BlobVertex, pos), attribute_of!(BlobVertex, uv)];
 }
 
 // based on: https://www.shadertoy.com/view/XsS3DV

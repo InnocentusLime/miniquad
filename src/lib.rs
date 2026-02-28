@@ -82,10 +82,7 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: AppEvent) {
-        let AppState::Ready {
-            window, handler, ..
-        } = &mut self.state
-        else {
+        let AppState::Ready { window, handler, .. } = &mut self.state else {
             return;
         };
         match event {
@@ -104,14 +101,7 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
     ) {
         match (&event, &self.state) {
             (WindowEvent::CloseRequested, _) => event_loop.exit(),
-            (
-                WindowEvent::Resized(new_size),
-                AppState::Ready {
-                    platform,
-                    gl_context,
-                    ..
-                },
-            ) => {
+            (WindowEvent::Resized(new_size), AppState::Ready { platform, gl_context, .. }) => {
                 tracing::debug!(
                     target: TARGET_NAME,
                     width=new_size.width,

@@ -46,18 +46,11 @@ impl FsServer {
         let worker_thread = spawn(move || {
             fs_server_worker(rcv, event_loop_proxy);
         });
-        FsServer {
-            _worker_thread: worker_thread,
-            task_queue: snd,
-            fs_root,
-        }
+        FsServer { _worker_thread: worker_thread, task_queue: snd, fs_root }
     }
 
     pub fn get_handle(&self) -> FsServerHandle {
-        FsServerHandle {
-            task_queue: self.task_queue.clone(),
-            fs_root: self.fs_root.clone(),
-        }
+        FsServerHandle { task_queue: self.task_queue.clone(), fs_root: self.fs_root.clone() }
     }
 }
 

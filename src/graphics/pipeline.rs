@@ -42,10 +42,7 @@ impl<M: PipelineMeta> Pipeline<M> {
             M::Vertex::LAYOUT,
             M::Uniforms::FIELDS,
         );
-        Pipeline {
-            raw,
-            _phantom: PhantomData,
-        }
+        Pipeline { raw, _phantom: PhantomData }
     }
 
     pub(crate) fn primitive_type(&self) -> PrimitiveType {
@@ -164,13 +161,7 @@ impl PipelineRaw {
         }
         ctx.check_no_gl_error();
 
-        PipelineRaw {
-            ctx,
-            gl_prog,
-            image_uniform_locs,
-            uniform_locs,
-            params,
-        }
+        PipelineRaw { ctx, gl_prog, image_uniform_locs, uniform_locs, params }
     }
 
     fn apply(

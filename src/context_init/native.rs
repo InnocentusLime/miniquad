@@ -34,11 +34,7 @@ pub fn create_ctx_and_window(
 
     (
         window,
-        PlatformContext {
-            gl_display,
-            gl_surface,
-            gl_context,
-        },
+        PlatformContext { gl_display, gl_surface, gl_context },
     )
 }
 

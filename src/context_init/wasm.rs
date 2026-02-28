@@ -37,13 +37,7 @@ pub fn create_ctx_and_window(
     spawn_size_observer(proxy);
     let webgl_context = get_canvas_webgl2_context(&webgl_canvas);
 
-    (
-        window,
-        PlatformContext {
-            webgl_canvas,
-            webgl_context,
-        },
-    )
+    (window, PlatformContext { webgl_canvas, webgl_context })
 }
 
 fn get_canvas() -> HtmlCanvasElement {

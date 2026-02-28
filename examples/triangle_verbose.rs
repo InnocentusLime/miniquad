@@ -46,12 +46,7 @@ impl EventHandler for App {
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[0, 1, 2]);
         let pipeline = ctx.new_pipeline();
 
-        App {
-            pipeline,
-            indicies,
-            vertices,
-            ctx,
-        }
+        App { pipeline, indicies, vertices, ctx }
     }
 }
 
@@ -79,10 +74,8 @@ pub struct TriangleVertex {
 }
 
 impl Vertex for TriangleVertex {
-    const LAYOUT: &'static [VertexField] = &[
-        attribute_of!(TriangleVertex, pos),
-        attribute_of!(TriangleVertex, color),
-    ];
+    const LAYOUT: &'static [VertexField] =
+        &[attribute_of!(TriangleVertex, pos), attribute_of!(TriangleVertex, color)];
 }
 
 pub struct Meta;
