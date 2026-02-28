@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Affine2, Mat4, UVec2, Vec2, uvec2, vec2};
+use glam::{Affine2, Mat4, UVec2, Vec2, vec2};
 
 use crate::{
     BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, Color, DrawCall, GlContext,
@@ -34,30 +34,61 @@ impl SpriteBatcher {
 
     #[track_caller]
     pub fn add_sprite(&mut self, sprite: Sprite) {
-        let pos = [
-            vec2(-1.0, -1.0),
-            vec2(1.0, -1.0),
-            vec2(1.0, 1.0),
-            vec2(-1.0, 1.0),
-        ];
-        let texcoords = [
-            sprite.tex_rect_pos + uvec2(0, sprite.tex_rect_size.y),
-            sprite.tex_rect_pos + sprite.tex_rect_size,
-            sprite.tex_rect_pos + uvec2(sprite.tex_rect_size.x, 0),
-            sprite.tex_rect_pos,
-        ];
-        let pos = pos.map(|v| {
-            sprite
-                .transform
-                .transform_point2(v * sprite.tex_rect_size.as_vec2() * vec2(0.5, -0.5))
-        });
-        let vertices: [SpriteVertex; 4] = std::array::from_fn(|idx| SpriteVertex {
-            pos: pos[idx],
-            texcoord: texcoords[idx].as_vec2(),
-            color: sprite.color,
-        });
+        const INDICIES: &[u16] = &[0, 1, 2, 0, 2, 3];
 
-        self.0.extend(&vertices, &[0, 1, 2, 0, 2, 3]);
+        let color = sprite.color;
+        let tf = sprite.transform;
+
+        // Verts
+        let center = tf.transform_point2(Vec2::ZERO);
+        let halfs = sprite.tex_rect_size.as_vec2() * vec2(0.5, 0.5);
+        let horizontal = tf.transform_vector2(vec2(halfs.x, 0.0));
+        let vertical = tf.transform_vector2(vec2(0.0, halfs.y));
+
+        // Texcoords
+        let tex_top_left = sprite.tex_rect_pos.as_vec2();
+        let Vec2 {
+            x: tex_width,
+            y: tex_height,
+        } = sprite.tex_rect_size.as_vec2();
+
+        // (-1.0, 1.0)
+        let p1 = center - horizontal + vertical;
+        let t1 = tex_top_left + vec2(0.0, tex_height);
+        // (1.0,-1.0)
+        let p2 = center + horizontal + vertical;
+        let t2 = tex_top_left + vec2(tex_width, tex_height);
+        // (1.0, -1.0)
+        let p3 = center + horizontal - vertical;
+        let t3 = tex_top_left + vec2(tex_width, 0.0);
+        // (-1.0, -1.0)
+        let p4 = center - horizontal - vertical;
+        let t4 = tex_top_left;
+
+        let vertices = &[
+            SpriteVertex {
+                pos: p1,
+                texcoord: t1,
+                color,
+            },
+            SpriteVertex {
+                pos: p2,
+                texcoord: t2,
+                color,
+            },
+            SpriteVertex {
+                pos: p3,
+                texcoord: t3,
+                color,
+            },
+            SpriteVertex {
+                pos: p4,
+                texcoord: t4,
+                color,
+            },
+        ];
+
+        self.0.extend(vertices, INDICIES);
     }
 
     #[track_caller]
