@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::rc::Rc;
 
 use glam::{UVec2, uvec2};
@@ -33,8 +32,8 @@ impl Default for Texture2DParams {
 pub struct Texture2D {
     ctx: Rc<GlContext>,
     pub(crate) gl_tex: glow::Texture,
-    width: Cell<u32>,
-    height: Cell<u32>,
+    width: u32,
+    height: u32,
     format: Texture2DFormat,
 }
 
@@ -64,8 +63,8 @@ impl Texture2D {
         Texture2D {
             ctx,
             gl_tex,
-            width: Cell::new(width),
-            height: Cell::new(height),
+            width,
+            height,
             format: params.internal_format,
         }
     }
@@ -109,13 +108,13 @@ impl Texture2D {
         Texture2D {
             ctx,
             gl_tex,
-            width: Cell::new(width),
-            height: Cell::new(height),
+            width,
+            height,
             format: params.internal_format,
         }
     }
 
-    pub fn set_wrap(&self, wrap_x: TextureWrap, wrap_y: TextureWrap) {
+    pub fn set_wrap(&mut self, wrap_x: TextureWrap, wrap_y: TextureWrap) {
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let wrap_x = match wrap_x {
@@ -140,7 +139,7 @@ impl Texture2D {
         }
     }
 
-    pub fn set_min_filter(&self, filter: FilterMode) {
+    pub fn set_min_filter(&mut self, filter: FilterMode) {
         let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
         let filter = gl_filter(filter);
@@ -183,11 +182,11 @@ impl Texture2D {
     }
 
     pub fn width(&self) -> u32 {
-        self.width.get()
+        self.width
     }
 
     pub fn height(&self) -> u32 {
-        self.height.get()
+        self.height
     }
 }
 
