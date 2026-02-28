@@ -1,7 +1,7 @@
 FROM rust:1.93.1-bookworm AS build
 
 RUN <<EOF
-    cargo install -f wasm-bindgen-cli --version 0.2.113 &&\
+    cargo install -f wasm-bindgen-cli --version 0.2.114 &&\
     rustup target add wasm32-unknown-unknown
 EOF
 RUN mkdir /dist
