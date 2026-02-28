@@ -27,12 +27,7 @@ impl<T: Vertex> VertexBuffer<T> {
                 .buffer_data_size(glow::ARRAY_BUFFER, size as i32, super::gl_usage(usage));
         }
         ctx.check_no_gl_error();
-        VertexBuffer {
-            ctx,
-            gl_buf,
-            size,
-            _phantom: PhantomData,
-        }
+        VertexBuffer { ctx, gl_buf, size, _phantom: PhantomData }
     }
 
     pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> VertexBuffer<T> {
@@ -43,12 +38,7 @@ impl<T: Vertex> VertexBuffer<T> {
                 .buffer_data_u8_slice(glow::ARRAY_BUFFER, data, super::gl_usage(usage));
         }
         ctx.check_no_gl_error();
-        VertexBuffer {
-            ctx,
-            gl_buf,
-            size: data.len(),
-            _phantom: PhantomData,
-        }
+        VertexBuffer { ctx, gl_buf, size: data.len(), _phantom: PhantomData }
     }
 
     pub fn size(&self) -> usize {

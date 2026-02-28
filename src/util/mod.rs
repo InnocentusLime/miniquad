@@ -23,8 +23,6 @@ pub struct BasicVertex {
 }
 
 impl Vertex for BasicVertex {
-    const LAYOUT: &'static [VertexField] = &[
-        attribute_of!(BasicVertex, pos),
-        attribute_of!(BasicVertex, color),
-    ];
+    const LAYOUT: &'static [VertexField] =
+        &[attribute_of!(BasicVertex, pos), attribute_of!(BasicVertex, color)];
 }

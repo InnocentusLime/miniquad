@@ -10,10 +10,7 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<App>(Conf {
-        fs_root: "examples/".into(),
-        ..Conf::default()
-    });
+    mimiq::run::<App>(Conf { fs_root: "examples/".into(), ..Conf::default() });
 }
 
 struct App {

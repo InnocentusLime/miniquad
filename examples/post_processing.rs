@@ -46,18 +46,12 @@ impl EventHandler for App {
         let color_img = ctx.new_empty_texture(
             width,
             height,
-            Texture2DParams {
-                internal_format: Texture2DFormat::RGBA8,
-                ..Default::default()
-            },
+            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
         );
         let depth_img = ctx.new_empty_texture(
             width,
             height,
-            Texture2DParams {
-                internal_format: Texture2DFormat::DepthU16,
-                ..Default::default()
-            },
+            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
         );
 
         let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
@@ -142,18 +136,12 @@ impl App {
         let color_img = self.ctx.new_empty_texture(
             width,
             height,
-            Texture2DParams {
-                internal_format: Texture2DFormat::RGBA8,
-                ..Default::default()
-            },
+            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
         );
         let depth_img = self.ctx.new_empty_texture(
             width,
             height,
-            Texture2DParams {
-                internal_format: Texture2DFormat::DepthU16,
-                ..Default::default()
-            },
+            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
         );
 
         self.offscreen_pass = RenderPass::new(self.ctx.clone(), vec![color_img], Some(depth_img));
@@ -181,9 +169,7 @@ impl App {
                 vertex_buffer: &self.vertices_cube,
                 index_buffer: &self.indicies_cube,
                 images: &NoImages,
-                uniforms: &OffscreenUniforms {
-                    mvp: view_proj * model,
-                },
+                uniforms: &OffscreenUniforms { mvp: view_proj * model },
             });
         });
 
@@ -197,9 +183,7 @@ impl App {
                 vertex_buffer: &self.vertices_quad,
                 index_buffer: &self.indicies_quad,
                 images: &self.offscreen_pass.color_attachments()[0],
-                uniforms: &PostProcessingUniforms {
-                    resolution: vec2(width, height),
-                },
+                uniforms: &PostProcessingUniforms { resolution: vec2(width, height) },
             });
         });
     }
@@ -262,10 +246,8 @@ impl PipelineMeta for OffscreenMeta {
     type Images = NoImages;
     type Vertex = CubeVert;
     type Uniforms = OffscreenUniforms;
-    const PARAMS: PipelineParams = PipelineParams {
-        depth_test: Some(Comparison::LessOrEqual),
-        ..default_pipeline_params()
-    };
+    const PARAMS: PipelineParams =
+        PipelineParams { depth_test: Some(Comparison::LessOrEqual), ..default_pipeline_params() };
 }
 
 #[repr(C)]

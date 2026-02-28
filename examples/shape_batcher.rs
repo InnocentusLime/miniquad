@@ -32,12 +32,7 @@ impl EventHandler for App {
         let batcher = util::ShapeBatcher::new_from_size(&ctx, 20_000, 20_000);
         let pipeline = ctx.new_pipeline();
 
-        App {
-            pipeline,
-            batcher,
-            ctx,
-            total_time: Duration::ZERO,
-        }
+        App { pipeline, batcher, ctx, total_time: Duration::ZERO }
     }
 }
 

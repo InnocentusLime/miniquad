@@ -42,18 +42,12 @@ impl EventHandler for App {
         let color_img = ctx.new_empty_texture(
             256,
             256,
-            Texture2DParams {
-                internal_format: Texture2DFormat::RGBA8,
-                ..Default::default()
-            },
+            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
         );
         let depth_img = ctx.new_empty_texture(
             256,
             256,
-            Texture2DParams {
-                internal_format: Texture2DFormat::DepthU16,
-                ..Default::default()
-            },
+            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
         );
         let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
 
@@ -91,10 +85,7 @@ impl EventHandler for App {
         ];
         let vertices_cube = vertices_display_cube
             .into_iter()
-            .map(|v| CubeVert {
-                pos: v.pos,
-                color: v.color,
-            })
+            .map(|v| CubeVert { pos: v.pos, color: v.color })
             .collect::<Vec<_>>();
 
         let vertices_display_cube =
@@ -150,9 +141,7 @@ impl App {
                 vertex_buffer: &self.vertices_cube,
                 index_buffer: &self.indicies_cube,
                 images: &NoImages,
-                uniforms: &Uniforms {
-                    mvp: view_proj * model,
-                },
+                uniforms: &Uniforms { mvp: view_proj * model },
             });
         });
 
@@ -166,9 +155,7 @@ impl App {
                 vertex_buffer: &self.vertices_display_cube,
                 index_buffer: &self.indicies_cube,
                 images: &self.offscreen_pass.color_attachments()[0],
-                uniforms: &Uniforms {
-                    mvp: view_proj * model,
-                },
+                uniforms: &Uniforms { mvp: view_proj * model },
             });
         });
     }
@@ -212,10 +199,8 @@ impl PipelineMeta for DisplayMeta {
     type Images = Texture2D;
     type Vertex = CubeDisplayVert;
     type Uniforms = Uniforms;
-    const PARAMS: PipelineParams = PipelineParams {
-        depth_test: Some(Comparison::LessOrEqual),
-        ..default_pipeline_params()
-    };
+    const PARAMS: PipelineParams =
+        PipelineParams { depth_test: Some(Comparison::LessOrEqual), ..default_pipeline_params() };
 }
 
 pub struct OffscreenMeta;
@@ -228,10 +213,8 @@ impl PipelineMeta for OffscreenMeta {
     type Images = NoImages;
     type Vertex = CubeVert;
     type Uniforms = Uniforms;
-    const PARAMS: PipelineParams = PipelineParams {
-        depth_test: Some(Comparison::LessOrEqual),
-        ..default_pipeline_params()
-    };
+    const PARAMS: PipelineParams =
+        PipelineParams { depth_test: Some(Comparison::LessOrEqual), ..default_pipeline_params() };
 }
 
 #[repr(C)]

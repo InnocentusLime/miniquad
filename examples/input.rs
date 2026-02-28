@@ -60,9 +60,6 @@ impl EventHandler for App {
     }
 
     fn init(ctx: Rc<GlContext>, _fs_server: FsServerHandle) -> Self {
-        App {
-            ctx,
-            input: util::InputTracker::new(),
-        }
+        App { ctx, input: util::InputTracker::new() }
     }
 }

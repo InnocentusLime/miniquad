@@ -60,13 +60,7 @@ impl Texture2D {
             );
         }
         apply_texture_parameters(&ctx, &params);
-        Texture2D {
-            ctx,
-            gl_tex,
-            width,
-            height,
-            format: params.internal_format,
-        }
+        Texture2D { ctx, gl_tex, width, height, format: params.internal_format }
     }
 
     pub fn new(
@@ -105,13 +99,7 @@ impl Texture2D {
         }
         apply_texture_parameters(&ctx, &params);
         ctx.check_no_gl_error();
-        Texture2D {
-            ctx,
-            gl_tex,
-            width,
-            height,
-            format: params.internal_format,
-        }
+        Texture2D { ctx, gl_tex, width, height, format: params.internal_format }
     }
 
     pub fn set_wrap(&mut self, wrap_x: TextureWrap, wrap_y: TextureWrap) {
