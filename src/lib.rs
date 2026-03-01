@@ -12,8 +12,10 @@ pub use bytemuck::zeroed;
 
 pub use context_init::GLSL_VERSION;
 pub use fs::*;
+pub use glam;
 pub use graphics::*;
 pub use web_time::*;
+pub use winit;
 
 use std::path::PathBuf;
 use std::rc::Rc;
