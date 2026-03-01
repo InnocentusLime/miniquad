@@ -81,8 +81,18 @@ impl App {
             30.0,
         );
 
+        self.batcher.polygon(
+            GREEN,
+            vec2(650.0, 600.0),
+            t / (0.5 * std::f32::consts::TAU),
+            6,
+            30.0,
+        );
+
         self.batcher
             .circle_lines(RED, 1.0, vec2(400.0, 600.0), 40.0);
+
+        self.batcher.circle(RED, vec2(540.0, 600.0), 40.0);
 
         self.batcher.rect(
             PURPLE,
