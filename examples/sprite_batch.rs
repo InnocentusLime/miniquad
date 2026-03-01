@@ -10,7 +10,7 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<App>(Conf { fs_root: "examples/".into(), ..Conf::default() });
+    mimiq::run::<(), App>(Conf { fs_root: "examples/".into(), ..Conf::default() }, ());
 }
 
 struct App {
@@ -23,7 +23,7 @@ struct App {
     texture: Option<Texture2D>,
 }
 
-impl EventHandler for App {
+impl EventHandler<()> for App {
     fn update(&mut self, dt: Duration) {
         self.total_time += dt;
     }
@@ -51,7 +51,7 @@ impl EventHandler for App {
         ));
     }
 
-    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> App {
+    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, _init: ()) -> App {
         fs_server.submit_task("assets/GB-Tileset.png", 0);
 
         let pipeline = ctx.new_pipeline();

@@ -11,7 +11,7 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<App>(Conf::default());
+    mimiq::run::<(), App>(Conf::default(), ());
 }
 
 struct App {
@@ -24,7 +24,7 @@ struct App {
     texture: Texture2D,
 }
 
-impl EventHandler for App {
+impl EventHandler<()> for App {
     fn update(&mut self, dt: Duration) {
         self.total_time += dt;
     }
@@ -36,7 +36,7 @@ impl EventHandler for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             ImgVertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },

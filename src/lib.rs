@@ -31,7 +31,7 @@ use crate::context_init::*;
 
 static TARGET_NAME: &str = "app";
 
-pub fn run<T: EventHandler>(conf: Conf) {
+pub fn run<I: 'static, T: EventHandler<I>>(conf: Conf, input: I) {
     // console_error_panic_hook doesn't really work well on native builds.
     // Enable it only in WASM builds.
     #[cfg(target_family = "wasm")]
@@ -46,28 +46,31 @@ pub fn run<T: EventHandler>(conf: Conf) {
 
     start_app(
         event_loop,
-        App::<T> {
+        App::<I, T> {
             last_tick: Instant::now(),
             fs_server: FsServer::start(proxy.clone(), conf.fs_root.clone()),
             conf,
-            state: AppState::Boot,
+            state: AppState::Boot { input: Some(input) },
             proxy,
         },
     );
 }
 
-struct App<T> {
+struct App<I, T> {
     last_tick: Instant,
     conf: Conf,
     fs_server: FsServer,
-    state: AppState<T>,
+    state: AppState<I, T>,
     proxy: EventLoopProxy<AppEvent>,
 }
 
-impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
+impl<I, T: EventHandler<I>> ApplicationHandler<AppEvent> for App<I, T> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         match &mut self.state {
-            AppState::Boot => self.init(event_loop, self.proxy.clone()),
+            AppState::Boot { input } => {
+                let input = input.take().expect("Boot with empty input");
+                self.init(event_loop, self.proxy.clone(), input)
+            }
             AppState::Ready { .. } => {
                 tracing::info!(target: TARGET_NAME, "the application has been restored");
             }
@@ -165,8 +168,8 @@ impl<T: EventHandler> ApplicationHandler<AppEvent> for App<T> {
     }
 }
 
-impl<T: EventHandler> App<T> {
-    fn init(&mut self, event_loop: &ActiveEventLoop, proxy: EventLoopProxy<AppEvent>) {
+impl<I, T: EventHandler<I>> App<I, T> {
+    fn init(&mut self, event_loop: &ActiveEventLoop, proxy: EventLoopProxy<AppEvent>, input: I) {
         let (window, platform) = create_ctx_and_window(event_loop, proxy, &self.conf);
         let glow = Arc::new(platform.make_glow_context(self.conf.is_debug));
         let gl_context = Rc::new(GlContext::new(glow.clone(), (800, 600)));
@@ -181,7 +184,7 @@ impl<T: EventHandler> App<T> {
             true,
         ));
 
-        let handler = T::init(gl_context.clone(), self.fs_server.get_handle());
+        let handler = T::init(gl_context.clone(), self.fs_server.get_handle(), input);
         self.state = AppState::Ready {
             window,
             platform,
@@ -193,7 +196,7 @@ impl<T: EventHandler> App<T> {
     }
 }
 
-impl<T> Drop for App<T> {
+impl<I, T> Drop for App<I, T> {
     fn drop(&mut self) {
         #[cfg(feature = "egui")]
         egui_drop(self);
@@ -201,15 +204,17 @@ impl<T> Drop for App<T> {
 }
 
 #[cfg(feature = "egui")]
-fn egui_drop<T>(app: &mut App<T>) {
+fn egui_drop<I, T>(app: &mut App<I, T>) {
     let AppState::Ready { egui_glow, .. } = &mut app.state else {
         return;
     };
     egui_glow.destroy();
 }
 
-enum AppState<T> {
-    Boot,
+enum AppState<I, T> {
+    Boot {
+        input: Option<I>,
+    },
     Ready {
         window: Window,
         platform: PlatformContext,
@@ -274,8 +279,8 @@ pub fn default_log_filter() -> EnvFilter {
 }
 
 /// A trait defining event callbacks.
-pub trait EventHandler: 'static {
-    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle) -> Self;
+pub trait EventHandler<Input>: 'static {
+    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, input: Input) -> Self;
 
     fn file_ready(&mut self, _event: FileReady) {}
 

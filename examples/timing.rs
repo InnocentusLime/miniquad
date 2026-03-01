@@ -10,7 +10,7 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<App>(Conf::default());
+    mimiq::run::<(), App>(Conf::default(), ());
 }
 
 struct App {
@@ -24,7 +24,7 @@ struct App {
     ctx: Rc<GlContext>,
 }
 
-impl EventHandler for App {
+impl EventHandler<()> for App {
     fn update(&mut self, dt: Duration) {
         self.rx += dt.as_secs_f32() * 0.6;
         self.ry += dt.as_secs_f32() * 1.8;
@@ -38,7 +38,7 @@ impl EventHandler for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
         let (width, height) = ctx.screen_size();
         let color_img = ctx.new_empty_texture(
             width,

@@ -13,10 +13,10 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<App>(Conf {
-        filter: EnvFilter::builder().parse_lossy("trace"),
-        ..Conf::default()
-    });
+    mimiq::run::<(), App>(
+        Conf { filter: EnvFilter::builder().parse_lossy("trace"), ..Conf::default() },
+        (),
+    );
 }
 
 struct App {
@@ -26,7 +26,7 @@ struct App {
     ctx: Rc<GlContext>,
 }
 
-impl EventHandler for App {
+impl EventHandler<()> for App {
     fn update(&mut self, _dt: Duration) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
@@ -36,7 +36,7 @@ impl EventHandler for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             TriangleVertex { pos: vec2(-0.5, -0.5), color: RED },

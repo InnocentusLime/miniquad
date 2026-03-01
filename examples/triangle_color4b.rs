@@ -9,7 +9,7 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<App>(Conf::default());
+    mimiq::run::<(), App>(Conf::default(), ());
 }
 
 struct App {
@@ -19,7 +19,7 @@ struct App {
     ctx: Rc<GlContext>,
 }
 
-impl EventHandler for App {
+impl EventHandler<()> for App {
     fn update(&mut self, _dt: Duration) {}
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
@@ -29,7 +29,7 @@ impl EventHandler for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = [
             TriangleVertex { pos: vec2(-0.5, -0.5), color: u8vec4(0xFF, 0, 0, 0xFF) },

@@ -9,14 +9,14 @@ use winit::{
 };
 
 fn main() {
-    mimiq::run::<App>(Conf::default());
+    mimiq::run::<(), App>(Conf::default(), ());
 }
 
 struct App {
     ctx: Rc<GlContext>,
     input: util::InputTracker,
 }
-impl EventHandler for App {
+impl EventHandler<()> for App {
     fn update(&mut self, _dt: Duration) {
         let key = KeyCode::KeyA;
         let button = MouseButton::Left;
@@ -59,7 +59,7 @@ impl EventHandler for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs_server: FsServerHandle) -> Self {
+    fn init(ctx: Rc<GlContext>, _fs_server: FsServerHandle, _init: ()) -> Self {
         App { ctx, input: util::InputTracker::new() }
     }
 }

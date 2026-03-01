@@ -12,7 +12,7 @@ use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<App>(Conf::default());
+    mimiq::run::<(), App>(Conf::default(), ());
 }
 
 struct App {
@@ -26,7 +26,7 @@ struct App {
     total_time: Duration,
 }
 
-impl EventHandler for App {
+impl EventHandler<()> for App {
     fn update(&mut self, dt: Duration) {
         let delta = dt.as_secs_f32();
         self.total_time += dt;
@@ -59,7 +59,7 @@ impl EventHandler for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             BlobVertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },
