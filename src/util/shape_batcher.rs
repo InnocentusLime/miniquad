@@ -124,8 +124,32 @@ impl ShapeBatcher {
     }
 
     #[track_caller]
+    pub fn polygon(
+        &mut self,
+        color: Color,
+        center: Vec2,
+        rotation: f32,
+        vertex_count: usize,
+        radius: f32,
+    ) {
+        let angle_increment = std::f32::consts::TAU / (vertex_count as f32);
+        for idx in 0..vertex_count {
+            let angle_1 = angle_increment * idx as f32 + rotation;
+            let angle_2 = angle_increment * (idx + 1) as f32 + rotation;
+            let p1 = Vec2::from_angle(angle_1) * radius + center;
+            let p2 = Vec2::from_angle(angle_2) * radius + center;
+            self.triangle(color, center, p1, p2);
+        }
+    }
+
+    #[track_caller]
     pub fn circle_lines(&mut self, color: Color, thickness: f32, center: Vec2, radius: f32) {
         self.poly_lines(color, thickness, center, 0.0, 50, radius);
+    }
+
+    #[track_caller]
+    pub fn circle(&mut self, color: Color, center: Vec2, radius: f32) {
+        self.polygon(color, center, 0.0, 50, radius);
     }
 
     #[track_caller]
