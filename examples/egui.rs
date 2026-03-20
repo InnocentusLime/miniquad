@@ -6,7 +6,10 @@ use winit::event::WindowEvent;
 use winit::window::Window;
 
 fn main() {
-    mimiq::run::<(), App>(Conf { fs_root: "examples/".into(), ..Conf::default() }, ());
+    mimiq::run::<(), App>(
+        Conf { fs_root: "examples/assets".into(), ..Conf::default() },
+        (),
+    );
 }
 
 struct App {
@@ -56,7 +59,7 @@ impl EventHandler<()> for App {
     }
 
     fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, _init: ()) -> App {
-        fs_server.submit_task("assets/ferris.png", 0);
+        fs_server.submit_task("ferris.png", 0);
 
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[

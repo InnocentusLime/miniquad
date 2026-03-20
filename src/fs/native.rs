@@ -2,7 +2,7 @@ use crate::AppEvent;
 
 use super::{FileReady, TARGET_NAME};
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread::{JoinHandle, spawn};
 
@@ -14,10 +14,11 @@ pub struct FsServerHandle {
 }
 
 impl FsServerHandle {
-    pub fn submit_task(&self, path: &str, user_id: u64) {
+    pub fn submit_task(&self, path: impl AsRef<Path>, user_id: u64) {
+        let path = path.as_ref();
         tracing::info!(
             target: TARGET_NAME,
-            path=path,
+            path=?path,
             user_id=user_id,
             "will load"
         );

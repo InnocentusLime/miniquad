@@ -1,4 +1,7 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 
 use crate::AppEvent;
 
@@ -10,14 +13,16 @@ use winit::event_loop::EventLoopProxy;
 
 pub struct FsServerHandle {
     page_url: PathBuf,
+    fs_root: PathBuf,
     event_loop_proxy: EventLoopProxy<AppEvent>,
 }
 
 impl FsServerHandle {
-    pub fn submit_task(&self, path: &str, user_id: u64) {
+    pub fn submit_task(&self, path: impl AsRef<Path>, user_id: u64) {
+        let path = path.as_ref();
         tracing::info!(
             target: TARGET_NAME,
-            path=path,
+            path=?path,
             user_id=user_id,
             "will load"
         );
@@ -25,7 +30,9 @@ impl FsServerHandle {
         let window = web_sys::window().expect("\"window\" not found");
         let proxy = self.event_loop_proxy.clone();
         let then_callback = Closure::new(move |val| fetch_handler(val, user_id, &proxy));
-        let url = self.page_url.join(path).to_string_lossy().into_owned();
+        let url = PathBuf::from_iter([&self.page_url, &self.fs_root, path])
+            .to_string_lossy()
+            .into_owned();
 
         tracing::debug!(
             target: TARGET_NAME,
@@ -39,11 +46,12 @@ impl FsServerHandle {
 
 pub(crate) struct FsServer {
     page_url: PathBuf,
+    fs_root: PathBuf,
     event_loop_proxy: EventLoopProxy<AppEvent>,
 }
 
 impl FsServer {
-    pub(crate) fn start(event_loop_proxy: EventLoopProxy<AppEvent>, _fs_root: PathBuf) -> FsServer {
+    pub(crate) fn start(event_loop_proxy: EventLoopProxy<AppEvent>, fs_root: PathBuf) -> FsServer {
         let window = web_sys::window().expect("\"window\" not found");
         let page_url = window
             .location()
@@ -55,12 +63,13 @@ impl FsServer {
         {
             page_url.pop();
         }
-        FsServer { page_url, event_loop_proxy }
+        FsServer { fs_root, page_url, event_loop_proxy }
     }
 
     pub fn get_handle(&self) -> FsServerHandle {
         FsServerHandle {
             page_url: self.page_url.clone(),
+            fs_root: self.fs_root.clone(),
             event_loop_proxy: self.event_loop_proxy.clone(),
         }
     }

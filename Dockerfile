@@ -6,7 +6,7 @@ RUN <<EOF
 EOF
 RUN mkdir /dist
 COPY /examples/pages /dist
-COPY /examples/assets/ /dist/assets/
+COPY /examples/assets/ /dist/examples/assets/
 ADD . /project/
 RUN <<EOF
     cd /project
