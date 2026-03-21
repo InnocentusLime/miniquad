@@ -19,13 +19,14 @@ impl FsServerHandle {
         tracing::info!(target: TARGET_NAME, path=?path, "will load");
 
         let path = self.fs_root.join(path);
+        let orig_path = path.to_path_buf();
         tracing::debug!(
             target: TARGET_NAME,
             real_path=?path,
             "sending task to read file"
         );
         self.task_queue
-            .send(FsTask { path })
+            .send(FsTask { path, orig_path })
             .expect("Worker thread terminated");
     }
 }
@@ -59,7 +60,7 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent
         }
 
         let send_res = proxy.send_event(AppEvent::FileReady(FileReady {
-            path: task.path,
+            path: task.orig_path,
             bytes_result: file_content,
         }));
         if send_res.is_err() {
@@ -71,5 +72,6 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent
 
 #[derive(Debug)]
 struct FsTask {
+    orig_path: PathBuf,
     path: PathBuf,
 }
