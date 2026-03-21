@@ -1,5 +1,6 @@
 use std::{
     path::{Path, PathBuf},
+    rc::Rc,
     str::FromStr,
 };
 
@@ -18,27 +19,17 @@ pub struct FsServerHandle {
 }
 
 impl FsServerHandle {
-    pub fn submit_task(&self, path: impl AsRef<Path>, user_id: u64) {
-        let path = path.as_ref();
-        tracing::info!(
-            target: TARGET_NAME,
-            path=?path,
-            user_id=user_id,
-            "will load"
-        );
+    pub fn load_file(&self, path: impl AsRef<Path>) {
+        let path: Rc<Path> = path.as_ref().into();
+        tracing::info!(target: TARGET_NAME, path=?path, "will load");
 
-        let window = web_sys::window().expect("\"window\" not found");
-        let proxy = self.event_loop_proxy.clone();
-        let then_callback = Closure::new(move |val| fetch_handler(val, user_id, &proxy));
-        let url = PathBuf::from_iter([&self.page_url, &self.fs_root, path])
+        let url = PathBuf::from_iter([&self.page_url, &self.fs_root, &*path])
             .to_string_lossy()
             .into_owned();
+        let window = web_sys::window().expect("\"window\" not found");
+        let proxy = self.event_loop_proxy.clone();
+        let then_callback = Closure::new(move |val| fetch_handler(val, path.clone(), &proxy));
 
-        tracing::debug!(
-            target: TARGET_NAME,
-            request_url=url,
-            "sending request"
-        );
         let _ = window.fetch_with_str(&url).then(&then_callback);
         then_callback.forget();
     }
@@ -75,21 +66,13 @@ impl FsServer {
     }
 }
 
-fn fetch_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<AppEvent>) {
-    tracing::debug!(
-        target: TARGET_NAME,
-        user_id=user_id,
-        "response received"
-    );
-    if let Err(e) = fetch_handler_impl(val, user_id, proxy.clone()) {
-        tracing::error!(
-            target: TARGET_NAME,
-            user_id=user_id,
-            "{e:?}"
-        );
+fn fetch_handler(val: JsValue, path: Rc<Path>, proxy: &EventLoopProxy<AppEvent>) {
+    tracing::debug!(target: TARGET_NAME, path=?path, "response received");
+    if let Err(e) = fetch_handler_impl(val, path.clone(), proxy.clone()) {
+        tracing::error!(target: TARGET_NAME, "{e:?}");
         proxy
             .send_event(AppEvent::FileReady(FileReady {
-                user_id,
+                path: path.to_path_buf(),
                 bytes_result: Err(e),
             }))
             .expect("Loop died");
@@ -98,7 +81,7 @@ fn fetch_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<AppEvent>) {
 
 fn fetch_handler_impl(
     val: JsValue,
-    user_id: u64,
+    path: Rc<Path>,
     proxy: EventLoopProxy<AppEvent>,
 ) -> anyhow::Result<()> {
     let response = match val.dyn_into::<web_sys::Response>() {
@@ -116,22 +99,18 @@ fn fetch_handler_impl(
             js_val_to_errmsg(e)
         ),
     };
-    let then_closure = Closure::new(move |val| array_buffer_handler(val, user_id, &proxy));
+    let then_closure = Closure::new(move |val| array_buffer_handler(val, path.clone(), &proxy));
     let _ = array_buffer.then(&then_closure);
     then_closure.forget();
     Ok(())
 }
 
-fn array_buffer_handler(val: JsValue, user_id: u64, proxy: &EventLoopProxy<AppEvent>) {
-    tracing::info!(
-        target: TARGET_NAME,
-        user_id=user_id,
-        "done",
-    );
+fn array_buffer_handler(val: JsValue, path: Rc<Path>, proxy: &EventLoopProxy<AppEvent>) {
+    tracing::info!(target: TARGET_NAME, path=?path, "done");
     let bytes = Uint8Array::new(&val).to_vec();
     proxy
         .send_event(AppEvent::FileReady(FileReady {
-            user_id,
+            path: path.to_path_buf(),
             bytes_result: Ok(bytes),
         }))
         .expect("Loop died");

@@ -52,7 +52,7 @@ impl EventHandler<()> for App {
     }
 
     fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, _init: ()) -> App {
-        fs_server.submit_task("assets/ferris.png", 0);
+        fs_server.load_file("assets/ferris.png");
 
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
