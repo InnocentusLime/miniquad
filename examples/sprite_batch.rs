@@ -52,7 +52,7 @@ impl EventHandler<()> for App {
     }
 
     fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, _init: ()) -> App {
-        fs_server.submit_task("assets/GB-Tileset.png", 0);
+        fs_server.load_file("assets/GB-Tileset.png");
 
         let pipeline = ctx.new_pipeline();
         let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000);

@@ -14,14 +14,9 @@ pub struct FsServerHandle {
 }
 
 impl FsServerHandle {
-    pub fn submit_task(&self, path: impl AsRef<Path>, user_id: u64) {
+    pub fn load_file(&self, path: impl AsRef<Path>) {
         let path = path.as_ref();
-        tracing::info!(
-            target: TARGET_NAME,
-            path=?path,
-            user_id=user_id,
-            "will load"
-        );
+        tracing::info!(target: TARGET_NAME, path=?path, "will load");
 
         let path = self.fs_root.join(path);
         tracing::debug!(
@@ -30,7 +25,7 @@ impl FsServerHandle {
             "sending task to read file"
         );
         self.task_queue
-            .send(FsTask { path, user_id })
+            .send(FsTask { path })
             .expect("Worker thread terminated");
     }
 }
@@ -57,22 +52,14 @@ impl FsServer {
 
 fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent>) {
     while let Ok(task) = task_queue.recv() {
-        let file_content: anyhow::Result<Vec<u8>> = std::fs::read(task.path).map_err(Into::into);
+        let file_content: anyhow::Result<Vec<u8>> = std::fs::read(&task.path).map_err(Into::into);
         match &file_content {
-            Ok(_) => tracing::info!(
-                target: TARGET_NAME,
-                user_id=task.user_id,
-                "done",
-            ),
-            Err(e) => tracing::error!(
-                target: TARGET_NAME,
-                user_id=task.user_id,
-                "{e:?}"
-            ),
+            Ok(_) => tracing::info!(target: TARGET_NAME, path=?task.path, "done"),
+            Err(e) => tracing::error!(target: TARGET_NAME, path=?task.path, "{e:?}"),
         }
 
         let send_res = proxy.send_event(AppEvent::FileReady(FileReady {
-            user_id: task.user_id,
+            path: task.path,
             bytes_result: file_content,
         }));
         if send_res.is_err() {
@@ -85,5 +72,4 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent
 #[derive(Debug)]
 struct FsTask {
     path: PathBuf,
-    user_id: u64,
 }
