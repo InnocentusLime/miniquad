@@ -18,8 +18,8 @@ impl FsServerHandle {
         let path = path.as_ref();
         tracing::info!(target: TARGET_NAME, path=?path, "will load");
 
-        let path = self.fs_root.join(path);
         let orig_path = path.to_path_buf();
+        let path = self.fs_root.join(path);
         tracing::debug!(
             target: TARGET_NAME,
             real_path=?path,
