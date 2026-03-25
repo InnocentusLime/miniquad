@@ -28,6 +28,15 @@ impl InputTracker {
         }
     }
 
+    pub fn reset(&mut self) {
+        self.pressed_mouse_buttons.clear();
+        self.held_mouse_buttons.clear();
+        self.released_mouse_buttons.clear();
+        self.pressed_keys.clear();
+        self.held_keys.clear();
+        self.released_keys.clear();
+    }
+
     pub fn handle_event(&mut self, event: &WindowEvent) {
         match event {
             WindowEvent::KeyboardInput { event, .. } => match (event.physical_key, event.state) {
