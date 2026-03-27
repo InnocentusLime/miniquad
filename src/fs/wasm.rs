@@ -21,7 +21,7 @@ pub struct FsServerHandle {
 impl FsServerHandle {
     pub fn load_file(&self, path: impl AsRef<Path>) {
         let path: Rc<Path> = path.as_ref().into();
-        tracing::info!(target: TARGET_NAME, path=?path, "will load");
+        tracing::debug!(target: TARGET_NAME, path=?path, "will load");
 
         let url = PathBuf::from_iter([&self.page_url, &self.fs_root, &*path])
             .to_string_lossy()
@@ -106,7 +106,7 @@ fn fetch_handler_impl(
 }
 
 fn array_buffer_handler(val: JsValue, path: Rc<Path>, proxy: &EventLoopProxy<AppEvent>) {
-    tracing::info!(target: TARGET_NAME, path=?path, "done");
+    tracing::debug!(target: TARGET_NAME, path=?path, "done");
     let bytes = Uint8Array::new(&val).to_vec();
     proxy
         .send_event(AppEvent::FileReady(FileReady {
