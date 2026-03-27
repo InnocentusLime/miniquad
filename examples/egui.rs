@@ -2,7 +2,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
 use mimiq::*;
 use std::rc::Rc;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::window::Window;
 
 fn main() {
@@ -30,6 +30,14 @@ impl EventHandler<()> for App {
 
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
         match event {
+            // You will receive this event only when egui didn't consume it!
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } => {
+                tracing::info!("Click");
+            }
             WindowEvent::RedrawRequested => self.draw(),
             _ => (),
         }
