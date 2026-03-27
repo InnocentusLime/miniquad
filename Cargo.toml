@@ -15,6 +15,7 @@ keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
 [features]
+glam-serde = ["glam/serde"]
 egui = ["dep:egui", "dep:egui_glow"]
 
 [dependencies]
