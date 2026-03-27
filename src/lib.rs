@@ -11,9 +11,12 @@ pub mod util;
 pub use bytemuck::zeroed;
 
 pub use context_init::GLSL_VERSION;
+#[cfg(feature = "egui")]
+pub use egui;
 pub use fs::*;
 pub use glam;
 pub use graphics::*;
+pub use image;
 pub use web_time::*;
 pub use winit;
 
