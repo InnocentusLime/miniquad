@@ -135,8 +135,10 @@ impl<I, T: EventHandler<I>> ApplicationHandler<AppEvent> for App<I, T> {
             return;
         };
 
+        #[cfg(not(feature = "egui"))]
+        let event_consumed = false;
         #[cfg(feature = "egui")]
-        let _ = egui_glow.on_window_event(window, &event);
+        let event_consumed = egui_glow.on_window_event(window, &event).consumed;
         if matches!(event, WindowEvent::RedrawRequested) {
             let new_tick = Instant::now();
             let dt = new_tick - self.last_tick;
@@ -167,7 +169,7 @@ impl<I, T: EventHandler<I>> ApplicationHandler<AppEvent> for App<I, T> {
             //       Because of that we keep the loop in Wait mode and re-issue request_redraw.
             //       Callers get the frame delta-time between frames and can decide at what rate to update.
             window.request_redraw();
-        } else {
+        } else if !event_consumed {
             handler.window_event(event, window);
         }
     }
