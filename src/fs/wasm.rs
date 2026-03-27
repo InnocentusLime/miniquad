@@ -69,7 +69,7 @@ impl FsServer {
 fn fetch_handler(val: JsValue, path: Rc<Path>, proxy: &EventLoopProxy<AppEvent>) {
     tracing::debug!(target: TARGET_NAME, path=?path, "response received");
     if let Err(e) = fetch_handler_impl(val, path.clone(), proxy.clone()) {
-        tracing::error!(target: TARGET_NAME, "{e:?}");
+        tracing::error!(target: TARGET_NAME, "{e:#}");
         proxy
             .send_event(AppEvent::FileReady(FileReady {
                 path: path.to_path_buf(),

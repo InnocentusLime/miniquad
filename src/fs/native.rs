@@ -56,7 +56,7 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent
         let file_content: anyhow::Result<Vec<u8>> = std::fs::read(&task.path).map_err(Into::into);
         match &file_content {
             Ok(_) => tracing::info!(target: TARGET_NAME, path=?task.path, "done"),
-            Err(e) => tracing::error!(target: TARGET_NAME, path=?task.path, "{e:?}"),
+            Err(e) => tracing::error!(target: TARGET_NAME, path=?task.path, "{e:#}"),
         }
 
         let send_res = proxy.send_event(AppEvent::FileReady(FileReady {
