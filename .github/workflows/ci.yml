@@ -2,14 +2,55 @@ on: [push, pull_request]
 
 name: CI
 jobs:
+  ci-build-web:
+    runs-on: ubuntu-latest
+    container: rust:1.93.1-bookworm 
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            target/
+          key: ci-web-bookworm-1.93.1-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ci-web-bookworm-1.93.1-cargo-
+      - shell: bash
+        run: rustup target add wasm32-unknown-unknown
+      - name: Check WASM (egui)
+        run: cargo build --target wasm32-unknown-unknown --features egui
+      - name: Check WASM (base)
+        run: cargo build --target wasm32-unknown-unknown
+  ci-build-native:
+    runs-on: ubuntu-latest
+    container: rust:1.93.1-bookworm 
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            target/
+          key: ci-native-bookworm-1.93-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ci-native-bookworm-1.93-cargo-
+      - shell: bash
+        run: >
+          apt-get update &&
+          apt-get install -y --no-install-recommends libwayland-dev libxkbcommon-dev
+      - name: Check Native (egui)
+        run: cargo build --features egui
+      - name: Check Native (base)
+        run: cargo build
   cargo-fmt:
     runs-on: ubuntu-latest
+    container: rust:1.93.1-bookworm 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: '1.86.0' 
-          override: true
-          components: rustfmt
+      - uses: actions/checkout@v5
+      - shell: bash
+        run: rustup component add rustfmt
       - run: cargo fmt --all -- --check
