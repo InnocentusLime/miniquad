@@ -1,6 +1,6 @@
 [package]
 name = "mimiq"
-version = "0.4.4"
+version = "0.4.5"
 authors = ["InnocentusLime <innocentuslime.help@gmail.com>", "not-fl3 <not.fl3@gmail.com>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
