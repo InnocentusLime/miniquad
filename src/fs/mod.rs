@@ -5,12 +5,16 @@ mod wasm;
 
 static TARGET_NAME: &str = "fs_loader";
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[cfg(not(target_family = "wasm"))]
-pub use native::*;
+pub(crate) use native::spawn_fs_server;
 #[cfg(target_family = "wasm")]
-pub use wasm::*;
+pub(crate) use wasm::spawn_fs_server;
+
+pub trait FsServer {
+    fn load_file(&self, path: &Path);
+}
 
 #[derive(Debug)]
 pub struct FileReady {

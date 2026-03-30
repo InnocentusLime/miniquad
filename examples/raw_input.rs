@@ -37,7 +37,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs_server: FsServerHandle, _init: ()) -> Self {
+    fn init(ctx: Rc<GlContext>, _fs_server: Rc<dyn FsServer>, _init: ()) -> Self {
         App { ctx }
     }
 }

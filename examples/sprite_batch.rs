@@ -5,6 +5,7 @@ use core::f32;
 use glam::{Affine2, Mat4, uvec2, vec2};
 use mimiq::util::SpriteBatcher;
 use mimiq::*;
+use std::path::Path;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
@@ -16,7 +17,6 @@ fn main() {
 struct App {
     total_time: Duration,
     ctx: Rc<GlContext>,
-    _fs_server: FsServerHandle,
 
     pipeline: Pipeline<util::BasicSpritePipelineMeta>,
     batcher: util::SpriteBatcher,
@@ -51,20 +51,13 @@ impl EventHandler<()> for App {
         ));
     }
 
-    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, _init: ()) -> App {
-        fs_server.load_file("assets/GB-Tileset.png");
+    fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, _init: ()) -> App {
+        fs_server.load_file(Path::new("assets/GB-Tileset.png"));
 
         let pipeline = ctx.new_pipeline();
         let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000);
 
-        App {
-            total_time: Duration::ZERO,
-            batcher,
-            pipeline,
-            _fs_server: fs_server,
-            texture: None,
-            ctx,
-        }
+        App { total_time: Duration::ZERO, batcher, pipeline, texture: None, ctx }
     }
 }
 

@@ -53,7 +53,7 @@ pub fn run<I: 'static, T: EventHandler<I>>(conf: Conf, input: I) {
         event_loop,
         App::<I, T> {
             last_tick: Instant::now(),
-            fs_server: FsServer::start(proxy.clone(), conf.fs_root.clone()),
+            fs_server: spawn_fs_server(proxy.clone(), conf.fs_root.clone()),
             conf,
             state: AppState::Boot { input: Some(input) },
             proxy,
@@ -63,8 +63,8 @@ pub fn run<I: 'static, T: EventHandler<I>>(conf: Conf, input: I) {
 
 struct App<I, T> {
     last_tick: Instant,
+    fs_server: Rc<dyn FsServer>,
     conf: Conf,
-    fs_server: FsServer,
     state: AppState<I, T>,
     proxy: EventLoopProxy<AppEvent>,
 }
@@ -191,7 +191,7 @@ impl<I, T: EventHandler<I>> App<I, T> {
             true,
         ));
 
-        let handler = T::init(gl_context.clone(), self.fs_server.get_handle(), input);
+        let handler = T::init(gl_context.clone(), self.fs_server.clone(), input);
         self.state = AppState::Ready {
             window,
             platform,
@@ -287,7 +287,7 @@ pub fn default_log_filter() -> EnvFilter {
 
 /// A trait defining event callbacks.
 pub trait EventHandler<Input>: 'static {
-    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, input: Input) -> Self;
+    fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, input: Input) -> Self;
 
     fn file_ready(&mut self, _event: FileReady) {}
 

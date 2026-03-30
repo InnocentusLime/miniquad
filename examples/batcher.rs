@@ -34,7 +34,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50);
         let pipeline = ctx.new_pipeline();
 

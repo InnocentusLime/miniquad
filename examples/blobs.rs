@@ -59,7 +59,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             BlobVertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },

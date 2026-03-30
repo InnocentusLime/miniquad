@@ -1,21 +1,33 @@
 use crate::AppEvent;
 
-use super::{FileReady, TARGET_NAME};
+use super::{FileReady, FsServer, TARGET_NAME};
 
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::thread::{JoinHandle, spawn};
 
 use winit::event_loop::EventLoopProxy;
 
-pub struct FsServerHandle {
+pub(crate) fn spawn_fs_server(
+    event_loop_proxy: EventLoopProxy<AppEvent>,
+    fs_root: PathBuf,
+) -> Rc<dyn FsServer> {
+    let (snd, rcv) = channel();
+    let worker_thread = spawn(move || {
+        fs_server_worker(rcv, event_loop_proxy);
+    });
+    Rc::new(NativeFsServer { _worker_thread: worker_thread, task_queue: snd, fs_root })
+}
+
+struct NativeFsServer {
+    _worker_thread: JoinHandle<()>,
     task_queue: Sender<FsTask>,
     fs_root: PathBuf,
 }
 
-impl FsServerHandle {
-    pub fn load_file(&self, path: impl AsRef<Path>) {
-        let path = path.as_ref();
+impl FsServer for NativeFsServer {
+    fn load_file(&self, path: &Path) {
         tracing::info!(target: TARGET_NAME, path=?path, "will load");
 
         let orig_path = path.to_path_buf();
@@ -28,26 +40,6 @@ impl FsServerHandle {
         self.task_queue
             .send(FsTask { path, orig_path })
             .expect("Worker thread terminated");
-    }
-}
-
-pub(crate) struct FsServer {
-    _worker_thread: JoinHandle<()>,
-    task_queue: Sender<FsTask>,
-    fs_root: PathBuf,
-}
-
-impl FsServer {
-    pub(crate) fn start(event_loop_proxy: EventLoopProxy<AppEvent>, fs_root: PathBuf) -> FsServer {
-        let (snd, rcv) = channel();
-        let worker_thread = spawn(move || {
-            fs_server_worker(rcv, event_loop_proxy);
-        });
-        FsServer { _worker_thread: worker_thread, task_queue: snd, fs_root }
-    }
-
-    pub fn get_handle(&self) -> FsServerHandle {
-        FsServerHandle { task_queue: self.task_queue.clone(), fs_root: self.fs_root.clone() }
     }
 }
 
