@@ -1,4 +1,5 @@
 use std::{
+    io,
     path::{Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -9,6 +10,7 @@ use crate::AppEvent;
 use super::{FileReady, FsServer, TARGET_NAME};
 
 use wasm_bindgen::prelude::*;
+use web_sys::Response;
 use web_sys::js_sys::{JSON, Uint8Array};
 use winit::event_loop::EventLoopProxy;
 
@@ -71,22 +73,15 @@ fn fetch_handler_impl(
     val: JsValue,
     path: Rc<Path>,
     proxy: EventLoopProxy<AppEvent>,
-) -> anyhow::Result<()> {
-    let response = match val.dyn_into::<web_sys::Response>() {
-        Ok(x) => x,
-        Err(e) => anyhow::bail!("failed to get a response: {}", js_val_to_errmsg(e)),
-    };
-    let status = response.status();
-    if status != 200 {
-        anyhow::bail!("failed request with status {status}");
-    }
-    let array_buffer = match response.array_buffer() {
-        Ok(x) => x,
-        Err(e) => anyhow::bail!(
-            "failed to get the response body bytes: {}",
-            js_val_to_errmsg(e)
-        ),
-    };
+) -> io::Result<()> {
+    let response = val
+        .dyn_into::<web_sys::Response>()
+        .map_err(|err| js_val_to_io_error("failed to cast fetch() result", err))?;
+
+    check_http_status(&response)?;
+    let array_buffer = response
+        .array_buffer()
+        .map_err(|err| js_val_to_io_error("failed to get response body", err))?;
     let then_closure = Closure::new(move |val| array_buffer_handler(val, path.clone(), &proxy));
     let _ = array_buffer.then(&then_closure);
     then_closure.forget();
@@ -102,6 +97,41 @@ fn array_buffer_handler(val: JsValue, path: Rc<Path>, proxy: &EventLoopProxy<App
             bytes_result: Ok(bytes),
         }))
         .expect("Loop died");
+}
+
+fn check_http_status(response: &Response) -> io::Result<()> {
+    match response.status() {
+        200 => Ok(()),
+        404 | 410 => Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            response.status_text(),
+        )),
+        400 | 405 | 406 | 411 | 412 | 413 | 414 | 415 | 416 | 417 | 421 | 422 | 423 | 424 | 425
+        | 426 | 428 | 431 => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            response.status_text(),
+        )),
+        401 | 402 | 403 | 407 | 451 | 511 => Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            response.status_text(),
+        )),
+        500..511 | 512..600 => Err(io::Error::new(
+            io::ErrorKind::NetworkDown,
+            response.status_text(),
+        )),
+        unexpected => Err(io::Error::new(
+            io::ErrorKind::Other,
+            format!(
+                "unexpected request status: {unexpected} ({})",
+                response.status_text()
+            ),
+        )),
+    }
+}
+
+fn js_val_to_io_error(preamble: &str, err: JsValue) -> io::Error {
+    let details = js_val_to_errmsg(err);
+    io::Error::new(io::ErrorKind::Other, format!("{preamble}: {details}"))
 }
 
 fn js_val_to_errmsg(val: JsValue) -> String {
