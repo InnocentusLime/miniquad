@@ -7,7 +7,7 @@ use std::{
 
 use crate::AppEvent;
 
-use super::{FileReady, FsServer, TARGET_NAME};
+use super::{FileReady, FsServer};
 
 use wasm_bindgen::prelude::*;
 use web_sys::Response;
@@ -42,8 +42,6 @@ struct WasmFsServer {
 impl FsServer for WasmFsServer {
     fn load_file(&self, path: &Path) {
         let path: Rc<Path> = path.into();
-        tracing::debug!(target: TARGET_NAME, path=?path, "will load");
-
         let url = PathBuf::from_iter([&self.page_url, &self.fs_root, &*path])
             .to_string_lossy()
             .into_owned();
@@ -57,9 +55,7 @@ impl FsServer for WasmFsServer {
 }
 
 fn fetch_handler(val: JsValue, path: Rc<Path>, proxy: &EventLoopProxy<AppEvent>) {
-    tracing::debug!(target: TARGET_NAME, path=?path, "response received");
     if let Err(e) = fetch_handler_impl(val, path.clone(), proxy.clone()) {
-        tracing::error!(target: TARGET_NAME, "{e:#}");
         proxy
             .send_event(AppEvent::FileReady(FileReady {
                 path: path.to_path_buf(),
@@ -89,7 +85,6 @@ fn fetch_handler_impl(
 }
 
 fn array_buffer_handler(val: JsValue, path: Rc<Path>, proxy: &EventLoopProxy<AppEvent>) {
-    tracing::debug!(target: TARGET_NAME, path=?path, "done");
     let bytes = Uint8Array::new(&val).to_vec();
     proxy
         .send_event(AppEvent::FileReady(FileReady {
