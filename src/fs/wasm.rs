@@ -1,13 +1,11 @@
-use std::{
-    io,
-    path::{Path, PathBuf},
-    rc::Rc,
-    str::FromStr,
-};
-
 use crate::AppEvent;
 
 use super::{FileReady, FsServer};
+
+use std::io;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
+use std::str::FromStr;
 
 use wasm_bindgen::prelude::*;
 use web_sys::Response;
