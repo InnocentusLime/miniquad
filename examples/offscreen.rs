@@ -38,7 +38,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: FsServerHandle, _init: ()) -> App {
+    fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let color_img = ctx.new_empty_texture(
             256,
             256,

@@ -6,21 +6,40 @@ use std::{
 
 use crate::AppEvent;
 
-use super::{FileReady, TARGET_NAME};
+use super::{FileReady, FsServer, TARGET_NAME};
 
 use wasm_bindgen::prelude::*;
 use web_sys::js_sys::{JSON, Uint8Array};
 use winit::event_loop::EventLoopProxy;
 
-pub struct FsServerHandle {
+pub(crate) fn spawn_fs_server(
+    event_loop_proxy: EventLoopProxy<AppEvent>,
+    fs_root: PathBuf,
+) -> Rc<dyn FsServer> {
+    let window = web_sys::window().expect("\"window\" not found");
+    let page_url = window
+        .location()
+        .pathname()
+        .expect("Could not get location.pathname");
+    let mut page_url = PathBuf::from_str(&page_url).expect("Page url parse");
+    if let Some(ext) = page_url.extension()
+        && ext == "html"
+    {
+        page_url.pop();
+    }
+
+    Rc::new(WasmFsServer { fs_root, page_url, event_loop_proxy })
+}
+
+struct WasmFsServer {
     page_url: PathBuf,
     fs_root: PathBuf,
     event_loop_proxy: EventLoopProxy<AppEvent>,
 }
 
-impl FsServerHandle {
-    pub fn load_file(&self, path: impl AsRef<Path>) {
-        let path: Rc<Path> = path.as_ref().into();
+impl FsServer for WasmFsServer {
+    fn load_file(&self, path: &Path) {
+        let path: Rc<Path> = path.into();
         tracing::debug!(target: TARGET_NAME, path=?path, "will load");
 
         let url = PathBuf::from_iter([&self.page_url, &self.fs_root, &*path])
@@ -32,37 +51,6 @@ impl FsServerHandle {
 
         let _ = window.fetch_with_str(&url).then(&then_callback);
         then_callback.forget();
-    }
-}
-
-pub(crate) struct FsServer {
-    page_url: PathBuf,
-    fs_root: PathBuf,
-    event_loop_proxy: EventLoopProxy<AppEvent>,
-}
-
-impl FsServer {
-    pub(crate) fn start(event_loop_proxy: EventLoopProxy<AppEvent>, fs_root: PathBuf) -> FsServer {
-        let window = web_sys::window().expect("\"window\" not found");
-        let page_url = window
-            .location()
-            .pathname()
-            .expect("Could not get location.pathname");
-        let mut page_url = PathBuf::from_str(&page_url).expect("Page url parse");
-        if let Some(ext) = page_url.extension()
-            && ext == "html"
-        {
-            page_url.pop();
-        }
-        FsServer { fs_root, page_url, event_loop_proxy }
-    }
-
-    pub fn get_handle(&self) -> FsServerHandle {
-        FsServerHandle {
-            page_url: self.page_url.clone(),
-            fs_root: self.fs_root.clone(),
-            event_loop_proxy: self.event_loop_proxy.clone(),
-        }
     }
 }
 

@@ -4,6 +4,7 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
 use mimiq::*;
+use std::path::Path;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;
@@ -15,7 +16,6 @@ fn main() {
 struct App {
     total_time: Duration,
     ctx: Rc<GlContext>,
-    _fs_server: FsServerHandle,
 
     pipeline: Pipeline<Meta>,
     vertices: VertexBuffer<ImgVertex>,
@@ -51,8 +51,8 @@ impl EventHandler<()> for App {
         ));
     }
 
-    fn init(ctx: Rc<GlContext>, fs_server: FsServerHandle, _init: ()) -> App {
-        fs_server.load_file("assets/ferris.png");
+    fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, _init: ()) -> App {
+        fs_server.load_file(Path::new("assets/ferris.png"));
 
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
@@ -70,15 +70,7 @@ impl EventHandler<()> for App {
 
         let pipeline = ctx.new_pipeline();
 
-        App {
-            pipeline,
-            _fs_server: fs_server,
-            vertices,
-            indicies,
-            texture: None,
-            ctx,
-            total_time: Duration::ZERO,
-        }
+        App { pipeline, vertices, indicies, texture: None, ctx, total_time: Duration::ZERO }
     }
 }
 
