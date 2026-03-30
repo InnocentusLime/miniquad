@@ -45,7 +45,7 @@ impl FsServer for NativeFsServer {
 
 fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent>) {
     while let Ok(task) = task_queue.recv() {
-        let file_content: anyhow::Result<Vec<u8>> = std::fs::read(&task.path).map_err(Into::into);
+        let file_content = std::fs::read(&task.path);
         match &file_content {
             Ok(_) => tracing::info!(target: TARGET_NAME, path=?task.path, "done"),
             Err(e) => tracing::error!(target: TARGET_NAME, path=?task.path, "{e:#}"),

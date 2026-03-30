@@ -5,6 +5,7 @@ mod wasm;
 
 static TARGET_NAME: &str = "fs_loader";
 
+use std::io;
 use std::path::{Path, PathBuf};
 
 #[cfg(not(target_family = "wasm"))]
@@ -19,5 +20,5 @@ pub trait FsServer {
 #[derive(Debug)]
 pub struct FileReady {
     pub path: PathBuf,
-    pub bytes_result: anyhow::Result<Vec<u8>>,
+    pub bytes_result: io::Result<Vec<u8>>,
 }
