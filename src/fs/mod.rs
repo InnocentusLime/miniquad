@@ -3,8 +3,6 @@ mod native;
 #[cfg(target_family = "wasm")]
 mod wasm;
 
-static TARGET_NAME: &str = "fs_loader";
-
 use std::io;
 use std::path::{Path, PathBuf};
 
