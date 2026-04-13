@@ -50,6 +50,23 @@ jobs:
         run: cargo build
       - name: Check Native (serde)
         run: cargo build --features serde
+  tests:
+    runs-on: ubuntu-latest
+    container: rust:1.93.1-bookworm 
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            target/
+          key: tests-bookworm-1.93-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: tests-bookworm-1.93-cargo-
+      - name: Run tests
+        run: cargo test --workspace --features serde --locked
   cargo-fmt:
     runs-on: ubuntu-latest
     container: rust:1.93.1-bookworm 
