@@ -50,43 +50,44 @@ impl App {
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                BasicVertex { pos: vec2(-0.5, -0.5) + dr, color: RED },
-                BasicVertex { pos: vec2(0.5, -0.5) + dr, color: GREEN },
-                BasicVertex { pos: vec2(0.0,  0.5) + dr, color: BLUE },
+                BasicVertex { pos: vec2(-0.5, -0.5) + dr, color: Color::RED },
+                BasicVertex { pos: vec2(0.5, -0.5) + dr, color: Color::GREEN },
+                BasicVertex { pos: vec2(0.0,  0.5) + dr, color: Color::BLUE },
             ],
             &[0, 1, 2],
         );
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                BasicVertex { pos: vec2(0.0, -0.5), color: RED },
-                BasicVertex { pos: vec2(1.0, -0.5), color: GREEN },
-                BasicVertex { pos: vec2(0.5 + 0.5 * t.sin(),  1.0), color: BLUE },
+                BasicVertex { pos: vec2(0.0, -0.5), color: Color::RED },
+                BasicVertex { pos: vec2(1.0, -0.5), color: Color::GREEN },
+                BasicVertex { pos: vec2(0.5 + 0.5 * t.sin(),  1.0), color: Color::BLUE },
             ],
             &[0, 1, 2],
         );
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                BasicVertex { pos: vec2(-1.0, 0.0), color: RED },
-                BasicVertex { pos: vec2(-1.0, -1.0), color: GREEN },
-                BasicVertex { pos: vec2(0.0,  -1.0), color: BLUE },
+                BasicVertex { pos: vec2(-1.0, 0.0), color: Color::RED },
+                BasicVertex { pos: vec2(-1.0, -1.0), color: Color::GREEN },
+                BasicVertex { pos: vec2(0.0,  -1.0), color: Color::BLUE },
             ],
             &[0, 1, 2],
         );
         let num_elements = self.batcher.finish();
 
-        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
-            self.ctx.draw(DrawCall {
-                pipeline: &self.pipeline,
-                base_element: 0,
-                num_elements,
-                vertex_buffer: &self.batcher.vertices,
-                index_buffer: &self.batcher.indicies,
-                images: &NoImages,
-                uniforms: &NoUniforms,
+        self.ctx
+            .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.pipeline,
+                    base_element: 0,
+                    num_elements,
+                    vertex_buffer: &self.batcher.vertices,
+                    index_buffer: &self.batcher.indicies,
+                    images: &NoImages,
+                    uniforms: &NoUniforms,
+                });
             });
-        });
     }
 }
 

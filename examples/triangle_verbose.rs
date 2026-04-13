@@ -39,9 +39,9 @@ impl EventHandler<()> for App {
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            TriangleVertex { pos: vec2(-0.5, -0.5), color: RED },
-            TriangleVertex { pos: vec2(0.5, -0.5), color: GREEN },
-            TriangleVertex { pos: vec2(0.0,  0.5), color: BLUE },
+            TriangleVertex { pos: vec2(-0.5, -0.5), color: Color::RED },
+            TriangleVertex { pos: vec2(0.5, -0.5), color: Color::GREEN },
+            TriangleVertex { pos: vec2(0.0,  0.5), color: Color::BLUE },
         ]);
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[0, 1, 2]);
         let pipeline = ctx.new_pipeline();
@@ -52,17 +52,18 @@ impl EventHandler<()> for App {
 
 impl App {
     pub fn draw(&mut self) {
-        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
-            self.ctx.draw(DrawCall {
-                pipeline: &self.pipeline,
-                base_element: 0,
-                num_elements: 3,
-                vertex_buffer: &self.vertices,
-                index_buffer: &self.indicies,
-                images: &NoImages,
-                uniforms: &NoUniforms,
+        self.ctx
+            .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.pipeline,
+                    base_element: 0,
+                    num_elements: 3,
+                    vertex_buffer: &self.vertices,
+                    index_buffer: &self.indicies,
+                    images: &NoImages,
+                    uniforms: &NoUniforms,
+                });
             });
-        });
     }
 }
 

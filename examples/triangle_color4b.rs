@@ -48,17 +48,18 @@ impl EventHandler<()> for App {
 
 impl App {
     fn draw(&mut self) {
-        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
-            self.ctx.draw(DrawCall {
-                pipeline: &self.pipeline,
-                base_element: 0,
-                num_elements: 3,
-                vertex_buffer: &self.vertices,
-                index_buffer: &self.indicies,
-                images: &NoImages,
-                uniforms: &NoUniforms,
+        self.ctx
+            .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.pipeline,
+                    base_element: 0,
+                    num_elements: 3,
+                    vertex_buffer: &self.vertices,
+                    index_buffer: &self.indicies,
+                    images: &NoImages,
+                    uniforms: &NoUniforms,
+                });
             });
-        });
     }
 }
 

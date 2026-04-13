@@ -72,20 +72,21 @@ impl App {
     fn draw(&mut self) {
         let t = self.total_time.as_secs_f32();
 
-        self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {
-            for i in 0..10 {
-                let t = t + i as f32 * 0.3;
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements: 6,
-                    vertex_buffer: &self.vertices,
-                    index_buffer: &self.indicies,
-                    images: &self.texture,
-                    uniforms: &Uniforms { offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5) },
-                });
-            }
-        });
+        self.ctx
+            .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
+                for i in 0..10 {
+                    let t = t + i as f32 * 0.3;
+                    self.ctx.draw(DrawCall {
+                        pipeline: &self.pipeline,
+                        base_element: 0,
+                        num_elements: 6,
+                        vertex_buffer: &self.vertices,
+                        index_buffer: &self.indicies,
+                        images: &self.texture,
+                        uniforms: &Uniforms { offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5) },
+                    });
+                }
+            });
     }
 }
 
