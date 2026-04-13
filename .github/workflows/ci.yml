@@ -23,6 +23,8 @@ jobs:
         run: cargo build --target wasm32-unknown-unknown --features egui
       - name: Check WASM (base)
         run: cargo build --target wasm32-unknown-unknown
+      - name: Check WASM (serde)
+        run: cargo build --target wasm32-unknown-unknown --features serde
   ci-build-native:
     runs-on: ubuntu-latest
     container: rust:1.93.1-bookworm 
@@ -46,6 +48,8 @@ jobs:
         run: cargo build --features egui
       - name: Check Native (base)
         run: cargo build
+      - name: Check Native (serde)
+        run: cargo build --features serde
   cargo-fmt:
     runs-on: ubuntu-latest
     container: rust:1.93.1-bookworm 
