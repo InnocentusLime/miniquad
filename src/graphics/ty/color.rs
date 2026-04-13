@@ -13,7 +13,7 @@ pub const fn color_hex(hex: u32) -> Color {
     Color::from_hex(hex)
 }
 
-#[derive(Debug, Clone, Copy, Pod, Zeroable, Default)]
+#[derive(Debug, Clone, Copy, Pod, Zeroable, Default, PartialEq)]
 #[repr(C)]
 pub struct Color {
     pub r: f32,
@@ -75,5 +75,166 @@ impl Color {
     pub const fn from_hex(hex: u32) -> Color {
         let [_, r, g, b] = hex.to_be_bytes();
         Self::from_rgba(r, g, b, 255)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde_core::Serialize for Color {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde_core::Serializer,
+    {
+        use serde_core::ser::SerializeTupleStruct;
+
+        let mut state = serializer.serialize_tuple_struct("Color", 4)?;
+        state.serialize_field(&self.r)?;
+        state.serialize_field(&self.g)?;
+        state.serialize_field(&self.b)?;
+        state.serialize_field(&self.a)?;
+        state.end()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde_core::Deserialize<'de> for Color {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde_core::Deserializer<'de>,
+    {
+        static COLOR_NAMES: &'static [&str] = &[
+            "BLANK",
+            "CYAN",
+            "LIGHTGRAY",
+            "GRAY",
+            "DARKGRAY",
+            "YELLOW",
+            "GOLD",
+            "ORANGE",
+            "PINK",
+            "RED",
+            "MAROON",
+            "GREEN",
+            "LIME",
+            "DARKGREEN",
+            "SKYBLUE",
+            "BLUE",
+            "DARKBLUE",
+            "PURPLE",
+            "VIOLET",
+            "DARKPURPLE",
+            "BEIGE",
+            "BROWN",
+            "DARKBROWN",
+            "WHITE",
+            "BLACK",
+            "MAGENTA",
+        ];
+
+        static COLOR_VALUES: &'static [Color] = &[
+            Color::BLANK,
+            Color::CYAN,
+            Color::LIGHTGRAY,
+            Color::GRAY,
+            Color::DARKGRAY,
+            Color::YELLOW,
+            Color::GOLD,
+            Color::ORANGE,
+            Color::PINK,
+            Color::RED,
+            Color::MAROON,
+            Color::GREEN,
+            Color::LIME,
+            Color::DARKGREEN,
+            Color::SKYBLUE,
+            Color::BLUE,
+            Color::DARKBLUE,
+            Color::PURPLE,
+            Color::VIOLET,
+            Color::DARKPURPLE,
+            Color::BEIGE,
+            Color::BROWN,
+            Color::DARKBROWN,
+            Color::WHITE,
+            Color::BLACK,
+            Color::MAGENTA,
+        ];
+
+        struct ColorVisitor;
+
+        impl<'de> serde_core::de::Visitor<'de> for ColorVisitor {
+            type Value = Color;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str(&concat!("a sequence of 4 f32 values or a string"))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde_core::de::SeqAccess<'de>,
+            {
+                let r = seq
+                    .next_element()?
+                    .ok_or_else(|| serde_core::de::Error::invalid_length(0, &self))?;
+                let g = seq
+                    .next_element()?
+                    .ok_or_else(|| serde_core::de::Error::invalid_length(1, &self))?;
+                let b = seq
+                    .next_element()?
+                    .ok_or_else(|| serde_core::de::Error::invalid_length(2, &self))?;
+                let a = seq
+                    .next_element()?
+                    .ok_or_else(|| serde_core::de::Error::invalid_length(3, &self))?;
+                Ok(color(r, g, b, a))
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde_core::de::Error,
+            {
+                match COLOR_NAMES
+                    .iter()
+                    .position(|x| (*x).eq_ignore_ascii_case(v))
+                {
+                    Some(id) => Ok(COLOR_VALUES[id]),
+                    None => Err(E::unknown_variant(v, COLOR_NAMES)),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(ColorVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+mod serde_test {
+    #[test]
+    fn color_names() {
+        use super::Color;
+
+        assert_eq!(
+            serde_json::from_str::<Color>("\"Red\"").unwrap(),
+            Color::RED
+        );
+        assert_eq!(
+            serde_json::from_str::<Color>("\"RED\"").unwrap(),
+            Color::RED
+        );
+        assert_eq!(
+            serde_json::from_str::<Color>("\"red\"").unwrap(),
+            Color::RED
+        );
+        assert_eq!(
+            serde_json::from_str::<Color>("\"YELLOW\"").unwrap(),
+            Color::YELLOW
+        );
+    }
+
+    #[test]
+    fn color_ser_de_vector() {
+        use super::Color;
+
+        let x = Color { r: 1.0, g: 0.5, b: 0.4, a: 0.23 };
+        let str = serde_json::to_string(&x).unwrap();
+        assert_eq!(x, serde_json::from_str(&str).unwrap());
     }
 }
