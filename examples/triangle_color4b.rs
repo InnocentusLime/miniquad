@@ -64,15 +64,10 @@ impl App {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Default, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct TriangleVertex {
     pub pos: Vec2,
     pub color: U8Vec4,
-}
-
-impl Vertex for TriangleVertex {
-    const LAYOUT: &'static [VertexField] =
-        &[attribute_of!(TriangleVertex, pos), attribute_of!(TriangleVertex, color)];
 }
 
 pub struct Meta;

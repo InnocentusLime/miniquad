@@ -50,11 +50,6 @@ console_error_panic_hook = "0.1"
 quad-rand = "0.1"
 serde_json = "1.0"
 
-[[example]]
-name = "egui"
-path = "examples/egui.rs"
-required-features = ["egui"]
-
 [profile.wasm-release]
 inherits = "release"
 opt-level = "z"
@@ -62,3 +57,48 @@ codegen-units = 1
 lto = "thin"
 strip = true
 panic = "abort"
+
+[[example]]
+name = "basic_img"
+path = "examples/basic_img.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "blobs"
+path = "examples/blobs.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "egui"
+path = "examples/egui.rs"
+required-features = ["egui", "derive"]
+
+[[example]]
+name = "offscreen"
+path = "examples/offscreen.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "post_processing"
+path = "examples/post_processing.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "quad"
+path = "examples/quad.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "triangle_color4b"
+path = "examples/triangle_color4b.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "triangle_verbose"
+path = "examples/triangle_verbose.rs"
+required-features = ["derive"]
+
+[[example]]
+name = "triangle"
+path = "examples/triangle.rs"
+required-features = ["derive"]

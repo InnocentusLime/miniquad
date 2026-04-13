@@ -192,27 +192,17 @@ impl App {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Default, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct CubeVert {
     pub pos: Vec3,
     pub color: Vec4,
 }
 
-impl Vertex for CubeVert {
-    const LAYOUT: &'static [VertexField] =
-        &[attribute_of!(CubeVert, pos), attribute_of!(CubeVert, color)];
-}
-
 #[repr(C)]
-#[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Default, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct QuadVert {
     pub pos: Vec2,
     pub uv: Vec2,
-}
-
-impl Vertex for QuadVert {
-    const LAYOUT: &'static [VertexField] =
-        &[attribute_of!(QuadVert, pos), attribute_of!(QuadVert, uv)];
 }
 
 pub struct PostProcessingMeta;
@@ -229,13 +219,9 @@ impl PipelineMeta for PostProcessingMeta {
 }
 
 #[repr(C)]
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy, UniformBlock)]
 pub struct PostProcessingUniforms {
     pub resolution: glam::Vec2,
-}
-
-impl UniformBlock for PostProcessingUniforms {
-    const FIELDS: &'static [UniformField] = &[uniform_of!(PostProcessingUniforms, resolution)];
 }
 
 pub struct OffscreenMeta;
@@ -253,11 +239,7 @@ impl PipelineMeta for OffscreenMeta {
 }
 
 #[repr(C)]
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy, UniformBlock)]
 pub struct OffscreenUniforms {
     pub mvp: glam::Mat4,
-}
-
-impl UniformBlock for OffscreenUniforms {
-    const FIELDS: &'static [UniformField] = &[uniform_of!(OffscreenUniforms, mvp)];
 }

@@ -135,15 +135,10 @@ impl App {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, Zeroable, Pod, Clone, Copy)]
+#[derive(Debug, Default, Zeroable, Pod, Clone, Copy, Vertex)]
 pub struct BlobVertex {
     pub pos: Vec2,
     pub uv: Vec2,
-}
-
-impl Vertex for BlobVertex {
-    const LAYOUT: &'static [VertexField] =
-        &[attribute_of!(BlobVertex, pos), attribute_of!(BlobVertex, uv)];
 }
 
 // based on: https://www.shadertoy.com/view/XsS3DV
@@ -160,16 +155,8 @@ impl PipelineMeta for Meta {
     const PARAMS: PipelineParams = default_pipeline_params();
 }
 
-impl UniformBlock for Uniforms {
-    const FIELDS: &'static [UniformField] = &[
-        uniform_of!(Uniforms, time),
-        uniform_of!(Uniforms, blobs_count),
-        uniform_of!(Uniforms, blobs_positions),
-    ];
-}
-
 #[repr(C)]
-#[derive(Debug, Zeroable, Pod, Clone, Copy)]
+#[derive(Debug, Zeroable, Pod, Clone, Copy, UniformBlock)]
 pub struct Uniforms {
     pub time: f32,
     pub blobs_count: i32,

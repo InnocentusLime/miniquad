@@ -101,15 +101,10 @@ impl App {
 }
 
 #[repr(C)]
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
+#[derive(Debug, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct ImgVertex {
     pos: Vec2,
     uv: Vec2,
-}
-
-impl Vertex for ImgVertex {
-    const LAYOUT: &'static [VertexField] =
-        &[attribute_of!(ImgVertex, pos), attribute_of!(ImgVertex, uv)];
 }
 
 pub struct Meta;
@@ -133,11 +128,7 @@ impl PipelineMeta for Meta {
 }
 
 #[repr(C)]
-#[derive(Debug, Zeroable, Pod, Clone, Copy)]
+#[derive(Debug, Zeroable, Pod, Clone, Copy, UniformBlock)]
 pub struct Uniforms {
     pub offset: Vec2,
-}
-
-impl UniformBlock for Uniforms {
-    const FIELDS: &'static [UniformField] = &[uniform_of!(Uniforms, offset)];
 }
