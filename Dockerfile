@@ -10,20 +10,20 @@ COPY /examples/assets/ /dist/examples/assets/
 ADD . /project/
 RUN <<EOF
     cd /project
-    cargo build --example basic_img --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example basic_img --features derive --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example batcher --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example blobs --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example egui --features egui --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example blobs --features derive --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example egui --features derive --features egui --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example input --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example offscreen --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example post_processing --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example quad --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example offscreen --features derive --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example post_processing --features derive --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example quad --features derive --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example raw_input --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example shape_batcher --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example sprite_batch --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example triangle_color4b --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example triangle_verbose --target wasm32-unknown-unknown --profile wasm-release
-    cargo build --example triangle --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example triangle_color4b --features derive --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example triangle_verbose --features derive --target wasm32-unknown-unknown --profile wasm-release
+    cargo build --example triangle --features derive --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example window_conf --target wasm32-unknown-unknown --profile wasm-release
     cargo build --example timing --target wasm32-unknown-unknown --profile wasm-release
     wasm-bindgen --target web --out-dir /dist ./target/wasm32-unknown-unknown/wasm-release/examples/basic_img.wasm

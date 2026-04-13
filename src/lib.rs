@@ -16,12 +16,12 @@ pub use bytemuck::zeroed;
 pub use context_init::GLSL_VERSION;
 #[cfg(feature = "egui")]
 pub use egui;
-#[cfg(feature = "derive")]
-pub use mimiq_derive::*;
 pub use fs::*;
 pub use glam;
 pub use graphics::*;
 pub use image;
+#[cfg(feature = "derive")]
+pub use mimiq_derive::*;
 pub use web_time::*;
 pub use winit;
 
