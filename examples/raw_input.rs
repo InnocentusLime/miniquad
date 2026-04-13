@@ -18,9 +18,9 @@ impl EventHandler<()> for App {
 
     fn window_event(&mut self, event: winit::event::WindowEvent, _window: &winit::window::Window) {
         match event {
-            WindowEvent::RedrawRequested => {
-                self.ctx.default_pass(Clear::depth_color(GREEN), |_, _| {})
-            }
+            WindowEvent::RedrawRequested => self
+                .ctx
+                .default_pass(Clear::depth_color(Color::GREEN), |_, _| {}),
             WindowEvent::KeyboardInput { event, .. } => info!(
                 loc=?event.location,
                 phys_code=?event.physical_key,

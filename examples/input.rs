@@ -52,9 +52,9 @@ impl EventHandler<()> for App {
         self.input.handle_event(&event);
 
         match event {
-            WindowEvent::RedrawRequested => {
-                self.ctx.default_pass(Clear::depth_color(BLACK), |_, _| {})
-            }
+            WindowEvent::RedrawRequested => self
+                .ctx
+                .default_pass(Clear::depth_color(Color::BLACK), |_, _| {}),
             _ => (),
         }
     }

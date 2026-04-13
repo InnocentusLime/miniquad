@@ -161,31 +161,33 @@ impl App {
         let model = Mat4::from_rotation_y(self.ry) * Mat4::from_rotation_y(self.rx);
 
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
-        self.offscreen_pass.pass(Clear::depth_color(WHITE), |_, _| {
-            self.ctx.draw(DrawCall {
-                pipeline: &self.offscreen_pipeline,
-                base_element: 0,
-                num_elements: 36,
-                vertex_buffer: &self.vertices_cube,
-                index_buffer: &self.indicies_cube,
-                images: &NoImages,
-                uniforms: &OffscreenUniforms { mvp: view_proj * model },
+        self.offscreen_pass
+            .pass(Clear::depth_color(Color::WHITE), |_, _| {
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.offscreen_pipeline,
+                    base_element: 0,
+                    num_elements: 36,
+                    vertex_buffer: &self.vertices_cube,
+                    index_buffer: &self.indicies_cube,
+                    images: &NoImages,
+                    uniforms: &OffscreenUniforms { mvp: view_proj * model },
+                });
             });
-        });
 
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
-        self.ctx.default_pass(Clear::depth_color(WHITE), |_, _| {
-            self.ctx.draw(DrawCall {
-                pipeline: &self.post_processing_pipeline,
-                base_element: 0,
-                num_elements: 6,
-                vertex_buffer: &self.vertices_quad,
-                index_buffer: &self.indicies_quad,
-                images: &self.offscreen_pass.color_attachments()[0],
-                uniforms: &PostProcessingUniforms { resolution: vec2(width, height) },
+        self.ctx
+            .default_pass(Clear::depth_color(Color::WHITE), |_, _| {
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.post_processing_pipeline,
+                    base_element: 0,
+                    num_elements: 6,
+                    vertex_buffer: &self.vertices_quad,
+                    index_buffer: &self.indicies_quad,
+                    images: &self.offscreen_pass.color_attachments()[0],
+                    uniforms: &PostProcessingUniforms { resolution: vec2(width, height) },
+                });
             });
-        });
     }
 }
 

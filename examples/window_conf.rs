@@ -26,7 +26,8 @@ impl EventHandler<()> for App {
 
     fn window_event(&mut self, event: winit::event::WindowEvent, _window: &winit::window::Window) {
         if matches!(event, WindowEvent::RedrawRequested) {
-            self.ctx.default_pass(Clear::depth_color(GREEN), |_, _| {});
+            self.ctx
+                .default_pass(Clear::depth_color(Color::GREEN), |_, _| {});
         }
     }
 

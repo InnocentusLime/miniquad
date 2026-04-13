@@ -40,32 +40,36 @@ impl App {
     pub fn draw(&mut self) {
         let t = self.total_time.as_secs_f32();
 
-        self.batcher
-            .triangle(RED, vec2(0.0, 100.0), vec2(100.0, 100.0), vec2(0.0, 0.0));
+        self.batcher.triangle(
+            Color::RED,
+            vec2(0.0, 100.0),
+            vec2(100.0, 100.0),
+            vec2(0.0, 0.0),
+        );
 
         self.batcher.triangle(
-            GREEN,
+            Color::GREEN,
             vec2(300.0, 200.0),
             vec2(200.0, 200.0),
             vec2(300.0, 300.0),
         );
 
         self.batcher.line(
-            CYAN,
+            Color::CYAN,
             3.0,
             vec2(50.0, 200.0),
             vec2(100.0, 300.0 + 30.0 * t.sin()),
         );
 
         self.batcher.line(
-            CYAN,
+            Color::CYAN,
             1.0,
             vec2(500.0 + 50.0 * (t * 2.0).cos(), 200.0),
             vec2(100.0, 500.0),
         );
 
         self.batcher.triangle_lines(
-            CYAN,
+            Color::CYAN,
             1.0,
             vec2(400.0, 500.0),
             vec2(460.0, 530.0),
@@ -73,7 +77,7 @@ impl App {
         );
 
         self.batcher.poly_lines(
-            GREEN,
+            Color::GREEN,
             2.0,
             vec2(600.0, 600.0),
             t / (0.5 * std::f32::consts::TAU),
@@ -82,7 +86,7 @@ impl App {
         );
 
         self.batcher.polygon(
-            GREEN,
+            Color::GREEN,
             vec2(650.0, 600.0),
             t / (0.5 * std::f32::consts::TAU),
             6,
@@ -90,26 +94,26 @@ impl App {
         );
 
         self.batcher
-            .circle_lines(RED, 1.0, vec2(400.0, 600.0), 40.0);
+            .circle_lines(Color::RED, 1.0, vec2(400.0, 600.0), 40.0);
 
-        self.batcher.circle(RED, vec2(540.0, 600.0), 40.0);
+        self.batcher.circle(Color::RED, vec2(540.0, 600.0), 40.0);
 
         self.batcher.rect(
-            PURPLE,
+            Color::PURPLE,
             vec2(-50.0, 0.0),
             vec2(100.0, 200.0),
             std::f32::consts::FRAC_PI_2,
         );
 
         self.batcher.rect(
-            PURPLE,
+            Color::PURPLE,
             vec2(300.0, 100.0),
             vec2(100.0, 200.0),
             t / (0.5 * std::f32::consts::TAU),
         );
 
         self.batcher.rect_lines(
-            PURPLE,
+            Color::PURPLE,
             1.0,
             vec2(100.0, 300.0),
             vec2(50.0, 100.0),
@@ -117,7 +121,7 @@ impl App {
         );
 
         self.ctx
-            .default_pass(Clear::depth_color(BLACK), |width, height| {
+            .default_pass(Clear::depth_color(Color::BLACK), |width, height| {
                 let proj =
                     Mat4::orthographic_rh_gl(0.0, width as f32, height as f32, 0.0, 0.0, 1.0);
                 self.batcher.basic_draw(&self.ctx, proj, &self.pipeline);
