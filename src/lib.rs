@@ -1,5 +1,8 @@
 #![doc = include_str!("../README.md")]
 
+#[cfg(feature = "derive")]
+extern crate mimiq_derive;
+
 mod context_init;
 mod embeded_assets;
 mod fs;
@@ -13,6 +16,8 @@ pub use bytemuck::zeroed;
 pub use context_init::GLSL_VERSION;
 #[cfg(feature = "egui")]
 pub use egui;
+#[cfg(feature = "derive")]
+pub use mimiq_derive::*;
 pub use fs::*;
 pub use glam;
 pub use graphics::*;

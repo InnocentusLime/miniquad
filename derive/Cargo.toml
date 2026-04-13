@@ -1,0 +1,13 @@
+[package]
+name = "mimiq_derive"
+version = "0.5.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+# syn seems to have broken backwards compatibility in this version https://github.com/dtolnay/syn/issues/1194
+syn = "2.0.1"
+quote = "1"
+proc-macro2 = "1.0.60"

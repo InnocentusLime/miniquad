@@ -857,6 +857,7 @@ dependencies = [
  "glutin",
  "glutin-winit",
  "image",
+ "mimiq_derive",
  "quad-rand",
  "raw-window-handle",
  "serde_core",
@@ -868,6 +869,15 @@ dependencies = [
  "web-sys",
  "web-time",
  "winit",
+]
+
+[[package]]
+name = "mimiq_derive"
+version = "0.5.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
