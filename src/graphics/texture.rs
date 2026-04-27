@@ -74,67 +74,8 @@ impl Texture2D {
         Texture2D { ctx, gl_tex, width, height, format }
     }
 
-    pub fn set_wrap(&mut self, wrap_x: TextureWrap, wrap_y: TextureWrap) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let wrap_x = match wrap_x {
-            TextureWrap::Repeat => glow::REPEAT,
-            TextureWrap::Mirror => glow::MIRRORED_REPEAT,
-            TextureWrap::Clamp => glow::CLAMP_TO_EDGE,
-        };
-
-        let wrap_y = match wrap_y {
-            TextureWrap::Repeat => glow::REPEAT,
-            TextureWrap::Mirror => glow::MIRRORED_REPEAT,
-            TextureWrap::Clamp => glow::CLAMP_TO_EDGE,
-        };
-
-        unsafe {
-            self.ctx
-                .gl
-                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_S, wrap_x as i32);
-            self.ctx
-                .gl
-                .tex_parameter_i32(glow::TEXTURE_2D, glow::TEXTURE_WRAP_T, wrap_y as i32);
-        }
-    }
-
-    pub fn set_min_filter(&mut self, filter: FilterMode) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let filter = gl_filter(filter);
-        unsafe {
-            self.ctx.gl.tex_parameter_i32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_MIN_FILTER,
-                filter as i32,
-            );
-        }
-    }
-
-    pub fn set_mag_filter(&mut self, filter: FilterMode) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        let filter = gl_filter(filter);
-        unsafe {
-            self.ctx.gl.tex_parameter_i32(
-                glow::TEXTURE_2D,
-                glow::TEXTURE_MAG_FILTER,
-                filter as i32,
-            );
-        }
-    }
-
     pub fn data_size(&self) -> usize {
         self.format.data_size(self.width(), self.height()) as usize
-    }
-
-    pub fn generate_mipmaps(&self) {
-        let mut cache = self.ctx.cache.borrow_mut();
-        cache.bind_texture(&self.ctx.gl, 0, glow::TEXTURE_2D, self.gl_tex);
-        unsafe {
-            self.ctx.gl.generate_mipmap(glow::TEXTURE_2D);
-        }
     }
 
     pub fn size(&self) -> UVec2 {
