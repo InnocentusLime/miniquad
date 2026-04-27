@@ -47,6 +47,8 @@ impl App {
         let t = self.total_time.as_secs_f32();
         let dr = vec2(t.cos(), t.sin());
 
+        self.batcher.clear();
+
         #[rustfmt::skip]
         self.batcher.extend(
             &[
@@ -74,7 +76,7 @@ impl App {
             ],
             &[0, 1, 2],
         );
-        let num_elements = self.batcher.finish();
+        let num_elements = self.batcher.flush();
 
         self.ctx
             .default_pass(Clear::depth_color(Color::BLACK), |_, _| {

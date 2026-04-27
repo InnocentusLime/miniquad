@@ -4,9 +4,9 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Affine2, Mat4, UVec2, Vec2, vec2};
 
 use crate::{
-    BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, Color, DrawCall, GlContext,
-    Pipeline, PipelineMeta, PipelineParams, Texture2D, UniformBlock, UniformField, Vertex,
-    VertexField, attribute_of, default_pipeline_params, uniform_of, util::GeometryBatcher,
+    BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, Color, GlContext, PipelineMeta,
+    PipelineParams, Texture2D, UniformBlock, UniformField, Vertex, VertexField, attribute_of,
+    default_pipeline_params, uniform_of, util::GeometryBatcher,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -72,27 +72,12 @@ impl SpriteBatcher {
         self.0.extend(vertices, INDICIES);
     }
 
-    #[track_caller]
-    pub fn draw(
-        &mut self,
-        ctx: &GlContext,
-        view_projection: Mat4,
-        pipeline: &Pipeline<BasicSpritePipelineMeta>,
-        texture: &Texture2D,
-    ) {
-        let num_elements = self.0.finish();
-        ctx.draw(DrawCall {
-            pipeline,
-            base_element: 0,
-            num_elements,
-            vertex_buffer: &self.0.vertices,
-            index_buffer: &self.0.indicies,
-            images: texture,
-            uniforms: &BasicSpritePipelineUniforms {
-                view_projection,
-                width_height: texture.size().as_vec2(),
-            },
-        });
+    pub fn flush(&mut self) -> u32 {
+        self.0.flush()
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear()
     }
 }
 
