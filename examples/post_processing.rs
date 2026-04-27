@@ -46,14 +46,20 @@ impl EventHandler<()> for App {
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let (width, height) = ctx.screen_size();
         let color_img = ctx.new_empty_texture(
+            Texture2DFormat::RGBA8,
             width,
             height,
-            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
+            TextureWrap::Clamp,
+            FilterMode::Linear,
+            FilterMode::Linear,
         );
         let depth_img = ctx.new_empty_texture(
+            Texture2DFormat::DepthU16,
             width,
             height,
-            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
+            TextureWrap::Clamp,
+            FilterMode::Linear,
+            FilterMode::Linear,
         );
 
         let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
@@ -136,14 +142,20 @@ impl EventHandler<()> for App {
 impl App {
     fn resize_event(&mut self, (width, height): (u32, u32)) {
         let color_img = self.ctx.new_empty_texture(
+            Texture2DFormat::RGBA8,
             width,
             height,
-            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
+            TextureWrap::Clamp,
+            FilterMode::Linear,
+            FilterMode::Linear,
         );
         let depth_img = self.ctx.new_empty_texture(
+            Texture2DFormat::DepthU16,
             width,
             height,
-            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
+            TextureWrap::Clamp,
+            FilterMode::Linear,
+            FilterMode::Linear,
         );
 
         self.offscreen_pass = RenderPass::new(self.ctx.clone(), vec![color_img], Some(depth_img));

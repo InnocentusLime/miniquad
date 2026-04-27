@@ -93,19 +93,32 @@ impl GlContext {
 
     pub fn new_empty_texture(
         self: &Rc<Self>,
+        format: Texture2DFormat,
         width: u32,
         height: u32,
-        params: Texture2DParams,
+        wrap: TextureWrap,
+        min_filter: FilterMode,
+        mag_filter: FilterMode,
     ) -> Texture2D {
-        Texture2D::new_empty(self.clone(), width, height, params)
+        Texture2D::new_empty(
+            self.clone(),
+            format,
+            width,
+            height,
+            wrap,
+            min_filter,
+            mag_filter,
+        )
     }
 
     pub fn new_texture(
         self: &Rc<Self>,
         source: impl Into<DynamicImage>,
-        params: Texture2DParams,
+        wrap: TextureWrap,
+        min_filter: FilterMode,
+        mag_filter: FilterMode,
     ) -> Texture2D {
-        Texture2D::new(self.clone(), source, params)
+        Texture2D::new(self.clone(), source, wrap, min_filter, mag_filter)
     }
 
     #[track_caller]
