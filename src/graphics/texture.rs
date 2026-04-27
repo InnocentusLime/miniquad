@@ -9,25 +9,6 @@ use crate::graphics::GlContext;
 
 static TARGET_NAME: &str = "gl.texture";
 
-#[derive(Debug, Copy, Clone)]
-pub struct Texture2DParams {
-    pub internal_format: Texture2DFormat,
-    pub wrap: TextureWrap,
-    pub min_filter: FilterMode,
-    pub mag_filter: FilterMode,
-}
-
-impl Default for Texture2DParams {
-    fn default() -> Self {
-        Texture2DParams {
-            internal_format: Texture2DFormat::RGBA8,
-            wrap: TextureWrap::Clamp,
-            min_filter: FilterMode::Linear,
-            mag_filter: FilterMode::Linear,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct Texture2D {
     ctx: Rc<GlContext>,
@@ -40,66 +21,57 @@ pub struct Texture2D {
 impl Texture2D {
     pub fn new_empty(
         ctx: Rc<GlContext>,
+        format: Texture2DFormat,
         width: u32,
         height: u32,
-        params: Texture2DParams,
+        wrap: TextureWrap,
+        min_filter: FilterMode,
+        mag_filter: FilterMode,
     ) -> Texture2D {
-        let (internal_format, format, pixel_type) = gl_texture_format(params.internal_format);
-        let gl_tex = create_and_bind_texture(&ctx, &params);
-        unsafe {
-            ctx.gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                internal_format as i32,
-                width as i32,
-                height as i32,
-                0,
-                format,
-                pixel_type,
-                glow::PixelUnpackData::Slice(None),
-            );
-        }
-        apply_texture_parameters(&ctx, &params);
-        Texture2D { ctx, gl_tex, width, height, format: params.internal_format }
+        let gl_tex = create_and_bind_texture(
+            &ctx,
+            format,
+            width,
+            height,
+            wrap,
+            min_filter,
+            mag_filter,
+            glow::PixelUnpackData::Slice(None),
+        );
+        Texture2D { ctx, gl_tex, width, height, format }
     }
 
     pub fn new(
         ctx: Rc<GlContext>,
         source: impl Into<DynamicImage>,
-        params: Texture2DParams,
+        wrap: TextureWrap,
+        min_filter: FilterMode,
+        mag_filter: FilterMode,
     ) -> Texture2D {
         let mut source = source.into();
         // OpenGL is expecting the image data to be upside down.
         //
         // REF: https://registry.khronos.org/OpenGL-Refpages/gl4/html/glTexImage2D.xhtml
         source.apply_orientation(Orientation::FlipVertical);
-        let (format, pixel_type) = match source.color() {
-            image::ColorType::Rgb8 => (glow::RGB, glow::UNSIGNED_BYTE),
-            image::ColorType::Rgba8 => (glow::RGBA, glow::UNSIGNED_BYTE),
-            image::ColorType::L16 => (glow::DEPTH_COMPONENT, glow::UNSIGNED_SHORT),
+        let format = match source.color() {
+            image::ColorType::Rgb8 => Texture2DFormat::RGB8,
+            image::ColorType::Rgba8 => Texture2DFormat::RGBA8,
+            image::ColorType::L16 => Texture2DFormat::DepthU16,
             _ => unimplemented!("Unsupported image input"),
         };
 
-        let (internal_format, _, _) = gl_texture_format(params.internal_format);
-        let pixels = source.as_bytes();
         let (width, height) = (source.width(), source.height());
-        let gl_tex = create_and_bind_texture(&ctx, &params);
-        unsafe {
-            ctx.gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                internal_format as i32,
-                width as i32,
-                height as i32,
-                0,
-                format,
-                pixel_type,
-                PixelUnpackData::Slice(Some(pixels)),
-            );
-        }
-        apply_texture_parameters(&ctx, &params);
-        ctx.check_no_gl_error();
-        Texture2D { ctx, gl_tex, width, height, format: params.internal_format }
+        let gl_tex = create_and_bind_texture(
+            &ctx,
+            format,
+            width,
+            height,
+            wrap,
+            min_filter,
+            mag_filter,
+            PixelUnpackData::Slice(Some(source.as_bytes())),
+        );
+        Texture2D { ctx, gl_tex, width, height, format }
     }
 
     pub fn set_wrap(&mut self, wrap_x: TextureWrap, wrap_y: TextureWrap) {
@@ -229,29 +201,62 @@ pub enum FilterMode {
     Nearest,
 }
 
-fn create_and_bind_texture(ctx: &GlContext, params: &Texture2DParams) -> glow::Texture {
+fn create_and_bind_texture(
+    ctx: &GlContext,
+    format: Texture2DFormat,
+    width: u32,
+    height: u32,
+    wrap: TextureWrap,
+    min_filter: FilterMode,
+    mag_filter: FilterMode,
+    data: glow::PixelUnpackData,
+) -> glow::Texture {
     let mut cache = ctx.cache.borrow_mut();
     let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
     tracing::debug!(
         target: TARGET_NAME,
-        params=?params,
+        ?format, width, height,
         "new: {gl_tex:?}",
     );
     cache.bind_texture(&ctx.gl, 0, glow::TEXTURE_2D, gl_tex);
     unsafe {
         ctx.gl.pixel_store_i32(glow::PACK_ALIGNMENT, 1); // miniquad always uses row alignment of 1
     }
+
+    let (gl_internal_format, gl_format, gl_pixel_type) = gl_texture_format(format);
+    unsafe {
+        ctx.gl.tex_image_2d(
+            glow::TEXTURE_2D,
+            0,
+            gl_internal_format as i32,
+            width as i32,
+            height as i32,
+            0,
+            gl_format,
+            gl_pixel_type,
+            data,
+        );
+    }
+
+    apply_texture_parameters(&ctx, wrap, min_filter, mag_filter);
+    ctx.check_no_gl_error();
+
     gl_tex
 }
 
-fn apply_texture_parameters(ctx: &GlContext, params: &Texture2DParams) {
-    let wrap = match params.wrap {
+fn apply_texture_parameters(
+    ctx: &GlContext,
+    wrap: TextureWrap,
+    min_filter: FilterMode,
+    mag_filter: FilterMode,
+) {
+    let wrap = match wrap {
         TextureWrap::Repeat => glow::REPEAT,
         TextureWrap::Mirror => glow::MIRRORED_REPEAT,
         TextureWrap::Clamp => glow::CLAMP_TO_EDGE,
     };
-    let min_filter = gl_filter(params.min_filter);
-    let mag_filter = gl_filter(params.mag_filter);
+    let min_filter = gl_filter(min_filter);
+    let mag_filter = gl_filter(mag_filter);
 
     unsafe {
         ctx.gl

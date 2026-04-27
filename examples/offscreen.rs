@@ -42,14 +42,20 @@ impl EventHandler<()> for App {
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let color_img = ctx.new_empty_texture(
+            Texture2DFormat::RGBA8,
             256,
             256,
-            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
+            TextureWrap::Clamp,
+            FilterMode::Linear,
+            FilterMode::Linear,
         );
         let depth_img = ctx.new_empty_texture(
+            Texture2DFormat::DepthU16,
             256,
             256,
-            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
+            TextureWrap::Clamp,
+            FilterMode::Linear,
+            FilterMode::Linear,
         );
         let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
 

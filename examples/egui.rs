@@ -52,12 +52,9 @@ impl EventHandler<()> for App {
         let img = image::load_from_memory(&bytes).expect("Image load failed");
         self.texture = Some(self.ctx.new_texture(
             img,
-            Texture2DParams {
-                internal_format: Texture2DFormat::RGBA8,
-                wrap: TextureWrap::Clamp,
-                min_filter: FilterMode::Linear,
-                mag_filter: FilterMode::Linear,
-            },
+            TextureWrap::Clamp,
+            FilterMode::Linear,
+            FilterMode::Linear,
         ));
     }
 

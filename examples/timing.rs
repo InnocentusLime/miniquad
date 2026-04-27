@@ -19,7 +19,6 @@ struct App {
     vertices_cube: VertexBuffer<CubeVert>,
     indicies_cube: IndexBuffer,
     offscreen_pipeline: Pipeline<OffscreenMeta>,
-    offscreen_pass: RenderPass,
     rx: f32,
     ry: f32,
 
@@ -35,26 +34,11 @@ impl EventHandler<()> for App {
     fn window_event(&mut self, event: WindowEvent, _window: &Window) {
         match event {
             WindowEvent::RedrawRequested => self.draw(),
-            WindowEvent::Resized(sz) => self.resize_event(sz.into()),
             _ => (),
         }
     }
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
-        let (width, height) = ctx.screen_size();
-        let color_img = ctx.new_empty_texture(
-            width,
-            height,
-            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
-        );
-        let depth_img = ctx.new_empty_texture(
-            width,
-            height,
-            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
-        );
-
-        let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
-
         #[rustfmt::skip]
         let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             CubeVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0) },
@@ -100,34 +84,11 @@ impl EventHandler<()> for App {
 
         let offscreen_pipeline = ctx.new_pipeline();
 
-        App {
-            vertices_cube,
-            indicies_cube,
-            offscreen_pipeline,
-            offscreen_pass,
-            rx: 0.,
-            ry: 0.,
-            ctx,
-        }
+        App { vertices_cube, indicies_cube, offscreen_pipeline, rx: 0., ry: 0., ctx }
     }
 }
 
 impl App {
-    fn resize_event(&mut self, (width, height): (u32, u32)) {
-        let color_img = self.ctx.new_empty_texture(
-            width,
-            height,
-            Texture2DParams { internal_format: Texture2DFormat::RGBA8, ..Default::default() },
-        );
-        let depth_img = self.ctx.new_empty_texture(
-            width,
-            height,
-            Texture2DParams { internal_format: Texture2DFormat::DepthU16, ..Default::default() },
-        );
-
-        self.offscreen_pass = RenderPass::new(self.ctx.clone(), vec![color_img], Some(depth_img));
-    }
-
     fn draw(&mut self) {
         let (width, height) = self.ctx.screen_size();
         let (width, height) = (width as f32, height as f32);
