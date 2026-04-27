@@ -24,7 +24,6 @@ egui = ["dep:egui", "dep:egui_glow"]
 image = { version = "0.25", features = ["png"], default-features = false }
 web-time = "1.1" # Okay to make it a global dep. It just falls back to std
 tracing = { version = "0.1", features = ["max_level_trace", "release_max_level_info"] }
-winit = { version = "0.30", features = ["rwh_06"] }
 glow = "0.16"
 bytemuck = { version = "1.24", features = ["const_zeroed", "min_const_generics"] }
 glam = { version = "0.30", features = ["scalar-math", "bytemuck"] }
@@ -36,11 +35,13 @@ serde_core = { version = "1", optional = true }
 mimiq_derive = { version = "=0.5.0", path = "derive", optional = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
+winit = { version = "0.30", features = ["rwh_06"] }
 glutin = "0.32"
 glutin-winit = "0.5"
 raw-window-handle = "0.6"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
+winit = "0.30" 
 web-sys = { version = "0.3", features = ["Response", "Location", "ResizeObserver"] }
 wasm-bindgen = "0.2.114"
 tracing-web = "0.1"
