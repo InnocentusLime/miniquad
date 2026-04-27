@@ -278,7 +278,7 @@ pub fn default_window_attributes() -> WindowAttributes {
     WindowAttributes::default()
         .with_inner_size(LogicalSize::new(800, 600))
         .with_resizable(true)
-        .with_title("Miniquad window")
+        .with_title("Mimiq window")
         .with_window_icon(Some(default_icon))
 }
 
