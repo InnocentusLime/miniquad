@@ -43,6 +43,10 @@ fn fs_server_worker(task_queue: Receiver<FsTask>, proxy: EventLoopProxy<AppEvent
             path: task.orig_path,
             bytes_result: file_content,
         }));
+        // Err is EventLoopClosed. Shutdown properly.
+        if send_res.is_err() {
+            break;
+        }
     }
 }
 
