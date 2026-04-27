@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::Texture2D;
+use crate::graphics::Texture2D;
 
 #[derive(Debug)]
 pub struct NoImages;

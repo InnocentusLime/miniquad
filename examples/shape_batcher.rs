@@ -1,7 +1,10 @@
 //! Draws a bunch of shapes with the shape batcher.
 
+use mimiq::graphics::*;
+use mimiq::util::BasicPipelineUniforms;
+use mimiq::*;
+
 use glam::{Mat4, vec2};
-use mimiq::{util::BasicPipelineUniforms, *};
 use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 

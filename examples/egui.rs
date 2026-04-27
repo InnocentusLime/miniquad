@@ -1,6 +1,8 @@
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use mimiq::*;
 use std::path::Path;
 use std::rc::Rc;
 use winit::event::{ElementState, MouseButton, WindowEvent};

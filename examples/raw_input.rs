@@ -1,7 +1,9 @@
 //! Demonstrates how to handle raw winit events.
 //! Press some keys and use your mouse to see some logs!
 
+use mimiq::graphics::*;
 use mimiq::*;
+
 use std::rc::Rc;
 use tracing::info;
 use winit::event::WindowEvent;

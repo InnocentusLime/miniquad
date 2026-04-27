@@ -13,7 +13,8 @@ pub use sprite_batcher::*;
 use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 
-use crate::{Color, Vertex, VertexField, attribute_of};
+use crate::attribute_of;
+use crate::graphics::{Color, Vertex, VertexField};
 
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]

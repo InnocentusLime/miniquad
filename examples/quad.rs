@@ -2,10 +2,12 @@
 //! and draws a few quads with it. The example should look as follows:
 //! https://youtu.be/kksaeWrAT7E
 
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
 use image::RgbaImage;
-use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;

@@ -16,9 +16,9 @@ impl UniformBlock for NoUniforms {
 macro_rules! uniform_of {
     ($Type:path, $field:tt) => {{
         let sample = $crate::zeroed::<$Type>();
-        $crate::UniformField {
+        $crate::graphics::UniformField {
             name: stringify!($field),
-            ty: $crate::uniform_type_of_val(sample.$field),
+            ty: $crate::graphics::uniform_type_of_val(sample.$field),
             off: std::mem::offset_of!($Type, $field),
             sz: std::mem::size_of_val(&sample.$field),
         }

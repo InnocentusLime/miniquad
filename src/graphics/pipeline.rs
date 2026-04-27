@@ -3,10 +3,10 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 use crate::GLSL_VERSION;
-use crate::graphics::{GlContext, PipelineParams, PrimitiveType};
-use crate::{
-    ImagesBlock, IndexBuffer, Texture2D, UniformBlock, UniformField, Vertex, VertexBuffer,
-    VertexField, VertexIndex, apply_attributes_impl, apply_uniforms_impl,
+use crate::graphics::{
+    GlContext, ImagesBlock, IndexBuffer, PipelineParams, PrimitiveType, Texture2D, UniformBlock,
+    UniformField, Vertex, VertexBuffer, VertexField, VertexIndex, apply_attributes_impl,
+    apply_uniforms_impl,
 };
 
 use glow::HasContext;
