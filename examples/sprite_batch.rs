@@ -3,7 +3,7 @@
 
 use core::f32;
 use glam::{Affine2, Mat4, uvec2, vec2};
-use mimiq::util::SpriteBatcher;
+use mimiq::util::{BasicSpritePipelineUniforms, SpriteBatcher};
 use mimiq::*;
 use std::path::Path;
 use std::rc::Rc;
@@ -87,8 +87,9 @@ impl App {
                     0.0,
                     100.0,
                 );
-                put_tilemap(&mut self.batcher);
 
+                self.batcher.clear();
+                put_tilemap(&mut self.batcher);
                 self.batcher.add_sprite(util::Sprite {
                     tex_rect_pos: uvec2(48, 192),
                     tex_rect_size: uvec2(16, 16),
@@ -108,8 +109,19 @@ impl App {
                     color: Color::WHITE,
                     transform: char_tf,
                 });
-                self.batcher
-                    .draw(&self.ctx, view_projection, &self.pipeline, texture);
+                let num_elements = self.batcher.flush();
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.pipeline,
+                    base_element: 0,
+                    num_elements,
+                    vertex_buffer: &self.batcher.0.vertices,
+                    index_buffer: &self.batcher.0.indicies,
+                    images: texture,
+                    uniforms: &BasicSpritePipelineUniforms {
+                        view_projection,
+                        width_height: texture.size().as_vec2(),
+                    },
+                });
             });
     }
 }

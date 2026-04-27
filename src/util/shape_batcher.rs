@@ -1,12 +1,9 @@
 use std::rc::Rc;
 
 use super::{BasicVertex, GeometryBatcher};
-use crate::{
-    BufferUsage, Color, DrawCall, GlContext, IndexBuffer, NoImages, Pipeline, VertexBuffer,
-    util::{BasicPipelineMeta, BasicPipelineUniforms},
-};
+use crate::{BufferUsage, Color, GlContext, IndexBuffer, VertexBuffer};
 
-use glam::{Affine2, Mat4, Vec2, vec2};
+use glam::{Affine2, Vec2, vec2};
 
 #[derive(Debug)]
 pub struct ShapeBatcher(pub GeometryBatcher<BasicVertex>);
@@ -27,27 +24,12 @@ impl ShapeBatcher {
         self.0.element_count()
     }
 
-    pub fn finish(&mut self) -> u32 {
-        self.0.finish()
+    pub fn flush(&mut self) -> u32 {
+        self.0.flush()
     }
 
-    #[track_caller]
-    pub fn basic_draw(
-        &mut self,
-        ctx: &GlContext,
-        view_projection: Mat4,
-        basic_pipeline: &Pipeline<BasicPipelineMeta>,
-    ) {
-        let num_elements = self.finish();
-        ctx.draw(DrawCall {
-            pipeline: basic_pipeline,
-            base_element: 0,
-            num_elements,
-            vertex_buffer: &self.0.vertices,
-            index_buffer: &self.0.indicies,
-            images: &NoImages,
-            uniforms: &BasicPipelineUniforms { view_projection },
-        });
+    pub fn clear(&mut self) {
+        self.0.clear()
     }
 
     #[track_caller]

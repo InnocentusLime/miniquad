@@ -45,17 +45,21 @@ impl<V: Vertex, I: VertexIndex> GeometryBatcher<V, I> {
         self.client_indicies.len() as u32
     }
 
-    pub fn finish(&mut self) -> u32 {
+    /// NOTE: flush does NOT clear the client-side buffers. You must do it yourself.
+    pub fn flush(&mut self) -> u32 {
         let result = self.element_count();
 
         let vert_size = self.vertices.size().min(self.client_vertices.len());
         self.vertices.update(&self.client_vertices[0..vert_size]);
-        self.client_vertices.clear();
 
         let ind_size = self.indicies.size().min(self.client_indicies.len());
         self.indicies.update(&self.client_indicies[0..ind_size]);
-        self.client_indicies.clear();
 
         result
+    }
+
+    pub fn clear(&mut self) {
+        self.client_vertices.clear();
+        self.client_indicies.clear();
     }
 }

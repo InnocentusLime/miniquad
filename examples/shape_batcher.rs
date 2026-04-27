@@ -1,7 +1,7 @@
 //! Draws a bunch of shapes with the shape batcher.
 
 use glam::{Mat4, vec2};
-use mimiq::*;
+use mimiq::{util::BasicPipelineUniforms, *};
 use std::rc::Rc;
 use winit::{event::WindowEvent, window::Window};
 
@@ -39,6 +39,8 @@ impl EventHandler<()> for App {
 impl App {
     pub fn draw(&mut self) {
         let t = self.total_time.as_secs_f32();
+
+        self.batcher.clear();
 
         self.batcher.triangle(
             Color::RED,
@@ -124,7 +126,17 @@ impl App {
             .default_pass(Clear::depth_color(Color::BLACK), |width, height| {
                 let proj =
                     Mat4::orthographic_rh_gl(0.0, width as f32, height as f32, 0.0, 0.0, 1.0);
-                self.batcher.basic_draw(&self.ctx, proj, &self.pipeline);
+                let num_elements = self.batcher.flush();
+
+                self.ctx.draw(DrawCall {
+                    pipeline: &self.pipeline,
+                    base_element: 0,
+                    num_elements,
+                    vertex_buffer: &self.batcher.0.vertices,
+                    index_buffer: &self.batcher.0.indicies,
+                    images: &NoImages,
+                    uniforms: &BasicPipelineUniforms { view_projection: proj },
+                });
             });
     }
 }
