@@ -28,7 +28,6 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use glow::HasContext;
 use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -161,9 +160,6 @@ impl<I, T: EventHandler<I>> ApplicationHandler<AppEvent> for App<I, T> {
             egui_glow.paint(window);
 
             tracing::trace!(target: TARGET_NAME, "finish_frame");
-            unsafe {
-                gl_context.gl.finish();
-            }
             platform.swap_buffers();
 
             // NOTE: This is the best thing we can do for WASM.
