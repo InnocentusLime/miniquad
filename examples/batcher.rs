@@ -52,27 +52,27 @@ impl App {
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                BasicVertex { pos: vec2(-0.5, -0.5) + dr, color: Color::RED },
-                BasicVertex { pos: vec2(0.5, -0.5) + dr, color: Color::GREEN },
-                BasicVertex { pos: vec2(0.0,  0.5) + dr, color: Color::BLUE },
+                BasicVertex { v_pos: vec2(-0.5, -0.5) + dr, v_color: Color::RED },
+                BasicVertex { v_pos: vec2(0.5, -0.5) + dr, v_color: Color::GREEN },
+                BasicVertex { v_pos: vec2(0.0,  0.5) + dr, v_color: Color::BLUE },
             ],
             &[0, 1, 2],
         );
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                BasicVertex { pos: vec2(0.0, -0.5), color: Color::RED },
-                BasicVertex { pos: vec2(1.0, -0.5), color: Color::GREEN },
-                BasicVertex { pos: vec2(0.5 + 0.5 * t.sin(),  1.0), color: Color::BLUE },
+                BasicVertex { v_pos: vec2(0.0, -0.5), v_color: Color::RED },
+                BasicVertex { v_pos: vec2(1.0, -0.5), v_color: Color::GREEN },
+                BasicVertex { v_pos: vec2(0.5 + 0.5 * t.sin(),  1.0), v_color: Color::BLUE },
             ],
             &[0, 1, 2],
         );
         #[rustfmt::skip]
         self.batcher.extend(
             &[
-                BasicVertex { pos: vec2(-1.0, 0.0), color: Color::RED },
-                BasicVertex { pos: vec2(-1.0, -1.0), color: Color::GREEN },
-                BasicVertex { pos: vec2(0.0,  -1.0), color: Color::BLUE },
+                BasicVertex { v_pos: vec2(-1.0, 0.0), v_color: Color::RED },
+                BasicVertex { v_pos: vec2(-1.0, -1.0), v_color: Color::GREEN },
+                BasicVertex { v_pos: vec2(0.0,  -1.0), v_color: Color::BLUE },
             ],
             &[0, 1, 2],
         );

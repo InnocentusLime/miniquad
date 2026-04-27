@@ -53,39 +53,39 @@ impl EventHandler<()> for App {
 
         #[rustfmt::skip]
         let vertices_display_cube = [
-            CubeDisplayVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0),  uv: vec2(1.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(1.0, 1.0) },
-            CubeDisplayVert { pos: vec3(-1.0,  1.0, -1.0),  color: vec4(1.0, 0.5, 0.5, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0), v_uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0),  v_uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0,  1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0), v_uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0,  1.0, -1.0),  v_color: vec4(1.0, 0.5, 0.5, 1.0), v_uv: vec2(0.0, 1.0) },
 
-            CubeDisplayVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0, -1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0),  uv: vec2(1.0, 1.0) },
-            CubeDisplayVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0, -1.0,  1.0), v_color: vec4(0.5, 1.0, 0.5, 1.0), v_uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0, -1.0,  1.0),  v_color: vec4(0.5, 1.0, 0.5, 1.0), v_uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0,  1.0,  1.0),  v_color: vec4(0.5, 1.0, 0.5, 1.0),  v_uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(0.5, 1.0, 0.5, 1.0), v_uv: vec2(0.0, 1.0) },
 
-            CubeDisplayVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
-            CubeDisplayVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
-            CubeDisplayVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
-            CubeDisplayVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0), v_uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0,  1.0, -1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0), v_uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0), v_uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0, -1.0,  1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0), v_uv: vec2(0.0, 1.0) },
 
-            CubeDisplayVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0,  1.0,  1.0), color: vec4 (1.0, 0.5, 0.0, 1.0), uv: vec2(1.0, 1.0) },
-            CubeDisplayVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(1.0, 0.5, 0.0, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.0, 1.0), v_uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0,  1.0, -1.0), v_color: vec4(1.0, 0.5, 0.0, 1.0), v_uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0,  1.0,  1.0), v_color: vec4 (1.0, 0.5, 0.0, 1.0), v_uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(1.0, -1.0,  1.0), v_color: vec4(1.0, 0.5, 0.0, 1.0), v_uv: vec2(0.0, 1.0) },
 
-            CubeDisplayVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 0.0) },
-            CubeDisplayVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(1.0, 1.0) },
-            CubeDisplayVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0), v_uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0, -1.0,  1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0), v_uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0, -1.0,  1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0), v_uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(1.0, -1.0, -1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0), v_uv: vec2(0.0, 1.0) },
 
-            CubeDisplayVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 0.0) },
-            CubeDisplayVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 0.0) },
-            CubeDisplayVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(1.0, 1.0) },
-            CubeDisplayVert { pos: vec3(1.0,  1.0, -1.0),  color: vec4(1.0, 0.0, 0.5, 1.0), uv: vec2(0.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0,  1.0, -1.0), v_color: vec4(1.0, 0.0, 0.5, 1.0), v_uv: vec2(0.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(1.0, 0.0, 0.5, 1.0), v_uv: vec2(1.0, 0.0) },
+            CubeDisplayVert { v_pos: vec3(1.0,  1.0,  1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0), v_uv: vec2(1.0, 1.0) },
+            CubeDisplayVert { v_pos: vec3(1.0,  1.0, -1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0), v_uv: vec2(0.0, 1.0) },
         ];
         let vertices_cube = vertices_display_cube
             .into_iter()
-            .map(|v| CubeVert { pos: v.pos, color: v.color })
+            .map(|v| CubeVert { v_pos: v.v_pos, v_color: v.v_color })
             .collect::<Vec<_>>();
 
         let vertices_display_cube =
@@ -166,16 +166,16 @@ impl App {
 #[repr(C)]
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct CubeVert {
-    pub pos: Vec3,
-    pub color: Vec4,
+    pub v_pos: Vec3,
+    pub v_color: Vec4,
 }
 
 #[repr(C)]
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct CubeDisplayVert {
-    pub pos: Vec3,
-    pub color: Vec4,
-    pub uv: Vec2,
+    pub v_pos: Vec3,
+    pub v_color: Vec4,
+    pub v_uv: Vec2,
 }
 
 pub struct DisplayMeta;

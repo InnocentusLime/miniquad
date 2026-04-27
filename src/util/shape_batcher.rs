@@ -35,9 +35,9 @@ impl ShapeBatcher {
     #[track_caller]
     pub fn triangle(&mut self, color: Color, p1: Vec2, p2: Vec2, p3: Vec2) {
         let vertices = [
-            BasicVertex { pos: p1, color },
-            BasicVertex { pos: p2, color },
-            BasicVertex { pos: p3, color },
+            BasicVertex { v_pos: p1, v_color: color },
+            BasicVertex { v_pos: p2, v_color: color },
+            BasicVertex { v_pos: p3, v_color: color },
         ];
         self.0.extend(&vertices, &[0, 1, 2]);
     }
@@ -51,10 +51,10 @@ impl ShapeBatcher {
         let v4 = tf.transform_point2(vec2(size.x, -size.y) * 0.5);
         self.0.extend(
             &[
-                BasicVertex { pos: v1, color },
-                BasicVertex { pos: v2, color },
-                BasicVertex { pos: v3, color },
-                BasicVertex { pos: v4, color },
+                BasicVertex { v_pos: v1, v_color: color },
+                BasicVertex { v_pos: v2, v_color: color },
+                BasicVertex { v_pos: v3, v_color: color },
+                BasicVertex { v_pos: v4, v_color: color },
             ],
             &[0, 1, 2, 2, 1, 3],
         );
@@ -69,10 +69,10 @@ impl ShapeBatcher {
         let v4 = p2 - dn;
         self.0.extend(
             &[
-                BasicVertex { pos: v1, color },
-                BasicVertex { pos: v2, color },
-                BasicVertex { pos: v3, color },
-                BasicVertex { pos: v4, color },
+                BasicVertex { v_pos: v1, v_color: color },
+                BasicVertex { v_pos: v2, v_color: color },
+                BasicVertex { v_pos: v3, v_color: color },
+                BasicVertex { v_pos: v4, v_color: color },
             ],
             &[0, 1, 2, 2, 1, 3],
         );

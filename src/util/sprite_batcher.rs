@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use glam::{Affine2, Mat4, UVec2, Vec2, vec2};
 
 use crate::{
-    BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, Color, GlContext, PipelineMeta,
+    BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, GlContext, PipelineMeta,
     PipelineParams, Texture2D, UniformBlock, UniformField, Vertex, VertexField, attribute_of,
     default_pipeline_params, uniform_of, util::GeometryBatcher,
 };
@@ -13,7 +13,6 @@ use crate::{
 pub struct Sprite {
     pub tex_rect_pos: UVec2,
     pub tex_rect_size: UVec2,
-    pub color: Color,
     pub transform: Affine2,
 }
 
@@ -36,7 +35,6 @@ impl SpriteBatcher {
     pub fn add_sprite(&mut self, sprite: Sprite) {
         const INDICIES: &[u16] = &[0, 1, 2, 0, 2, 3];
 
-        let color = sprite.color;
         let tf = sprite.transform;
 
         // Verts
@@ -63,10 +61,10 @@ impl SpriteBatcher {
         let t4 = tex_top_left;
 
         let vertices = &[
-            SpriteVertex { pos: p1, texcoord: t1, color },
-            SpriteVertex { pos: p2, texcoord: t2, color },
-            SpriteVertex { pos: p3, texcoord: t3, color },
-            SpriteVertex { pos: p4, texcoord: t4, color },
+            SpriteVertex { v_pos: p1, v_uv_not_normalized: t1 },
+            SpriteVertex { v_pos: p2, v_uv_not_normalized: t2 },
+            SpriteVertex { v_pos: p3, v_uv_not_normalized: t3 },
+            SpriteVertex { v_pos: p4, v_uv_not_normalized: t4 },
         ];
 
         self.0.extend(vertices, INDICIES);
@@ -84,17 +82,13 @@ impl SpriteBatcher {
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
 pub struct SpriteVertex {
-    pub pos: Vec2,
-    pub texcoord: Vec2,
-    pub color: Color,
+    pub v_pos: Vec2,
+    pub v_uv_not_normalized: Vec2,
 }
 
 impl Vertex for SpriteVertex {
-    const LAYOUT: &'static [VertexField] = &[
-        attribute_of!(SpriteVertex, pos),
-        attribute_of!(SpriteVertex, texcoord),
-        attribute_of!(SpriteVertex, color),
-    ];
+    const LAYOUT: &'static [VertexField] =
+        &[attribute_of!(SpriteVertex, v_pos), attribute_of!(SpriteVertex, v_uv_not_normalized)];
 }
 
 pub struct BasicSpritePipelineMeta;

@@ -1,18 +1,16 @@
 uniform mat4 view_projection;
 uniform vec2 width_height;
 
-layout(location=0) in vec2 pos;
-layout(location=1) in vec2 texcoord;
-layout(location=2) in vec4 color;
+layout(location=0) in vec2 v_pos;
+layout(location=1) in vec2 v_uv_not_normalized;
 
-out vec4 v_color;
-out vec2 v_uv;
+out vec2 f_uv;
 
 void main() {
-    vec2 finuv = texcoord / width_height;
-    finuv.y = 1.0 - finuv.y;
+    vec2 uv = v_uv_not_normalized / width_height;
+    uv.y = 1.0 - uv.y;
     
-    gl_Position = view_projection * vec4(pos, 0, 1);
-    v_color = color;
-    v_uv = finuv;
+    f_uv = uv;
+    
+    gl_Position = view_projection * vec4(v_pos, 0, 1);
 }

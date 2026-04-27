@@ -93,20 +93,17 @@ impl App {
                 self.batcher.add_sprite(util::Sprite {
                     tex_rect_pos: uvec2(48, 192),
                     tex_rect_size: uvec2(16, 16),
-                    color: Color::WHITE,
                     transform: Affine2::from_translation(vec2(16.0, 16.0)),
                 });
                 self.batcher.add_sprite(util::Sprite {
                     tex_rect_pos: uvec2(64, 208),
                     tex_rect_size: uvec2(17, 16),
-                    color: Color::WHITE,
                     transform: Affine2::from_translation(vec2(64.0, 16.0)),
                 });
 
                 self.batcher.add_sprite(util::Sprite {
                     tex_rect_pos: uvec2(64, 48),
                     tex_rect_size: uvec2(16, 16),
-                    color: Color::WHITE,
                     transform: char_tf,
                 });
                 let num_elements = self.batcher.flush();
@@ -131,19 +128,16 @@ fn put_tilemap(batcher: &mut SpriteBatcher) {
         util::Sprite {
             tex_rect_pos: uvec2(32, 192),
             tex_rect_size: uvec2(16, 16),
-            color: Color::WHITE,
             transform: Affine2::IDENTITY,
         },
         util::Sprite {
             tex_rect_pos: uvec2(32, 176),
             tex_rect_size: uvec2(16, 16),
-            color: Color::WHITE,
             transform: Affine2::IDENTITY,
         },
         util::Sprite {
             tex_rect_pos: uvec2(16, 176),
             tex_rect_size: uvec2(16, 16),
-            color: Color::WHITE,
             transform: Affine2::IDENTITY,
         },
     ];

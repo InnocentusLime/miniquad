@@ -71,10 +71,10 @@ impl EventHandler<()> for App {
 
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            ImgVertex { pos : Vec2 { x: -0.5, y: -0.5 }, uv: Vec2 { x: 0., y: 0. } },
-            ImgVertex { pos : Vec2 { x:  0.5, y: -0.5 }, uv: Vec2 { x: 1., y: 0. } },
-            ImgVertex { pos : Vec2 { x:  0.5, y:  0.5 }, uv: Vec2 { x: 1., y: 1. } },
-            ImgVertex { pos : Vec2 { x: -0.5, y:  0.5 }, uv: Vec2 { x: 0., y: 1. } },
+            ImgVertex { v_pos : Vec2 { x: -0.5, y: -0.5 }, v_uv: Vec2 { x: 0., y: 0. } },
+            ImgVertex { v_pos : Vec2 { x:  0.5, y: -0.5 }, v_uv: Vec2 { x: 1., y: 0. } },
+            ImgVertex { v_pos : Vec2 { x:  0.5, y:  0.5 }, v_uv: Vec2 { x: 1., y: 1. } },
+            ImgVertex { v_pos : Vec2 { x: -0.5, y:  0.5 }, v_uv: Vec2 { x: 0., y: 1. } },
         ]);
 
         #[rustfmt::skip]
@@ -118,8 +118,8 @@ impl App {
 #[repr(C)]
 #[derive(Debug, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct ImgVertex {
-    pos: Vec2,
-    uv: Vec2,
+    v_pos: Vec2,
+    v_uv: Vec2,
 }
 
 pub struct Meta;

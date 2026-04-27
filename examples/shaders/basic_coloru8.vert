@@ -1,9 +1,10 @@
-in vec2 pos;
-in uvec4 color;
+layout(location = 0) in vec2 v_pos;
+layout(location = 1) in uvec4 v_color;
 
-out vec4 v_color;
+out vec4 f_color;
 
 void main() {
-    gl_Position = vec4(pos, 0, 1);
-    v_color = vec4(color) / 255.0;
+    f_color = vec4(v_color) / 255.0;
+    
+    gl_Position = vec4(v_pos, 0, 1);
 }
