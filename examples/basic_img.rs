@@ -1,9 +1,11 @@
 //! A simple rendering example, similar to quad, but instead
 //! loads an image from file, using file loading capabilities.
 
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use mimiq::*;
 use std::path::Path;
 use std::rc::Rc;
 use winit::event::WindowEvent;

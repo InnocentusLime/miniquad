@@ -2,9 +2,11 @@
 //! images of rotating cubes on each side. Should look like this:
 //! https://youtu.be/isKW3nQ-jW4
 
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
-use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;

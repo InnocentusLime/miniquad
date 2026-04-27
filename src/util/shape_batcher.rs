@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use super::{BasicVertex, GeometryBatcher};
-use crate::{BufferUsage, Color, GlContext, IndexBuffer, VertexBuffer};
+use crate::graphics::{BufferUsage, Color, GlContext, IndexBuffer, VertexBuffer};
 
 use glam::{Affine2, Vec2, vec2};
 

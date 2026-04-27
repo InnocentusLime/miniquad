@@ -1,10 +1,12 @@
 //! A simple rendering example, similar to quad, but instead
 //! loads an image from file, using file loading capabilities.
 
-use core::f32;
-use glam::{Affine2, Mat4, uvec2, vec2};
+use mimiq::graphics::*;
 use mimiq::util::{BasicSpritePipelineUniforms, SpriteBatcher};
 use mimiq::*;
+
+use core::f32;
+use glam::{Affine2, Mat4, uvec2, vec2};
 use std::path::Path;
 use std::rc::Rc;
 use winit::event::WindowEvent;

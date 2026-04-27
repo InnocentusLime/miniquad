@@ -4,9 +4,11 @@
 //! Should look like this:
 //! https://youtu.be/W52jTDKOzIk
 
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use mimiq::*;
 use std::rc::Rc;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::window::Window;

@@ -1,7 +1,9 @@
 //! Opens a fullscreen window with green screen.
 //! The title of that should be "mimiq".
 
+use mimiq::graphics::*;
 use mimiq::*;
+
 use std::rc::Rc;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;

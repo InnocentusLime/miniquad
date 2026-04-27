@@ -2,9 +2,11 @@
 //! differently colored sides. Should look like this:
 //! https://youtu.be/hdWWe-TkkfM
 
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec2, Vec3, Vec4, vec2, vec3, vec4};
-use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;

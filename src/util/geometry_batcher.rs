@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{BufferUsage, GlContext, IndexBuffer, Vertex, VertexBuffer, VertexIndex};
+use crate::graphics::{BufferUsage, GlContext, IndexBuffer, Vertex, VertexBuffer, VertexIndex};
 
 #[derive(Debug)]
 pub struct GeometryBatcher<V: Vertex, I: VertexIndex = u16> {

@@ -6,7 +6,7 @@ extern crate mimiq_derive;
 mod context_init;
 mod embeded_assets;
 mod fs;
-mod graphics;
+pub mod graphics;
 mod tracing_init;
 
 pub mod util;
@@ -18,7 +18,6 @@ pub use context_init::GLSL_VERSION;
 pub use egui;
 pub use fs::*;
 pub use glam;
-pub use graphics::*;
 pub use image;
 #[cfg(feature = "derive")]
 pub use mimiq_derive::*;
@@ -184,7 +183,7 @@ impl<I, T: EventHandler<I>> App<I, T> {
     fn init(&mut self, event_loop: &ActiveEventLoop, proxy: EventLoopProxy<AppEvent>, input: I) {
         let (window, platform) = create_ctx_and_window(event_loop, proxy, &self.conf);
         let glow = Arc::new(platform.make_glow_context(self.conf.is_debug));
-        let gl_context = Rc::new(GlContext::new(glow.clone(), (800, 600)));
+        let gl_context = Rc::new(graphics::GlContext::new(glow.clone(), (800, 600)));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
         #[cfg(feature = "egui")]
@@ -230,7 +229,7 @@ enum AppState<I, T> {
     Ready {
         window: Window,
         platform: PlatformContext,
-        gl_context: Rc<GlContext>,
+        gl_context: Rc<graphics::GlContext>,
         #[cfg(feature = "egui")]
         egui_glow: Box<egui_glow::EguiGlow>,
         handler: T,
@@ -292,7 +291,7 @@ pub fn default_log_filter() -> EnvFilter {
 
 /// A trait defining event callbacks.
 pub trait EventHandler<Input>: 'static {
-    fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, input: Input) -> Self;
+    fn init(ctx: Rc<graphics::GlContext>, fs_server: Rc<dyn FsServer>, input: Input) -> Self;
 
     fn file_ready(&mut self, _event: FileReady) {}
 

@@ -3,10 +3,7 @@ use std::rc::Rc;
 
 use glow::HasContext;
 
-use crate::{
-    Vertex,
-    graphics::{BufferUsage, GlContext},
-};
+use crate::graphics::{BufferUsage, GlContext, Vertex};
 
 static TARGET_NAME: &str = "gl.vertex_buffer";
 

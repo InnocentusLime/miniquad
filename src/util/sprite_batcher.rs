@@ -3,11 +3,13 @@ use std::rc::Rc;
 use bytemuck::{Pod, Zeroable};
 use glam::{Affine2, Mat4, UVec2, Vec2, vec2};
 
-use crate::{
+use crate::graphics::{
     BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, GlContext, PipelineMeta,
-    PipelineParams, Texture2D, UniformBlock, UniformField, Vertex, VertexField, attribute_of,
-    default_pipeline_params, uniform_of, util::GeometryBatcher,
+    PipelineParams, Texture2D, UniformBlock, UniformField, Vertex, VertexField,
+    default_pipeline_params,
 };
+use crate::util::GeometryBatcher;
+use crate::{attribute_of, uniform_of};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sprite {

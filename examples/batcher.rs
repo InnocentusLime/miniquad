@@ -4,9 +4,11 @@
 //! * right -- green
 //! * top -- blue
 
-use glam::vec2;
+use mimiq::graphics::*;
 use mimiq::util::{BasicVertex, GeometryBatcher};
 use mimiq::*;
+
+use glam::vec2;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;

@@ -8,8 +8,8 @@ use glow::HasContext;
 macro_rules! attribute_of {
     ($Type:path, $field:tt) => {{
         let sample = $crate::zeroed::<$Type>();
-        let (gl_type, component_count) = $crate::attribute_info_of_val(sample.$field);
-        $crate::VertexField {
+        let (gl_type, component_count) = $crate::graphics::attribute_info_of_val(sample.$field);
+        $crate::graphics::VertexField {
             name: stringify!($field),
             gl_type,
             component_count,

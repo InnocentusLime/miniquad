@@ -1,9 +1,11 @@
 //! Draws the same triangle as the `triangle` example, but
 //! using the byte based colors.
 
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{U8Vec4, Vec2, u8vec4, vec2};
-use mimiq::*;
 use std::rc::Rc;
 use winit::event::WindowEvent;
 use winit::window::Window;

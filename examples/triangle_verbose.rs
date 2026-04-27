@@ -4,9 +4,11 @@
 //! * right -- green
 //! * top -- blue
 
+use mimiq::graphics::*;
+use mimiq::*;
+
 use bytemuck::{Pod, Zeroable};
 use glam::{Vec2, vec2};
-use mimiq::*;
 use std::rc::Rc;
 use tracing_subscriber::EnvFilter;
 use winit::event::WindowEvent;

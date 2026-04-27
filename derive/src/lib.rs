@@ -28,8 +28,8 @@ pub fn derive_vertex(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         .collect::<Vec<_>>();
 
     let output = quote! {
-        impl mimiq::Vertex for #ident {
-            const LAYOUT: &'static [mimiq::VertexField] = &[
+        impl mimiq::graphics::Vertex for #ident {
+            const LAYOUT: &'static [mimiq::graphics::VertexField] = &[
                 #(#field_invocations),*
             ];
         }
@@ -63,8 +63,8 @@ pub fn derive_uniform_block(input: proc_macro::TokenStream) -> proc_macro::Token
         .collect::<Vec<_>>();
 
     let output = quote! {
-        impl mimiq::UniformBlock for #ident {
-            const FIELDS: &'static [mimiq::UniformField] = &[
+        impl mimiq::graphics::UniformBlock for #ident {
+            const FIELDS: &'static [mimiq::graphics::UniformField] = &[
                 #(#field_invocations),*
             ];
         }

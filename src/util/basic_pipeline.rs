@@ -1,10 +1,11 @@
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
-use crate::{
+use crate::graphics::{
     NoImages, PipelineMeta, PipelineParams, UniformBlock, UniformField, default_pipeline_params,
-    uniform_of, util::BasicVertex,
 };
+use crate::uniform_of;
+use crate::util::BasicVertex;
 
 pub struct BasicPipelineMeta;
 
