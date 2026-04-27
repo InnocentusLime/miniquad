@@ -62,10 +62,10 @@ impl EventHandler<()> for App {
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            BlobVertex { pos : Vec2 { x: -1.0, y: -1.0 }, uv: Vec2 { x: 0., y: 0. } },
-            BlobVertex { pos : Vec2 { x:  1.0, y: -1.0 }, uv: Vec2 { x: 1., y: 0. } },
-            BlobVertex { pos : Vec2 { x:  1.0, y:  1.0 }, uv: Vec2 { x: 1., y: 1. } },
-            BlobVertex { pos : Vec2 { x: -1.0, y:  1.0 }, uv: Vec2 { x: 0., y: 1. } },
+            BlobVertex { v_pos : Vec2 { x: -1.0, y: -1.0 }, v_uv: Vec2 { x: 0., y: 0. } },
+            BlobVertex { v_pos : Vec2 { x:  1.0, y: -1.0 }, v_uv: Vec2 { x: 1., y: 0. } },
+            BlobVertex { v_pos : Vec2 { x:  1.0, y:  1.0 }, v_uv: Vec2 { x: 1., y: 1. } },
+            BlobVertex { v_pos : Vec2 { x: -1.0, y:  1.0 }, v_uv: Vec2 { x: 0., y: 1. } },
         ]);
 
         #[rustfmt::skip]
@@ -137,8 +137,8 @@ impl App {
 #[repr(C)]
 #[derive(Debug, Default, Zeroable, Pod, Clone, Copy, Vertex)]
 pub struct BlobVertex {
-    pub pos: Vec2,
-    pub uv: Vec2,
+    pub v_pos: Vec2,
+    pub v_uv: Vec2,
 }
 
 // based on: https://www.shadertoy.com/view/XsS3DV

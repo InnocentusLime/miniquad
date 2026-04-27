@@ -1,14 +1,15 @@
-in vec3 pos;
-in vec4 color;
-in vec2 uv;
-
-out vec4 v_color;
-out vec2 v_uv;
-
 uniform mat4 mvp;
 
+layout(location = 0) in vec3 v_pos;
+layout(location = 1) in vec4 v_color;
+layout(location = 2) in vec2 v_uv;
+
+out vec4 f_color;
+out vec2 f_uv;
+
 void main() {
-    gl_Position = mvp * vec4(pos, 1.0);
-    v_color = color;
-    v_uv = uv;
+    f_color = v_color;
+    f_uv = v_uv;
+    
+    gl_Position = mvp * vec4(v_pos, 1.0);
 }

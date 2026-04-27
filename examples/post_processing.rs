@@ -58,35 +58,35 @@ impl EventHandler<()> for App {
 
         #[rustfmt::skip]
         let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0) },
-            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0) },
-            CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.5, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0, -1.0),  color: vec4(1.0, 0.5, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(1.0,  1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(-1.0,  1.0, -1.0),  v_color: vec4(1.0, 0.5, 0.5, 1.0) },
 
-            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0) },
-            CubeVert { pos: vec3(1.0, -1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0) },
-            CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(0.5, 1.0, 0.5, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 1.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(-1.0, -1.0,  1.0), v_color: vec4(0.5, 1.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(1.0, -1.0,  1.0),  v_color: vec4(0.5, 1.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(1.0,  1.0,  1.0),  v_color: vec4(0.5, 1.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(0.5, 1.0, 0.5, 1.0) },
 
-            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(0.5, 0.5, 1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.5, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(-1.0,  1.0, -1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(-1.0, -1.0,  1.0), v_color: vec4(0.5, 0.5, 1.0, 1.0) },
 
-            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0) },
-            CubeVert { pos: vec3(1.0,  1.0, -1.0), color: vec4(1.0, 0.5, 0.0, 1.0) },
-            CubeVert { pos: vec3(1.0,  1.0,  1.0), color: vec4 (1.0, 0.5, 0.0, 1.0) },
-            CubeVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(1.0, 0.5, 0.0, 1.0) },
+            CubeVert { v_pos: vec3(1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.0, 1.0) },
+            CubeVert { v_pos: vec3(1.0,  1.0, -1.0), v_color: vec4(1.0, 0.5, 0.0, 1.0) },
+            CubeVert { v_pos: vec3(1.0,  1.0,  1.0), v_color: vec4 (1.0, 0.5, 0.0, 1.0) },
+            CubeVert { v_pos: vec3(1.0, -1.0,  1.0), v_color: vec4(1.0, 0.5, 0.0, 1.0) },
 
-            CubeVert { pos: vec3(-1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0) },
-            CubeVert { pos: vec3(-1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0) },
-            CubeVert { pos: vec3(1.0, -1.0,  1.0), color: vec4(0.0, 0.5, 1.0, 1.0) },
-            CubeVert { pos: vec3(1.0, -1.0, -1.0), color: vec4(0.0, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(-1.0, -1.0,  1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(1.0, -1.0,  1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0) },
+            CubeVert { v_pos: vec3(1.0, -1.0, -1.0), v_color: vec4(0.0, 0.5, 1.0, 1.0) },
 
-            CubeVert { pos: vec3(-1.0,  1.0, -1.0), color: vec4(1.0, 0.0, 0.5, 1.0) },
-            CubeVert { pos: vec3(-1.0,  1.0,  1.0), color: vec4(1.0, 0.0, 0.5, 1.0) },
-            CubeVert { pos: vec3(1.0,  1.0,  1.0),  color: vec4(1.0, 0.0, 0.5, 1.0) },
-            CubeVert { pos: vec3(1.0,  1.0, -1.0),  color: vec4(1.0, 0.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(-1.0,  1.0, -1.0), v_color: vec4(1.0, 0.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(1.0, 0.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(1.0,  1.0,  1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0) },
+            CubeVert { v_pos: vec3(1.0,  1.0, -1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0) },
         ]);
 
         #[rustfmt::skip]
@@ -101,10 +101,10 @@ impl EventHandler<()> for App {
 
         #[rustfmt::skip]
         let vertices_quad = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
-            QuadVert { pos: vec2(-1.0, -1.0), uv: vec2(0.0, 0.0) },
-            QuadVert { pos: vec2(1.0, -1.0), uv: vec2(1.0, 0.0) },
-            QuadVert { pos: vec2(1.0,  1.0), uv: vec2(1.0, 1.0) },
-            QuadVert { pos: vec2(-1.0,  1.0), uv: vec2(0.0, 1.0) },
+            QuadVert { v_pos: vec2(-1.0, -1.0), v_uv: vec2(0.0, 0.0) },
+            QuadVert { v_pos: vec2(1.0, -1.0), v_uv: vec2(1.0, 0.0) },
+            QuadVert { v_pos: vec2(1.0,  1.0), v_uv: vec2(1.0, 1.0) },
+            QuadVert { v_pos: vec2(-1.0,  1.0), v_uv: vec2(0.0, 1.0) },
         ]);
 
         #[rustfmt::skip]
@@ -194,15 +194,15 @@ impl App {
 #[repr(C)]
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct CubeVert {
-    pub pos: Vec3,
-    pub color: Vec4,
+    pub v_pos: Vec3,
+    pub v_color: Vec4,
 }
 
 #[repr(C)]
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy, Vertex)]
 pub struct QuadVert {
-    pub pos: Vec2,
-    pub uv: Vec2,
+    pub v_pos: Vec2,
+    pub v_uv: Vec2,
 }
 
 pub struct PostProcessingMeta;

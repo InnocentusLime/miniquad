@@ -1,11 +1,12 @@
-in vec2 pos;
-in vec2 uv;
-
 uniform vec2 offset;
 
-out vec2 texcoord;
+layout(location = 0) in vec2 v_pos;
+layout(location = 1) in vec2 v_uv;
+
+out vec2 f_uv;
 
 void main() {
-    gl_Position = vec4(pos + offset, 0, 1);
-    texcoord = uv;
+    f_uv = v_uv;
+    
+    gl_Position = vec4(v_pos + offset, 0, 1);
 }

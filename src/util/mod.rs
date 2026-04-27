@@ -18,11 +18,11 @@ use crate::{Color, Vertex, VertexField, attribute_of};
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
 pub struct BasicVertex {
-    pub pos: Vec2,
-    pub color: Color,
+    pub v_pos: Vec2,
+    pub v_color: Color,
 }
 
 impl Vertex for BasicVertex {
     const LAYOUT: &'static [VertexField] =
-        &[attribute_of!(BasicVertex, pos), attribute_of!(BasicVertex, color)];
+        &[attribute_of!(BasicVertex, v_pos), attribute_of!(BasicVertex, v_color)];
 }

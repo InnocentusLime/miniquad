@@ -1,6 +1,7 @@
-in vec4 v_color;
-out vec4 f_color;
+in vec4 f_color;
+
+layout(location = 0) out vec4 o_color;
 
 void main() {
-    f_color = v_color;
+    o_color = f_color;
 }

@@ -1,9 +1,9 @@
-in vec2 texcoord;
-
-out vec4 f_color;
-
 uniform sampler2D tex;
 
+in vec2 f_uv;
+
+layout(location = 0) out vec4 o_color;
+
 void main() {
-    f_color = texture(tex, texcoord);
+    o_color = texture(tex, f_uv);
 }
