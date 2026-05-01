@@ -177,7 +177,7 @@ impl<I, T: EventHandler<I>> ApplicationHandler<AppEvent> for App<I, T> {
 
 impl<I, T: EventHandler<I>> App<I, T> {
     fn init(&mut self, event_loop: &ActiveEventLoop, proxy: EventLoopProxy<AppEvent>, input: I) {
-        let (window, platform) = create_ctx_and_window(event_loop, proxy, &self.conf);
+        let (window, platform) = create_gfx_ctx_and_window(event_loop, proxy, &self.conf);
         let glow = Arc::new(platform.make_glow_context(self.conf.is_debug));
         let gl_context = Rc::new(graphics::GlContext::new(glow.clone(), (800, 600)));
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
@@ -224,7 +224,7 @@ enum AppState<I, T> {
     },
     Ready {
         window: Window,
-        platform: PlatformContext,
+        platform: PlatformGfxContext,
         gl_context: Rc<graphics::GlContext>,
         #[cfg(feature = "egui")]
         egui_glow: Box<egui_glow::EguiGlow>,

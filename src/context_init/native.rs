@@ -23,28 +23,28 @@ pub fn start_app<T>(event_loop: EventLoop<T>, mut app: impl ApplicationHandler<T
     event_loop.run_app(&mut app).expect("failed to run app");
 }
 
-pub fn create_ctx_and_window(
+pub fn create_gfx_ctx_and_window(
     event_loop: &ActiveEventLoop,
     _proxy: EventLoopProxy<AppEvent>,
     conf: &Conf,
-) -> (Window, PlatformContext) {
+) -> (Window, PlatformGfxContext) {
     let (window, gl_display, gl_config) = create_window_and_gl_config(event_loop, conf);
     let (gl_context, gl_surface) =
         create_surface_and_context(conf.is_debug, &gl_display, &gl_config, &window);
 
     (
         window,
-        PlatformContext { gl_display, gl_surface, gl_context },
+        PlatformGfxContext { gl_display, gl_surface, gl_context },
     )
 }
 
-pub struct PlatformContext {
+pub struct PlatformGfxContext {
     gl_display: Display,
     gl_surface: Surface<WindowSurface>,
     gl_context: PossiblyCurrentContext,
 }
 
-impl PlatformContext {
+impl PlatformGfxContext {
     pub fn resize_surface(&self, new_size: PhysicalSize<u32>) {
         // NOTE: winit may absolutely easily give us a new size equal to (0, 0).
         //       we can't do anything here, except pray that the user will eventually
