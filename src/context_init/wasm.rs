@@ -22,11 +22,11 @@ pub fn start_app<T>(event_loop: EventLoop<T>, app: impl ApplicationHandler<T> + 
     event_loop.spawn_app(app);
 }
 
-pub fn create_ctx_and_window(
+pub fn create_gfx_ctx_and_window(
     event_loop: &ActiveEventLoop,
     proxy: EventLoopProxy<AppEvent>,
     conf: &Conf,
-) -> (Window, PlatformContext) {
+) -> (Window, PlatformGfxContext) {
     let webgl_canvas = get_canvas();
     let window_attributes = conf.window_attributes.clone();
     let window = event_loop
@@ -37,7 +37,7 @@ pub fn create_ctx_and_window(
     spawn_size_observer(proxy);
     let webgl_context = get_canvas_webgl2_context(&webgl_canvas);
 
-    (window, PlatformContext { webgl_canvas, webgl_context })
+    (window, PlatformGfxContext { webgl_canvas, webgl_context })
 }
 
 fn get_canvas() -> HtmlCanvasElement {
@@ -104,12 +104,12 @@ fn get_canvas_webgl2_context(webgl_canvas: &HtmlCanvasElement) -> WebGl2Renderin
         .expect("received context is not a WebGL context")
 }
 
-pub struct PlatformContext {
+pub struct PlatformGfxContext {
     webgl_canvas: HtmlCanvasElement,
     webgl_context: WebGl2RenderingContext,
 }
 
-impl PlatformContext {
+impl PlatformGfxContext {
     pub fn resize_surface(&self, new_size: PhysicalSize<u32>) {
         self.webgl_canvas.set_width(new_size.width);
         self.webgl_canvas.set_height(new_size.height);
