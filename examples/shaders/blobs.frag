@@ -4,7 +4,7 @@ uniform vec2 blobs_positions[32];
 
 in vec2 f_uv;
 
-out vec4 o_color;
+layout(location = 0) out vec4 o_color;
 
 float k = 20.0;
 
