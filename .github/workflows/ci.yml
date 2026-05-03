@@ -66,7 +66,7 @@ jobs:
           key: tests-bookworm-1.93-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: tests-bookworm-1.93-cargo-
       - name: Run tests
-        run: cargo test --workspace --features serde --locked
+        run: cargo test --workspace --features serde,derive --locked
   cargo-fmt:
     runs-on: ubuntu-latest
     container: rust:1.93.1-bookworm 
