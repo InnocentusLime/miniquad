@@ -86,9 +86,8 @@ impl<I, T: EventHandler<I>> ApplicationHandler<AppEvent> for App<I, T> {
     }
 
     fn new_events(&mut self, event_loop: &ActiveEventLoop, cause: StartCause) {
-        match cause {
-            StartCause::Init => event_loop.set_control_flow(ControlFlow::Wait),
-            _ => (),
+        if cause == StartCause::Init {
+            event_loop.set_control_flow(ControlFlow::Wait);
         }
     }
 

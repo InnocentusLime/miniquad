@@ -179,7 +179,7 @@ fn create_and_bind_texture(
         );
     }
 
-    apply_texture_parameters(&ctx, wrap, min_filter, mag_filter);
+    apply_texture_parameters(ctx, wrap, min_filter, mag_filter);
     ctx.check_no_gl_error();
 
     gl_tex
