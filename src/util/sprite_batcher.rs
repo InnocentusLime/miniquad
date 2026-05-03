@@ -3,10 +3,10 @@ use std::rc::Rc;
 use bytemuck::{Pod, Zeroable};
 use glam::{Affine2, Mat4, UVec2, Vec2, vec2};
 
+use super::BasicTexImages;
 use crate::graphics::{
-    BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, GlContext, PipelineMeta,
-    PipelineParams, Texture2D, UniformBlock, UniformField, Vertex, VertexField,
-    default_pipeline_params,
+    BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, GlContext, Pipeline,
+    PipelineParams, UniformBlock, UniformField, Vertex, VertexField, default_pipeline_params,
 };
 use crate::util::GeometryBatcher;
 use crate::{attribute_of, uniform_of};
@@ -93,25 +93,22 @@ impl Vertex for SpriteVertex {
         &[attribute_of!(SpriteVertex, v_pos), attribute_of!(SpriteVertex, v_uv_not_normalized)];
 }
 
-pub struct BasicSpritePipelineMeta;
+pub type BasicSpritePipeline =
+    Pipeline<SpriteVertex, BasicSpritePipelineUniforms, BasicTexImages<'static>>;
 
-impl PipelineMeta for BasicSpritePipelineMeta {
-    const VERTEX_SHADER: &str = include_str!("shader/basic_sprite.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shader/basic_sprite.frag");
-
-    type Images = Texture2D;
-    const IMAGES_NAMES: &str = "tex";
-
-    type Vertex = SpriteVertex;
-    type Uniforms = BasicSpritePipelineUniforms;
-    const PARAMS: PipelineParams = PipelineParams {
-        blending: Blending::All(BlendFunc {
-            equation: BlendEquation::Add,
-            source: BlendFactor::Value(BlendValue::SrcAlpha),
-            dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
-        }),
-        ..default_pipeline_params()
-    };
+pub fn new_basic_sprite_pipeline(ctx: &Rc<GlContext>) -> BasicSpritePipeline {
+    ctx.new_pipeline(
+        include_str!("shader/basic_sprite.vert"),
+        include_str!("shader/basic_sprite.frag"),
+        PipelineParams {
+            blending: Blending::All(BlendFunc {
+                equation: BlendEquation::Add,
+                source: BlendFactor::Value(BlendValue::SrcAlpha),
+                dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
+            }),
+            ..default_pipeline_params()
+        },
+    )
 }
 
 #[repr(C)]

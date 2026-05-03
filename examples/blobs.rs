@@ -19,7 +19,7 @@ fn main() {
 
 struct App {
     mouse_pos: Vec2,
-    pipeline: Pipeline<Meta>,
+    pipeline: Pipeline<BlobVertex, Uniforms>,
     vertices: VertexBuffer<BlobVertex>,
     indicies: IndexBuffer,
     uniforms: Uniforms,
@@ -76,7 +76,12 @@ impl EventHandler<()> for App {
             0, 2, 3,
         ]);
 
-        let pipeline = ctx.new_pipeline();
+        // based on: https://www.shadertoy.com/view/XsS3DV
+        let pipeline = ctx.new_pipeline(
+            include_str!("shaders/basic_texture.vert"),
+            include_str!("shaders/blobs.frag"),
+            default_pipeline_params(),
+        );
 
         let uniforms = Uniforms { time: 0., blobs_count: 1, blobs_positions: [vec2(0., 0.); 32] };
 
@@ -123,15 +128,14 @@ impl App {
         self.uniforms.time = self.total_time.as_secs_f32();
         self.ctx
             .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements: 6,
-                    vertex_buffer: &self.vertices,
-                    index_buffer: &self.indicies,
-                    images: &NoImages,
-                    uniforms: &self.uniforms,
-                });
+                self.pipeline.draw(
+                    0,
+                    6,
+                    &self.vertices,
+                    &self.indicies,
+                    &NoImages,
+                    &self.uniforms,
+                );
             });
     }
 }
@@ -141,20 +145,6 @@ impl App {
 pub struct BlobVertex {
     pub v_pos: Vec2,
     pub v_uv: Vec2,
-}
-
-// based on: https://www.shadertoy.com/view/XsS3DV
-pub struct Meta;
-
-impl PipelineMeta for Meta {
-    const VERTEX_SHADER: &str = include_str!("shaders/basic_texture.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/blobs.frag");
-
-    const IMAGES_NAMES: () = ();
-    type Images = NoImages;
-    type Vertex = BlobVertex;
-    type Uniforms = Uniforms;
-    const PARAMS: PipelineParams = default_pipeline_params();
 }
 
 #[repr(C)]

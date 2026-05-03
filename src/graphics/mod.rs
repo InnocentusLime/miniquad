@@ -122,8 +122,13 @@ impl GlContext {
     }
 
     #[track_caller]
-    pub fn new_pipeline<M: PipelineMeta>(self: &Rc<Self>) -> Pipeline<M> {
-        Pipeline::new(self.clone())
+    pub fn new_pipeline<V: Vertex, U: UniformBlock, I: ImagesUniformBlock>(
+        self: &Rc<Self>,
+        vert_shader: &str,
+        frag_shader: &str,
+        params: PipelineParams,
+    ) -> Pipeline<V, U, I> {
+        Pipeline::new(self.clone(), vert_shader, frag_shader, params)
     }
 
     pub fn new_render_pass(
@@ -132,40 +137,6 @@ impl GlContext {
         depth_img: Option<Texture2D>,
     ) -> RenderPass {
         RenderPass::new(self.clone(), color_img, depth_img)
-    }
-
-    #[track_caller]
-    pub fn draw<'a, M, I>(&'a self, drawcall: DrawCall<'a, M, I>)
-    where
-        M: PipelineMeta,
-        I: VertexIndex,
-    {
-        drawcall.pipeline.apply(
-            drawcall.vertex_buffer,
-            drawcall.index_buffer,
-            drawcall.images,
-            drawcall.uniforms,
-        );
-
-        let sz_elem = std::mem::size_of::<I>() as i32;
-        let offset = sz_elem * drawcall.base_element as i32;
-        let mode = match drawcall.pipeline.primitive_type() {
-            PrimitiveType::Triangles => glow::TRIANGLES,
-            PrimitiveType::Lines => glow::LINES,
-            PrimitiveType::Points => glow::POINTS,
-        };
-
-        unsafe {
-            self.gl.draw_elements_instanced(
-                mode,
-                drawcall.num_elements as i32,
-                I::GL_TYPE,
-                offset,
-                1,
-            );
-        }
-
-        self.check_no_gl_error();
     }
 
     #[cfg(debug_assertions)]
@@ -189,14 +160,4 @@ impl Drop for GlContext {
             self.gl.delete_vertex_array(self.vao);
         }
     }
-}
-
-pub struct DrawCall<'a, M: PipelineMeta, I: VertexIndex = u16> {
-    pub pipeline: &'a Pipeline<M>,
-    pub base_element: u32,
-    pub num_elements: u32,
-    pub vertex_buffer: &'a VertexBuffer<M::Vertex>,
-    pub index_buffer: &'a IndexBuffer<I>,
-    pub images: <M::Images as ImagesBlock>::Borrow<'a>,
-    pub uniforms: &'a M::Uniforms,
 }

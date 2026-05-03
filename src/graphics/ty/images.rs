@@ -1,53 +1,47 @@
 use std::fmt::Debug;
 
-use crate::graphics::Texture2D;
-
 #[derive(Debug)]
 pub struct NoImages;
 
-impl ImagesBlock for NoImages {
-    type Names = ();
+impl ImagesUniformBlock for NoImages {
+    const FIELDS: &[ImageUniformField] = &[];
+
     type Borrow<'a> = &'a Self;
 
-    fn as_slice<'a, 'b>(_x: &'b Self::Borrow<'a>) -> &'b [&'a Texture2D] {
-        &[]
-    }
-
-    fn names(_x: &()) -> &'static [&'static str] {
-        &[]
+    fn bind(_raw: Self::Borrow<'_>) { /* NOOP */
     }
 }
 
-impl ImagesBlock for Texture2D {
-    type Names = &'static str;
-    type Borrow<'a> = &'a Texture2D;
-
-    fn as_slice<'a, 'b>(x: &'b Self::Borrow<'a>) -> &'b [&'a Texture2D] {
-        std::slice::from_ref(x)
-    }
-
-    fn names<'a>(x: &'a &'static str) -> &'a [&'static str] {
-        std::slice::from_ref(x)
-    }
+#[macro_export]
+macro_rules! image_uniform_of {
+    ($Type:path, $field:tt) => {{
+        $crate::graphics::ImageUniformField {
+            name: stringify!($field),
+            gl_type: $crate::graphics::gl_type_of_image_uniform_val::<$Type>(),
+        }
+    }};
 }
 
-impl<const N: usize> ImagesBlock for [Texture2D; N] {
-    type Names = &'static [&'static str; N];
-    type Borrow<'a> = &'a [&'a Texture2D; N];
+pub trait ImagesUniformBlock {
+    const FIELDS: &'static [ImageUniformField];
 
-    fn as_slice<'a, 'b>(x: &'b Self::Borrow<'a>) -> &'b [&'a Texture2D] {
-        x.as_slice()
-    }
+    type Borrow<'a>: Debug + Copy;
 
-    fn names(x: &Self::Names) -> &[&'static str] {
-        x.as_slice()
-    }
+    fn bind(raw: Self::Borrow<'_>);
 }
 
-pub trait ImagesBlock {
-    type Names;
-    type Borrow<'a>: Debug;
+#[derive(Debug, Clone, Copy)]
+pub struct ImageUniformField {
+    pub name: &'static str,
+    pub gl_type: u32,
+}
 
-    fn as_slice<'a, 'b>(x: &'b Self::Borrow<'a>) -> &'b [&'a Texture2D];
-    fn names(x: &Self::Names) -> &[&'static str];
+pub trait ImageUniformVal: Debug {
+    const GL_TYPE: u32;
+
+    fn bind(&self, slot: u32);
+}
+
+pub const fn gl_type_of_image_uniform_val<T: ImageUniformVal>() -> u32 {
+    T::GL_TYPE
 }

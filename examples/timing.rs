@@ -18,7 +18,7 @@ fn main() {
 struct App {
     vertices_cube: VertexBuffer<CubeVert>,
     indicies_cube: IndexBuffer,
-    offscreen_pipeline: Pipeline<OffscreenMeta>,
+    offscreen_pipeline: Pipeline<CubeVert, Uniforms>,
     rx: f32,
     ry: f32,
 
@@ -82,7 +82,14 @@ impl EventHandler<()> for App {
             22, 21, 20,  23, 22, 20
         ]);
 
-        let offscreen_pipeline = ctx.new_pipeline();
+        let offscreen_pipeline = ctx.new_pipeline(
+            include_str!("shaders/mvp_color.vert"),
+            include_str!("shaders/basic_color.frag"),
+            PipelineParams {
+                depth_test: Some(Comparison::LessOrEqual),
+                ..default_pipeline_params()
+            },
+        );
 
         App { vertices_cube, indicies_cube, offscreen_pipeline, rx: 0., ry: 0., ctx }
     }
@@ -105,15 +112,14 @@ impl App {
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
         self.ctx
             .default_pass(Clear::depth_color(Color::WHITE), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.offscreen_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffer: &self.vertices_cube,
-                    index_buffer: &self.indicies_cube,
-                    images: &NoImages,
-                    uniforms: &OffscreenUniforms { mvp: view_proj * model },
-                });
+                self.offscreen_pipeline.draw(
+                    0,
+                    36,
+                    &self.vertices_cube,
+                    &self.indicies_cube,
+                    &NoImages,
+                    &Uniforms { mvp: view_proj * model },
+                );
             });
     }
 }
@@ -142,26 +148,8 @@ impl Vertex for QuadVert {
         &[attribute_of!(QuadVert, v_pos), attribute_of!(QuadVert, v_uv)];
 }
 
-pub struct OffscreenMeta;
-
-impl PipelineMeta for OffscreenMeta {
-    const VERTEX_SHADER: &str = include_str!("shaders/mvp_color.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
-
-    const IMAGES_NAMES: () = ();
-    type Images = NoImages;
-    type Vertex = CubeVert;
-    type Uniforms = OffscreenUniforms;
-    const PARAMS: PipelineParams =
-        PipelineParams { depth_test: Some(Comparison::LessOrEqual), ..default_pipeline_params() };
-}
-
 #[repr(C)]
-#[derive(Debug, Pod, Zeroable, Clone, Copy)]
-pub struct OffscreenUniforms {
+#[derive(Debug, Pod, Zeroable, Clone, Copy, UniformBlock)]
+pub struct Uniforms {
     pub mvp: glam::Mat4,
-}
-
-impl UniformBlock for OffscreenUniforms {
-    const FIELDS: &'static [UniformField] = &[uniform_of!(OffscreenUniforms, mvp)];
 }

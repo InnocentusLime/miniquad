@@ -15,7 +15,7 @@ fn main() {
 }
 
 struct App {
-    pipeline: Pipeline<Meta>,
+    pipeline: Pipeline<TriangleVertex>,
     vertices: VertexBuffer<TriangleVertex>,
     indicies: IndexBuffer,
     ctx: Rc<GlContext>,
@@ -42,7 +42,11 @@ impl EventHandler<()> for App {
 
         let indicies = [0, 1, 2];
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
-        let pipeline = ctx.new_pipeline();
+        let pipeline = ctx.new_pipeline(
+            include_str!("shaders/basic_coloru8.vert"),
+            include_str!("shaders/basic_color.frag"),
+            default_pipeline_params(),
+        );
 
         App { pipeline, vertices, indicies, ctx }
     }
@@ -52,15 +56,8 @@ impl App {
     fn draw(&mut self) {
         self.ctx
             .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
-                    num_elements: 3,
-                    vertex_buffer: &self.vertices,
-                    index_buffer: &self.indicies,
-                    images: &NoImages,
-                    uniforms: &NoUniforms,
-                });
+                self.pipeline
+                    .draw(0, 3, &self.vertices, &self.indicies, &NoImages, &NoUniforms);
             });
     }
 }
@@ -70,17 +67,4 @@ impl App {
 pub struct TriangleVertex {
     pub v_pos: Vec2,
     pub v_color: U8Vec4,
-}
-
-pub struct Meta;
-
-impl PipelineMeta for Meta {
-    const VERTEX_SHADER: &str = include_str!("shaders/basic_coloru8.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
-
-    const IMAGES_NAMES: () = ();
-    type Images = NoImages;
-    type Vertex = TriangleVertex;
-    type Uniforms = NoUniforms;
-    const PARAMS: PipelineParams = default_pipeline_params();
 }

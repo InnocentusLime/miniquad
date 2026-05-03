@@ -19,7 +19,7 @@ fn main() {
 
 struct App {
     total_time: Duration,
-    pipeline: Pipeline<Meta>,
+    pipeline: Pipeline<BasicVertex>,
     batcher: GeometryBatcher<BasicVertex>,
     ctx: Rc<GlContext>,
 }
@@ -38,7 +38,11 @@ impl EventHandler<()> for App {
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50);
-        let pipeline = ctx.new_pipeline();
+        let pipeline = ctx.new_pipeline(
+            include_str!("shaders/basic_vert.vert"),
+            include_str!("shaders/basic_color.frag"),
+            default_pipeline_params(),
+        );
 
         App { pipeline, batcher, ctx, total_time: Duration::ZERO }
     }
@@ -82,28 +86,14 @@ impl App {
 
         self.ctx
             .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
+                self.pipeline.draw(
+                    0,
                     num_elements,
-                    vertex_buffer: &self.batcher.vertices,
-                    index_buffer: &self.batcher.indicies,
-                    images: &NoImages,
-                    uniforms: &NoUniforms,
-                });
+                    &self.batcher.vertices,
+                    &self.batcher.indicies,
+                    &NoImages,
+                    &NoUniforms,
+                );
             });
     }
-}
-
-pub struct Meta;
-
-impl PipelineMeta for Meta {
-    const VERTEX_SHADER: &str = include_str!("shaders/basic_vert.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
-
-    const IMAGES_NAMES: () = ();
-    type Images = NoImages;
-    type Vertex = util::BasicVertex;
-    type Uniforms = NoUniforms;
-    const PARAMS: PipelineParams = default_pipeline_params();
 }

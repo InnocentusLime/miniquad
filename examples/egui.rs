@@ -19,7 +19,7 @@ struct App {
     total_time: Duration,
     ctx: Rc<GlContext>,
 
-    pipeline: Pipeline<Meta>,
+    pipeline: Pipeline<ImgVertex, Uniforms, ImageImages<'static>>,
     vertices: VertexBuffer<ImgVertex>,
     indicies: IndexBuffer,
     texture: Option<Texture2D>,
@@ -82,7 +82,18 @@ impl EventHandler<()> for App {
             0, 2, 3,
         ]);
 
-        let pipeline = ctx.new_pipeline();
+        let pipeline = ctx.new_pipeline(
+            include_str!("shaders/with_offset.vert"),
+            include_str!("shaders/basic_texture.frag"),
+            PipelineParams {
+                blending: Blending::All(BlendFunc {
+                    equation: BlendEquation::Add,
+                    source: BlendFactor::Value(BlendValue::SrcAlpha),
+                    dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
+                }),
+                ..default_pipeline_params()
+            },
+        );
 
         App { pipeline, vertices, indicies, texture: None, ctx, total_time: Duration::ZERO }
     }
@@ -92,7 +103,7 @@ impl App {
     fn draw(&mut self) {
         let t = self.total_time.as_secs_f32();
 
-        let Some(texture) = self.texture.as_ref() else {
+        let Some(tex) = self.texture.as_ref() else {
             return;
         };
 
@@ -100,15 +111,14 @@ impl App {
             .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
                 for i in 0..10 {
                     let t = t + i as f32 * 0.3;
-                    self.ctx.draw(DrawCall {
-                        pipeline: &self.pipeline,
-                        base_element: 0,
-                        num_elements: 6,
-                        vertex_buffer: &self.vertices,
-                        index_buffer: &self.indicies,
-                        images: &texture,
-                        uniforms: &Uniforms { offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5) },
-                    });
+                    self.pipeline.draw(
+                        0,
+                        6,
+                        &self.vertices,
+                        &self.indicies,
+                        &ImageImages { tex },
+                        &Uniforms { offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5) },
+                    );
                 }
             });
     }
@@ -121,28 +131,13 @@ pub struct ImgVertex {
     v_uv: Vec2,
 }
 
-pub struct Meta;
-
-impl PipelineMeta for Meta {
-    const VERTEX_SHADER: &str = include_str!("shaders/with_offset.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_texture.frag");
-
-    const IMAGES_NAMES: &str = "tex";
-    type Images = Texture2D;
-    type Vertex = ImgVertex;
-    type Uniforms = Uniforms;
-    const PARAMS: PipelineParams = PipelineParams {
-        blending: Blending::All(BlendFunc {
-            equation: BlendEquation::Add,
-            source: BlendFactor::Value(BlendValue::SrcAlpha),
-            dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
-        }),
-        ..default_pipeline_params()
-    };
-}
-
 #[repr(C)]
 #[derive(Debug, Zeroable, Pod, Clone, Copy, UniformBlock)]
 pub struct Uniforms {
     pub offset: Vec2,
+}
+
+#[derive(Debug, Clone, Copy, ImagesUniformBlock)]
+pub struct ImageImages<'a> {
+    pub tex: &'a Texture2D,
 }

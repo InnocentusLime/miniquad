@@ -4,9 +4,9 @@ use std::rc::Rc;
 
 use crate::GLSL_VERSION;
 use crate::graphics::{
-    GlContext, ImagesBlock, IndexBuffer, PipelineParams, PrimitiveType, Texture2D, UniformBlock,
-    UniformField, Vertex, VertexBuffer, VertexField, VertexIndex, apply_attributes_impl,
-    apply_uniforms_impl,
+    GlContext, ImageUniformField, ImagesUniformBlock, IndexBuffer, NoImages, NoUniforms,
+    PipelineParams, PrimitiveType, UniformBlock, UniformField, Vertex, VertexBuffer, VertexField,
+    VertexIndex, apply_attributes_impl, apply_uniforms_impl,
 };
 
 use glow::HasContext;
@@ -14,33 +14,43 @@ use glow::HasContext;
 static TARGET_NAME: &str = "gl.pipeline";
 
 #[derive(Debug)]
-pub struct Pipeline<M: PipelineMeta> {
+pub struct Pipeline<V, U = NoUniforms, I = NoImages> {
     raw: PipelineRaw,
-    _phantom: PhantomData<M>,
+    _phantom: PhantomData<fn(&V, &U, &I)>,
 }
 
-impl<M: PipelineMeta> Pipeline<M> {
+impl<Vert, Uni, Img> Pipeline<Vert, Uni, Img>
+where
+    Vert: Vertex,
+    Uni: UniformBlock,
+    Img: ImagesUniformBlock,
+{
     #[track_caller]
-    pub fn new(ctx: Rc<GlContext>) -> Pipeline<M> {
+    pub fn new(
+        ctx: Rc<GlContext>,
+        vert_shader: &str,
+        frag_shader: &str,
+        params: PipelineParams,
+    ) -> Pipeline<Vert, Uni, Img> {
         debug_assert_eq!(
             Self::sz_vert_fields(),
-            std::mem::size_of::<M::Vertex>(),
+            std::mem::size_of::<Vert>(),
             "vertex layout mismatch",
         );
         debug_assert_eq!(
             Self::sz_uni_fields(),
-            std::mem::size_of::<M::Uniforms>(),
+            std::mem::size_of::<Uni>(),
             "uniform layout mismatch",
         );
 
         let raw = PipelineRaw::new(
             ctx,
-            M::VERTEX_SHADER,
-            M::FRAGMENT_SHADER,
-            M::PARAMS,
-            M::Images::names(&M::IMAGES_NAMES),
-            M::Vertex::LAYOUT,
-            M::Uniforms::FIELDS,
+            vert_shader,
+            frag_shader,
+            params,
+            Img::FIELDS,
+            Vert::LAYOUT,
+            Uni::FIELDS,
         );
         Pipeline { raw, _phantom: PhantomData }
     }
@@ -49,19 +59,45 @@ impl<M: PipelineMeta> Pipeline<M> {
         self.raw.params.primitive_type
     }
 
-    pub(crate) fn apply<'a, I: VertexIndex>(
+    pub fn draw<'a, Idx: VertexIndex>(
         &'a self,
-        vertex_buffer: &'a VertexBuffer<M::Vertex>,
-        index_buffer: &'a IndexBuffer<I>,
-        images: <M::Images as ImagesBlock>::Borrow<'a>,
-        uniforms: &'a M::Uniforms,
+        base_element: u32,
+        num_elements: u32,
+        vertex_buffer: &'a VertexBuffer<Vert>,
+        index_buffer: &'a IndexBuffer<Idx>,
+        images: Img::Borrow<'a>,
+        uniforms: &'a Uni,
     ) {
-        debug_assert_eq!(
-            M::Images::as_slice(&images).len(),
-            M::Images::names(&M::IMAGES_NAMES).len(),
-            "image inputs mismatch",
-        );
+        self.apply(vertex_buffer, index_buffer, images, uniforms);
 
+        let sz_elem = std::mem::size_of::<Idx>() as i32;
+        let offset = sz_elem * base_element as i32;
+        let mode = match self.primitive_type() {
+            PrimitiveType::Triangles => glow::TRIANGLES,
+            PrimitiveType::Lines => glow::LINES,
+            PrimitiveType::Points => glow::POINTS,
+        };
+
+        unsafe {
+            self.raw.ctx.gl.draw_elements_instanced(
+                mode,
+                num_elements as i32,
+                Idx::GL_TYPE,
+                offset,
+                1,
+            );
+        }
+
+        self.raw.ctx.check_no_gl_error();
+    }
+
+    pub(crate) fn apply<'a, Idx: VertexIndex>(
+        &'a self,
+        vertex_buffer: &'a VertexBuffer<Vert>,
+        index_buffer: &'a IndexBuffer<Idx>,
+        images: Img::Borrow<'a>,
+        uniforms: &'a Uni,
+    ) {
         tracing::trace!(
             target: TARGET_NAME,
             gl_prog = ?self.raw.gl_prog,
@@ -70,22 +106,22 @@ impl<M: PipelineMeta> Pipeline<M> {
             images = ?images,
             "applying bindings",
         );
+        Img::bind(images);
         self.raw.apply(
             vertex_buffer.gl_buf,
             index_buffer.gl_buf,
-            M::Images::as_slice(&images),
             bytemuck::bytes_of(uniforms),
-            M::Uniforms::FIELDS,
-            std::mem::size_of::<M::Vertex>(),
-            M::Vertex::LAYOUT,
+            Uni::FIELDS,
+            std::mem::size_of::<Vert>(),
+            Vert::LAYOUT,
         );
     }
 
     const fn sz_vert_fields() -> usize {
         let mut res = 0;
         let mut idx = 0;
-        while idx < M::Vertex::LAYOUT.len() {
-            res += M::Vertex::LAYOUT[idx].sz;
+        while idx < Vert::LAYOUT.len() {
+            res += Vert::LAYOUT[idx].sz;
             idx += 1;
         }
         res
@@ -94,24 +130,12 @@ impl<M: PipelineMeta> Pipeline<M> {
     const fn sz_uni_fields() -> usize {
         let mut res = 0;
         let mut idx = 0;
-        while idx < M::Uniforms::FIELDS.len() {
-            res += M::Uniforms::FIELDS[idx].sz;
+        while idx < Uni::FIELDS.len() {
+            res += Uni::FIELDS[idx].sz;
             idx += 1;
         }
         res
     }
-}
-
-pub trait PipelineMeta: 'static {
-    const VERTEX_SHADER: &'static str;
-    const FRAGMENT_SHADER: &'static str;
-
-    type Images: ImagesBlock;
-    const IMAGES_NAMES: <Self::Images as ImagesBlock>::Names;
-
-    type Vertex: Vertex;
-    type Uniforms: UniformBlock;
-    const PARAMS: PipelineParams;
 }
 
 #[derive(Debug)]
@@ -130,7 +154,7 @@ impl PipelineRaw {
         vertex: &str,
         fragment: &str,
         params: PipelineParams,
-        image_names: &[&str],
+        images: &[ImageUniformField],
         attributes: &[VertexField],
         uniforms: &[UniformField],
     ) -> PipelineRaw {
@@ -152,8 +176,8 @@ impl PipelineRaw {
 
         check_pipeline_attributes(&ctx.gl, gl_prog, attributes);
         let mut image_uniform_locs = Vec::new();
-        for image_name in image_names {
-            image_uniform_locs.push(get_uniform_location(&ctx.gl, gl_prog, image_name));
+        for image in images {
+            image_uniform_locs.push(get_uniform_location(&ctx.gl, gl_prog, image.name));
         }
         let mut uniform_locs = Vec::new();
         for uniform in uniforms {
@@ -168,7 +192,6 @@ impl PipelineRaw {
         &self,
         vertex_buffer: glow::Buffer,
         index_buffer: glow::Buffer,
-        images: &[&Texture2D],
         uniform_data: &[u8],
         uniform_layout: &[UniformField],
         attribute_size: usize,
@@ -188,9 +211,8 @@ impl PipelineRaw {
         cache.set_color_write(&self.ctx.gl, self.params.color_write);
         self.ctx.check_no_gl_error();
 
-        for (n, (image_loc, texture)) in self.image_uniform_locs.iter().zip(images).enumerate() {
+        for (n, image_loc) in self.image_uniform_locs.iter().enumerate() {
             unsafe {
-                cache.bind_texture(&self.ctx.gl, n as u32, glow::TEXTURE_2D, texture.gl_tex);
                 self.ctx.gl.uniform_1_i32(Some(image_loc), n as i32);
             }
         }

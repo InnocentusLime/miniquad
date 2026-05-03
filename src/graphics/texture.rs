@@ -5,7 +5,7 @@ use glow::{HasContext, PixelUnpackData};
 use image::DynamicImage;
 use image::metadata::Orientation;
 
-use crate::graphics::GlContext;
+use crate::graphics::{GlContext, ImageUniformVal};
 
 static TARGET_NAME: &str = "gl.texture";
 
@@ -234,5 +234,14 @@ fn gl_texture_format(format: Texture2DFormat) -> (u32, u32, u32) {
             glow::UNSIGNED_SHORT,
         ),
         Texture2DFormat::DepthF32 => (glow::DEPTH_COMPONENT32F, glow::DEPTH_COMPONENT, glow::FLOAT),
+    }
+}
+
+impl ImageUniformVal for Texture2D {
+    const GL_TYPE: u32 = glow::TEXTURE_2D;
+
+    fn bind(&self, slot: u32) {
+        let mut cache = self.ctx.cache.borrow_mut();
+        cache.bind_texture(&self.ctx.gl, slot, Self::GL_TYPE, self.gl_tex);
     }
 }
