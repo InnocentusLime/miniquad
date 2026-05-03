@@ -14,7 +14,10 @@ use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 
 use crate::attribute_of;
-use crate::graphics::{Color, Vertex, VertexField};
+use crate::graphics::{
+    Color, ImageUniformField, ImageUniformVal, ImagesUniformBlock, Texture2D, Vertex, VertexField,
+};
+use crate::image_uniform_of;
 
 #[derive(Debug, Default, Pod, Zeroable, Clone, Copy)]
 #[repr(C)]
@@ -26,4 +29,19 @@ pub struct BasicVertex {
 impl Vertex for BasicVertex {
     const LAYOUT: &'static [VertexField] =
         &[attribute_of!(BasicVertex, v_pos), attribute_of!(BasicVertex, v_color)];
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct BasicTexImages<'a> {
+    pub tex: &'a Texture2D,
+}
+
+impl ImagesUniformBlock for BasicTexImages<'_> {
+    const FIELDS: &'static [ImageUniformField] = &[image_uniform_of!(Texture2D, tex)];
+
+    type Borrow<'a> = &'a BasicTexImages<'a>;
+
+    fn bind(raw: Self::Borrow<'_>) {
+        raw.tex.bind(0);
+    }
 }

@@ -1,23 +1,20 @@
+use std::rc::Rc;
+
 use bytemuck::{Pod, Zeroable};
 use glam::Mat4;
 
-use crate::graphics::{
-    NoImages, PipelineMeta, PipelineParams, UniformBlock, UniformField, default_pipeline_params,
-};
+use crate::graphics::{GlContext, Pipeline, UniformBlock, UniformField, default_pipeline_params};
 use crate::uniform_of;
 use crate::util::BasicVertex;
 
-pub struct BasicPipelineMeta;
+pub type BasicPipeline = Pipeline<BasicVertex, BasicPipelineUniforms>;
 
-impl PipelineMeta for BasicPipelineMeta {
-    const VERTEX_SHADER: &str = include_str!("shader/basic_pipeline.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shader/basic_pipeline.frag");
-
-    const IMAGES_NAMES: () = ();
-    type Images = NoImages;
-    type Vertex = BasicVertex;
-    type Uniforms = BasicPipelineUniforms;
-    const PARAMS: PipelineParams = default_pipeline_params();
+pub fn new_basic_pipeline(ctx: &Rc<GlContext>) -> BasicPipeline {
+    ctx.new_pipeline(
+        include_str!("shader/basic_pipeline.vert"),
+        include_str!("shader/basic_pipeline.frag"),
+        default_pipeline_params(),
+    )
 }
 
 #[repr(C)]

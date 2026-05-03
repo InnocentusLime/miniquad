@@ -20,8 +20,9 @@ struct App {
     indicies_cube: IndexBuffer,
     vertices_quad: VertexBuffer<QuadVert>,
     indicies_quad: IndexBuffer,
-    post_processing_pipeline: Pipeline<PostProcessingMeta>,
-    offscreen_pipeline: Pipeline<OffscreenMeta>,
+    post_processing_pipeline:
+        Pipeline<QuadVert, PostProcessingUniforms, PostProcessingImages<'static>>,
+    offscreen_pipeline: Pipeline<CubeVert, OffscreenUniforms>,
     offscreen_pass: RenderPass,
     rx: f32,
     ry: f32,
@@ -121,8 +122,19 @@ impl EventHandler<()> for App {
             0, 2, 3,
         ]);
 
-        let post_processing_pipeline = ctx.new_pipeline();
-        let offscreen_pipeline = ctx.new_pipeline();
+        let post_processing_pipeline = ctx.new_pipeline(
+            include_str!("shaders/basic_texture.vert"),
+            include_str!("shaders/gaus_blur.frag"),
+            default_pipeline_params(),
+        );
+        let offscreen_pipeline = ctx.new_pipeline(
+            include_str!("shaders/mvp_color.vert"),
+            include_str!("shaders/basic_color.frag"),
+            PipelineParams {
+                depth_test: Some(Comparison::LessOrEqual),
+                ..default_pipeline_params()
+            },
+        );
 
         App {
             vertices_cube,
@@ -177,30 +189,28 @@ impl App {
         // the offscreen pass, rendering an rotating, untextured cube into a render target image
         self.offscreen_pass
             .pass(Clear::depth_color(Color::WHITE), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.offscreen_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffer: &self.vertices_cube,
-                    index_buffer: &self.indicies_cube,
-                    images: &NoImages,
-                    uniforms: &OffscreenUniforms { mvp: view_proj * model },
-                });
+                self.offscreen_pipeline.draw(
+                    0,
+                    36,
+                    &self.vertices_cube,
+                    &self.indicies_cube,
+                    &NoImages,
+                    &OffscreenUniforms { mvp: view_proj * model },
+                );
             });
 
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
         self.ctx
             .default_pass(Clear::depth_color(Color::WHITE), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.post_processing_pipeline,
-                    base_element: 0,
-                    num_elements: 6,
-                    vertex_buffer: &self.vertices_quad,
-                    index_buffer: &self.indicies_quad,
-                    images: &self.offscreen_pass.color_attachments()[0],
-                    uniforms: &PostProcessingUniforms { resolution: vec2(width, height) },
-                });
+                self.post_processing_pipeline.draw(
+                    0,
+                    6,
+                    &self.vertices_quad,
+                    &self.indicies_quad,
+                    &PostProcessingImages { tex: &self.offscreen_pass.color_attachments()[0] },
+                    &PostProcessingUniforms { resolution: vec2(width, height) },
+                );
             });
     }
 }
@@ -219,37 +229,15 @@ pub struct QuadVert {
     pub v_uv: Vec2,
 }
 
-pub struct PostProcessingMeta;
-
-impl PipelineMeta for PostProcessingMeta {
-    const VERTEX_SHADER: &str = include_str!("shaders/basic_texture.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/gaus_blur.frag");
-
-    const IMAGES_NAMES: &str = "tex";
-    type Images = Texture2D;
-    type Vertex = QuadVert;
-    type Uniforms = PostProcessingUniforms;
-    const PARAMS: PipelineParams = default_pipeline_params();
+#[derive(Debug, Clone, Copy, ImagesUniformBlock)]
+pub struct PostProcessingImages<'a> {
+    pub tex: &'a Texture2D,
 }
 
 #[repr(C)]
 #[derive(Debug, Pod, Zeroable, Clone, Copy, UniformBlock)]
 pub struct PostProcessingUniforms {
     pub resolution: glam::Vec2,
-}
-
-pub struct OffscreenMeta;
-
-impl PipelineMeta for OffscreenMeta {
-    const VERTEX_SHADER: &str = include_str!("shaders/mvp_color.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
-
-    const IMAGES_NAMES: () = ();
-    type Images = NoImages;
-    type Vertex = CubeVert;
-    type Uniforms = OffscreenUniforms;
-    const PARAMS: PipelineParams =
-        PipelineParams { depth_test: Some(Comparison::LessOrEqual), ..default_pipeline_params() };
 }
 
 #[repr(C)]

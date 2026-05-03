@@ -14,7 +14,7 @@ fn main() {
 
 struct App {
     total_time: Duration,
-    pipeline: Pipeline<util::BasicPipelineMeta>,
+    pipeline: util::BasicPipeline,
     batcher: util::ShapeBatcher,
     ctx: Rc<GlContext>,
 }
@@ -33,7 +33,7 @@ impl EventHandler<()> for App {
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let batcher = util::ShapeBatcher::new_from_size(&ctx, 20_000, 20_000);
-        let pipeline = ctx.new_pipeline();
+        let pipeline = util::new_basic_pipeline(&ctx);
 
         App { pipeline, batcher, ctx, total_time: Duration::ZERO }
     }
@@ -131,15 +131,14 @@ impl App {
                     Mat4::orthographic_rh_gl(0.0, width as f32, height as f32, 0.0, 0.0, 1.0);
                 let num_elements = self.batcher.flush();
 
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
+                self.pipeline.draw(
+                    0,
                     num_elements,
-                    vertex_buffer: &self.batcher.0.vertices,
-                    index_buffer: &self.batcher.0.indicies,
-                    images: &NoImages,
-                    uniforms: &BasicPipelineUniforms { view_projection: proj },
-                });
+                    &self.batcher.0.vertices,
+                    &self.batcher.0.indicies,
+                    &NoImages,
+                    &BasicPipelineUniforms { view_projection: proj },
+                );
             });
     }
 }

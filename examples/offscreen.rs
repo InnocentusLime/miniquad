@@ -19,8 +19,8 @@ struct App {
     vertices_display_cube: VertexBuffer<CubeDisplayVert>,
     vertices_cube: VertexBuffer<CubeVert>,
     indicies_cube: IndexBuffer,
-    display_pipeline: Pipeline<DisplayMeta>,
-    offscreen_pipeline: Pipeline<OffscreenMeta>,
+    display_pipeline: Pipeline<CubeDisplayVert, Uniforms, DisplayImages<'static>>,
+    offscreen_pipeline: Pipeline<CubeVert, Uniforms>,
     offscreen_pass: RenderPass,
     rx: f32,
     ry: f32,
@@ -110,8 +110,22 @@ impl EventHandler<()> for App {
             22, 21, 20,  23, 22, 20
         ]);
 
-        let display_pipeline = ctx.new_pipeline();
-        let offscreen_pipeline = ctx.new_pipeline();
+        let display_pipeline = ctx.new_pipeline(
+            include_str!("shaders/mvp_color_texture.vert"),
+            include_str!("shaders/color_texture.frag"),
+            PipelineParams {
+                depth_test: Some(Comparison::LessOrEqual),
+                ..default_pipeline_params()
+            },
+        );
+        let offscreen_pipeline = ctx.new_pipeline(
+            include_str!("shaders/mvp_color.vert"),
+            include_str!("shaders/basic_color.frag"),
+            PipelineParams {
+                depth_test: Some(Comparison::LessOrEqual),
+                ..default_pipeline_params()
+            },
+        );
 
         App {
             vertices_cube,
@@ -143,30 +157,28 @@ impl App {
         // the offscreen pass, rendering a rotating, untextured cube into a render target image
         self.offscreen_pass
             .pass(Clear::depth_color(Color::WHITE), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.offscreen_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffer: &self.vertices_cube,
-                    index_buffer: &self.indicies_cube,
-                    images: &NoImages,
-                    uniforms: &Uniforms { mvp: view_proj * model },
-                });
+                self.offscreen_pipeline.draw(
+                    0,
+                    36,
+                    &self.vertices_cube,
+                    &self.indicies_cube,
+                    &NoImages,
+                    &Uniforms { mvp: view_proj * model },
+                );
             });
 
         // and the display-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
         self.ctx
             .default_pass(Clear::depth_color(Color::DARKBLUE), |_, _| {
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.display_pipeline,
-                    base_element: 0,
-                    num_elements: 36,
-                    vertex_buffer: &self.vertices_display_cube,
-                    index_buffer: &self.indicies_cube,
-                    images: &self.offscreen_pass.color_attachments()[0],
-                    uniforms: &Uniforms { mvp: view_proj * model },
-                });
+                self.display_pipeline.draw(
+                    0,
+                    36,
+                    &self.vertices_display_cube,
+                    &self.indicies_cube,
+                    &DisplayImages { tex: &self.offscreen_pass.color_attachments()[0] },
+                    &Uniforms { mvp: view_proj * model },
+                );
             });
     }
 }
@@ -186,32 +198,9 @@ pub struct CubeDisplayVert {
     pub v_uv: Vec2,
 }
 
-pub struct DisplayMeta;
-
-impl PipelineMeta for DisplayMeta {
-    const VERTEX_SHADER: &str = include_str!("shaders/mvp_color_texture.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/color_texture.frag");
-
-    const IMAGES_NAMES: &str = "tex";
-    type Images = Texture2D;
-    type Vertex = CubeDisplayVert;
-    type Uniforms = Uniforms;
-    const PARAMS: PipelineParams =
-        PipelineParams { depth_test: Some(Comparison::LessOrEqual), ..default_pipeline_params() };
-}
-
-pub struct OffscreenMeta;
-
-impl PipelineMeta for OffscreenMeta {
-    const VERTEX_SHADER: &str = include_str!("shaders/mvp_color.vert");
-    const FRAGMENT_SHADER: &str = include_str!("shaders/basic_color.frag");
-
-    const IMAGES_NAMES: () = ();
-    type Images = NoImages;
-    type Vertex = CubeVert;
-    type Uniforms = Uniforms;
-    const PARAMS: PipelineParams =
-        PipelineParams { depth_test: Some(Comparison::LessOrEqual), ..default_pipeline_params() };
+#[derive(Debug, Clone, Copy, ImagesUniformBlock)]
+pub struct DisplayImages<'a> {
+    pub tex: &'a Texture2D,
 }
 
 #[repr(C)]

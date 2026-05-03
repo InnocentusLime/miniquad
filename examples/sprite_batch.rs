@@ -20,7 +20,7 @@ struct App {
     total_time: Duration,
     ctx: Rc<GlContext>,
 
-    pipeline: Pipeline<util::BasicSpritePipelineMeta>,
+    pipeline: util::BasicSpritePipeline,
     batcher: util::SpriteBatcher,
     texture: Option<Texture2D>,
 }
@@ -53,7 +53,7 @@ impl EventHandler<()> for App {
     fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, _init: ()) -> App {
         fs_server.load_file(Path::new("assets/GB-Tileset.png"));
 
-        let pipeline = ctx.new_pipeline();
+        let pipeline = util::new_basic_sprite_pipeline(&ctx);
         let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000);
 
         App { total_time: Duration::ZERO, batcher, pipeline, texture: None, ctx }
@@ -64,7 +64,7 @@ impl App {
     fn draw(&mut self) {
         let t = self.total_time.as_secs_f32();
 
-        let Some(texture) = self.texture.as_ref() else {
+        let Some(tex) = self.texture.as_ref() else {
             return;
         };
 
@@ -106,18 +106,17 @@ impl App {
                     transform: char_tf,
                 });
                 let num_elements = self.batcher.flush();
-                self.ctx.draw(DrawCall {
-                    pipeline: &self.pipeline,
-                    base_element: 0,
+                self.pipeline.draw(
+                    0,
                     num_elements,
-                    vertex_buffer: &self.batcher.0.vertices,
-                    index_buffer: &self.batcher.0.indicies,
-                    images: texture,
-                    uniforms: &BasicSpritePipelineUniforms {
+                    &self.batcher.0.vertices,
+                    &self.batcher.0.indicies,
+                    &util::BasicTexImages { tex },
+                    &BasicSpritePipelineUniforms {
                         view_projection,
-                        width_height: texture.size().as_vec2(),
+                        width_height: tex.size().as_vec2(),
                     },
-                });
+                );
             });
     }
 }
