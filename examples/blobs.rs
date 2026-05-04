@@ -68,20 +68,22 @@ impl EventHandler<()> for App {
             BlobVertex { v_pos : Vec2 { x:  1.0, y: -1.0 }, v_uv: Vec2 { x: 1., y: 0. } },
             BlobVertex { v_pos : Vec2 { x:  1.0, y:  1.0 }, v_uv: Vec2 { x: 1., y: 1. } },
             BlobVertex { v_pos : Vec2 { x: -1.0, y:  1.0 }, v_uv: Vec2 { x: 0., y: 1. } },
-        ]);
+        ]).unwrap();
 
         #[rustfmt::skip]
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[
             0, 1, 2,
             0, 2, 3,
-        ]);
+        ]).unwrap();
 
         // based on: https://www.shadertoy.com/view/XsS3DV
-        let pipeline = ctx.new_pipeline(
-            include_str!("shaders/basic_texture.vert"),
-            include_str!("shaders/blobs.frag"),
-            default_pipeline_params(),
-        );
+        let pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/basic_texture.vert"),
+                include_str!("shaders/blobs.frag"),
+                default_pipeline_params(),
+            )
+            .unwrap();
 
         let uniforms = Uniforms { time: 0., blobs_count: 1, blobs_positions: [vec2(0., 0.); 32] };
 
@@ -135,8 +137,9 @@ impl App {
                     &self.indicies,
                     &NoImages,
                     &self.uniforms,
-                );
-            });
+                )
+            })
+            .unwrap();
     }
 }
 

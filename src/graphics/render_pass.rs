@@ -2,8 +2,9 @@ use std::rc::Rc;
 
 use glow::HasContext;
 
+use crate::check_gl;
 use crate::graphics::texture::Texture2D;
-use crate::graphics::{Color, GlContext};
+use crate::graphics::{Color, Error, GlContext, Result};
 
 static TARGET_NAME: &str = "gl.render_pass";
 
@@ -20,12 +21,14 @@ impl RenderPass {
         ctx: Rc<GlContext>,
         color_img: Vec<Texture2D>,
         depth_img: Option<Texture2D>,
-    ) -> RenderPass {
+    ) -> Result<RenderPass> {
         if color_img.is_empty() && depth_img.is_none() {
             panic!("Render pass should have at least one non-none target");
         }
 
-        let gl_fb = unsafe { ctx.gl.create_framebuffer().unwrap() };
+        let Ok(gl_fb) = (unsafe { ctx.gl.create_framebuffer() }) else {
+            return Err(Error::FramebufferAlloc);
+        };
         tracing::debug!(
             target: TARGET_NAME,
             "new: {gl_fb:?}",
@@ -71,15 +74,15 @@ impl RenderPass {
             }
         }
 
-        ctx.check_no_gl_error();
-        RenderPass { ctx, gl_fb, color_textures: color_img, depth_texture: depth_img }
+        check_gl!(&ctx.gl, Error::BufferInit);
+        Ok(RenderPass { ctx, gl_fb, color_textures: color_img, depth_texture: depth_img })
     }
 
     pub fn color_attachments(&self) -> &[Texture2D] {
         &self.color_textures
     }
 
-    pub fn pass(&self, clear: Clear, code: impl FnOnce(u32, u32)) {
+    pub fn pass(&self, clear: Clear, code: impl FnOnce(u32, u32) -> Result<()>) -> Result<()> {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_render_pass",
@@ -101,10 +104,9 @@ impl RenderPass {
             texture.width() as i32,
             texture.height() as i32,
         );
-        self.ctx.check_no_gl_error();
+        check_gl!(&self.ctx.gl, Error::Drawcall);
 
-        code(texture.width(), texture.height());
-        self.ctx.check_no_gl_error();
+        code(texture.width(), texture.height())
     }
 }
 
@@ -120,7 +122,11 @@ impl Drop for RenderPass {
 }
 
 impl GlContext {
-    pub fn default_pass(&self, pass_action: Clear, code: impl FnOnce(u32, u32)) {
+    pub fn default_pass(
+        &self,
+        pass_action: Clear,
+        code: impl FnOnce(u32, u32) -> Result<()>,
+    ) -> Result<()> {
         let span = tracing::debug_span!(
             target: TARGET_NAME,
             "perform_default_render_pass",
@@ -135,10 +141,9 @@ impl GlContext {
             screen_width as i32,
             screen_height as i32,
         );
-        self.check_no_gl_error();
+        check_gl!(&self.gl, Error::Drawcall);
 
-        code(screen_width, screen_height);
-        self.check_no_gl_error();
+        code(screen_width, screen_height)
     }
 }
 

@@ -22,7 +22,8 @@ impl EventHandler<()> for App {
         match event {
             WindowEvent::RedrawRequested => self
                 .ctx
-                .default_pass(Clear::depth_color(Color::GREEN), |_, _| {}),
+                .default_pass(Clear::depth_color(Color::GREEN), |_, _| Ok(()))
+                .unwrap(),
             WindowEvent::KeyboardInput { event, .. } => info!(
                 loc=?event.location,
                 phys_code=?event.physical_key,

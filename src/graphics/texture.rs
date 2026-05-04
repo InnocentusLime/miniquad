@@ -5,7 +5,8 @@ use glow::{HasContext, PixelUnpackData};
 use image::DynamicImage;
 use image::metadata::Orientation;
 
-use crate::graphics::{GlContext, ImageUniformVal};
+use crate::check_gl;
+use crate::graphics::{Error, GlContext, ImageUniformVal, Result};
 
 static TARGET_NAME: &str = "gl.texture";
 
@@ -27,7 +28,7 @@ impl Texture2D {
         wrap: TextureWrap,
         min_filter: FilterMode,
         mag_filter: FilterMode,
-    ) -> Texture2D {
+    ) -> Result<Texture2D> {
         let gl_tex = create_and_bind_texture(
             &ctx,
             format,
@@ -37,8 +38,8 @@ impl Texture2D {
             min_filter,
             mag_filter,
             glow::PixelUnpackData::Slice(None),
-        );
-        Texture2D { ctx, gl_tex, width, height, format }
+        )?;
+        Ok(Texture2D { ctx, gl_tex, width, height, format })
     }
 
     pub fn new(
@@ -47,7 +48,7 @@ impl Texture2D {
         wrap: TextureWrap,
         min_filter: FilterMode,
         mag_filter: FilterMode,
-    ) -> Texture2D {
+    ) -> Result<Texture2D> {
         let mut source = source.into();
         // OpenGL is expecting the image data to be upside down.
         //
@@ -57,7 +58,7 @@ impl Texture2D {
             image::ColorType::Rgb8 => Texture2DFormat::RGB8,
             image::ColorType::Rgba8 => Texture2DFormat::RGBA8,
             image::ColorType::L16 => Texture2DFormat::DepthU16,
-            _ => unimplemented!("Unsupported image input"),
+            format => return Err(Error::UnsupportedTextureFormat { format }),
         };
 
         let (width, height) = (source.width(), source.height());
@@ -70,8 +71,8 @@ impl Texture2D {
             min_filter,
             mag_filter,
             PixelUnpackData::Slice(Some(source.as_bytes())),
-        );
-        Texture2D { ctx, gl_tex, width, height, format }
+        )?;
+        Ok(Texture2D { ctx, gl_tex, width, height, format })
     }
 
     pub fn data_size(&self) -> usize {
@@ -151,9 +152,11 @@ fn create_and_bind_texture(
     min_filter: FilterMode,
     mag_filter: FilterMode,
     data: glow::PixelUnpackData,
-) -> glow::Texture {
+) -> Result<glow::Texture> {
     let mut cache = ctx.cache.borrow_mut();
-    let gl_tex = unsafe { ctx.gl.create_texture().unwrap() };
+    let Ok(gl_tex) = (unsafe { ctx.gl.create_texture() }) else {
+        return Err(Error::TextureAlloc);
+    };
     tracing::debug!(
         target: TARGET_NAME,
         ?format, width, height,
@@ -180,9 +183,9 @@ fn create_and_bind_texture(
     }
 
     apply_texture_parameters(ctx, wrap, min_filter, mag_filter);
-    ctx.check_no_gl_error();
+    check_gl!(&ctx.gl, Error::TextureInit);
 
-    gl_tex
+    Ok(gl_tex)
 }
 
 fn apply_texture_parameters(

@@ -45,34 +45,38 @@ impl EventHandler<()> for App {
             ImgVertex { v_pos : Vec2 { x:  0.5, y: -0.5 }, v_uv: Vec2 { x: 1., y: 0. } },
             ImgVertex { v_pos : Vec2 { x:  0.5, y:  0.5 }, v_uv: Vec2 { x: 1., y: 1. } },
             ImgVertex { v_pos : Vec2 { x: -0.5, y:  0.5 }, v_uv: Vec2 { x: 0., y: 1. } },
-        ]);
+        ]).unwrap();
 
         #[rustfmt::skip]
         let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &[
             0, 1, 2,
             0, 2, 3,
-        ]);
+        ]).unwrap();
 
         let pixels = RgbaImage::from_raw(4, 4, gen_pixels()).unwrap();
-        let texture = ctx.new_texture(
-            pixels,
-            TextureWrap::Clamp,
-            FilterMode::Linear,
-            FilterMode::Linear,
-        );
+        let texture = ctx
+            .new_texture(
+                pixels,
+                TextureWrap::Clamp,
+                FilterMode::Linear,
+                FilterMode::Linear,
+            )
+            .unwrap();
 
-        let pipeline = ctx.new_pipeline(
-            include_str!("shaders/with_offset.vert"),
-            include_str!("shaders/basic_texture.frag"),
-            PipelineParams {
-                blending: Blending::All(BlendFunc {
-                    equation: BlendEquation::Add,
-                    source: BlendFactor::Value(BlendValue::SrcAlpha),
-                    dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
-                }),
-                ..default_pipeline_params()
-            },
-        );
+        let pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/with_offset.vert"),
+                include_str!("shaders/basic_texture.frag"),
+                PipelineParams {
+                    blending: Blending::All(BlendFunc {
+                        equation: BlendEquation::Add,
+                        source: BlendFactor::Value(BlendValue::SrcAlpha),
+                        dest: BlendFactor::OneMinusValue(BlendValue::SrcAlpha),
+                    }),
+                    ..default_pipeline_params()
+                },
+            )
+            .unwrap();
 
         App { pipeline, vertices, indicies, texture, ctx, total_time: Duration::ZERO }
     }
@@ -93,9 +97,11 @@ impl App {
                         &self.indicies,
                         &ImageImages { tex: &self.texture },
                         &Uniforms { offset: vec2(t.sin() * 0.5, (t * 3.).cos() * 0.5) },
-                    );
+                    )?;
                 }
-            });
+                Ok(())
+            })
+            .unwrap();
     }
 }
 

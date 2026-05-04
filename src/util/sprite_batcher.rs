@@ -6,7 +6,8 @@ use glam::{Affine2, Mat4, UVec2, Vec2, vec2};
 use super::BasicTexImages;
 use crate::graphics::{
     BlendEquation, BlendFactor, BlendFunc, BlendValue, Blending, GlContext, Pipeline,
-    PipelineParams, UniformBlock, UniformField, Vertex, VertexField, default_pipeline_params,
+    PipelineParams, Result, UniformBlock, UniformField, Vertex, VertexField,
+    default_pipeline_params,
 };
 use crate::util::GeometryBatcher;
 use crate::{attribute_of, uniform_of};
@@ -21,12 +22,9 @@ pub struct Sprite {
 pub struct SpriteBatcher(pub GeometryBatcher<SpriteVertex>);
 
 impl SpriteBatcher {
-    pub fn new_from_size(ctx: &Rc<GlContext>, sprites: usize) -> Self {
-        SpriteBatcher::new(GeometryBatcher::new_from_size(
-            ctx,
-            sprites * 4,
-            sprites * 6,
-        ))
+    pub fn new_from_size(ctx: &Rc<GlContext>, sprites: usize) -> Result<Self> {
+        let inner = GeometryBatcher::new_from_size(ctx, sprites, sprites)?;
+        Ok(SpriteBatcher(inner))
     }
 
     pub fn new(batcher: GeometryBatcher<SpriteVertex>) -> Self {
@@ -96,7 +94,7 @@ impl Vertex for SpriteVertex {
 pub type BasicSpritePipeline =
     Pipeline<SpriteVertex, BasicSpritePipelineUniforms, BasicTexImages<'static>>;
 
-pub fn new_basic_sprite_pipeline(ctx: &Rc<GlContext>) -> BasicSpritePipeline {
+pub fn new_basic_sprite_pipeline(ctx: &Rc<GlContext>) -> Result<BasicSpritePipeline> {
     ctx.new_pipeline(
         include_str!("shader/basic_sprite.vert"),
         include_str!("shader/basic_sprite.frag"),

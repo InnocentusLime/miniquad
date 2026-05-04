@@ -2,12 +2,12 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use crate::GLSL_VERSION;
 use crate::graphics::{
-    GlContext, ImageUniformField, ImagesUniformBlock, IndexBuffer, NoImages, NoUniforms,
-    PipelineParams, PrimitiveType, UniformBlock, UniformField, Vertex, VertexBuffer, VertexField,
-    VertexIndex, apply_attributes_impl, apply_uniforms_impl,
+    Error, GlContext, ImageUniformField, ImagesUniformBlock, IndexBuffer, NoImages, NoUniforms,
+    PipelineParams, PrimitiveType, Result, UniformBlock, UniformField, Vertex, VertexBuffer,
+    VertexField, VertexIndex, apply_attributes_impl, apply_uniforms_impl,
 };
+use crate::{GLSL_VERSION, check_gl};
 
 use glow::HasContext;
 
@@ -31,7 +31,7 @@ where
         vert_shader: &str,
         frag_shader: &str,
         params: PipelineParams,
-    ) -> Pipeline<Vert, Uni, Img> {
+    ) -> Result<Pipeline<Vert, Uni, Img>> {
         debug_assert_eq!(
             Self::sz_vert_fields(),
             std::mem::size_of::<Vert>(),
@@ -51,8 +51,8 @@ where
             Img::FIELDS,
             Vert::LAYOUT,
             Uni::FIELDS,
-        );
-        Pipeline { raw, _phantom: PhantomData }
+        )?;
+        Ok(Pipeline { raw, _phantom: PhantomData })
     }
 
     pub(crate) fn primitive_type(&self) -> PrimitiveType {
@@ -67,8 +67,8 @@ where
         index_buffer: &'a IndexBuffer<Idx>,
         images: Img::Borrow<'a>,
         uniforms: &'a Uni,
-    ) {
-        self.apply(vertex_buffer, index_buffer, images, uniforms);
+    ) -> Result<()> {
+        self.apply(vertex_buffer, index_buffer, images, uniforms)?;
 
         let sz_elem = std::mem::size_of::<Idx>() as i32;
         let offset = sz_elem * base_element as i32;
@@ -87,8 +87,8 @@ where
                 1,
             );
         }
-
-        self.raw.ctx.check_no_gl_error();
+        check_gl!(&self.raw.ctx.gl, Error::Drawcall);
+        Ok(())
     }
 
     pub(crate) fn apply<'a, Idx: VertexIndex>(
@@ -97,7 +97,7 @@ where
         index_buffer: &'a IndexBuffer<Idx>,
         images: Img::Borrow<'a>,
         uniforms: &'a Uni,
-    ) {
+    ) -> Result<()> {
         tracing::trace!(
             target: TARGET_NAME,
             gl_prog = ?self.raw.gl_prog,
@@ -114,7 +114,7 @@ where
             Uni::FIELDS,
             std::mem::size_of::<Vert>(),
             Vert::LAYOUT,
-        );
+        )
     }
 
     const fn sz_vert_fields() -> usize {
@@ -157,17 +157,18 @@ impl PipelineRaw {
         images: &[ImageUniformField],
         attributes: &[VertexField],
         uniforms: &[UniformField],
-    ) -> PipelineRaw {
+    ) -> Result<PipelineRaw> {
         let vertex = format!("{GLSL_VERSION}\n{vertex}");
         let fragment = format!("{GLSL_VERSION}\n{fragment}");
 
-        let vertex = compile_shader(&ctx.gl, glow::VERTEX_SHADER, "vertex shader", &vertex);
+        let vertex = compile_shader(&ctx.gl, glow::VERTEX_SHADER, "vertex shader", &vertex)?;
         tracing::debug!(target: TARGET_NAME, "compiled vertex shader: {vertex:?}");
 
-        let fragment = compile_shader(&ctx.gl, glow::FRAGMENT_SHADER, "fragment shader", &fragment);
+        let fragment =
+            compile_shader(&ctx.gl, glow::FRAGMENT_SHADER, "fragment shader", &fragment)?;
         tracing::debug!(target: TARGET_NAME, "compiled fragment shader: {fragment:?}");
 
-        let gl_prog = create_program(&ctx.gl, vertex, fragment);
+        let gl_prog = create_program(&ctx.gl, vertex, fragment)?;
         tracing::debug!(target: TARGET_NAME, "new: {gl_prog:?}");
 
         let mut cache = ctx.cache.borrow_mut();
@@ -177,15 +178,14 @@ impl PipelineRaw {
         check_pipeline_attributes(&ctx.gl, gl_prog, attributes);
         let mut image_uniform_locs = Vec::new();
         for image in images {
-            image_uniform_locs.push(get_uniform_location(&ctx.gl, gl_prog, image.name));
+            image_uniform_locs.push(get_uniform_location(&ctx.gl, gl_prog, image.name)?);
         }
         let mut uniform_locs = Vec::new();
         for uniform in uniforms {
-            uniform_locs.push(get_uniform_location(&ctx.gl, gl_prog, uniform.name));
+            uniform_locs.push(get_uniform_location(&ctx.gl, gl_prog, uniform.name)?);
         }
-        ctx.check_no_gl_error();
 
-        PipelineRaw { ctx, gl_prog, image_uniform_locs, uniform_locs, params }
+        Ok(PipelineRaw { ctx, gl_prog, image_uniform_locs, uniform_locs, params })
     }
 
     fn apply(
@@ -196,7 +196,7 @@ impl PipelineRaw {
         uniform_layout: &[UniformField],
         attribute_size: usize,
         attribute_layout: &[VertexField],
-    ) {
+    ) -> Result<()> {
         let mut cache = self.ctx.cache.borrow_mut();
 
         cache.bind_program(&self.ctx.gl, self.gl_prog);
@@ -209,7 +209,7 @@ impl PipelineRaw {
         cache.set_blend(&self.ctx.gl, self.params.blending);
         cache.set_stencil(&self.ctx.gl, self.params.stencil_test);
         cache.set_color_write(&self.ctx.gl, self.params.color_write);
-        self.ctx.check_no_gl_error();
+        check_gl!(&self.ctx.gl, Error::Drawcall);
 
         for (n, image_loc) in self.image_uniform_locs.iter().enumerate() {
             unsafe {
@@ -223,7 +223,9 @@ impl PipelineRaw {
             uniform_layout,
             &self.uniform_locs,
         );
-        self.ctx.check_no_gl_error();
+        check_gl!(&self.ctx.gl, Error::Drawcall);
+
+        Ok(())
     }
 }
 
@@ -242,20 +244,20 @@ impl Drop for PipelineRaw {
 fn compile_shader(
     gl: &glow::Context,
     shader_type: u32,
-    shader_type_name: &str,
+    shader_type_name: &'static str,
     source: &str,
-) -> glow::Shader {
+) -> Result<glow::Shader> {
     unsafe {
         let shader = gl.create_shader(shader_type).unwrap();
         gl.shader_source(shader, source);
         gl.compile_shader(shader);
 
         if !gl.get_shader_compile_status(shader) {
-            let error_message = gl.get_shader_info_log(shader);
-            panic!("compilation error ({shader_type_name}): {error_message}");
+            let msg = gl.get_shader_info_log(shader);
+            return Err(Error::ShaderCompilation { shader_type: shader_type_name, msg });
         }
 
-        shader
+        Ok(shader)
     }
 }
 
@@ -264,7 +266,7 @@ fn create_program(
     gl: &glow::Context,
     vertex: glow::Shader,
     fragment: glow::Shader,
-) -> glow::Program {
+) -> Result<glow::Program> {
     unsafe {
         let program = gl.create_program().unwrap();
         gl.attach_shader(program, vertex);
@@ -278,10 +280,10 @@ fn create_program(
 
         if !gl.get_program_link_status(program) {
             let error_message = gl.get_program_info_log(program);
-            panic!("link error: {error_message}");
+            return Err(Error::ProgramLink { msg: error_message });
         }
 
-        program
+        Ok(program)
     }
 }
 
@@ -308,9 +310,9 @@ fn get_uniform_location(
     gl: &glow::Context,
     gl_prog: glow::Program,
     name: &str,
-) -> glow::UniformLocation {
+) -> Result<glow::UniformLocation> {
     let Some(uniform_loc) = (unsafe { gl.get_uniform_location(gl_prog, name) }) else {
-        panic!("No uniform named: {name:?}")
+        return Err(Error::UniformNotFound { name: name.to_owned() });
     };
-    uniform_loc
+    Ok(uniform_loc)
 }

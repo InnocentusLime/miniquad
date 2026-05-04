@@ -42,19 +42,23 @@ impl EventHandler<()> for App {
             return;
         };
         let img = image::load_from_memory(&bytes).expect("Image load failed");
-        self.texture = Some(self.ctx.new_texture(
-            img,
-            TextureWrap::Clamp,
-            FilterMode::Nearest,
-            FilterMode::Nearest,
-        ));
+        let tex = self
+            .ctx
+            .new_texture(
+                img,
+                TextureWrap::Clamp,
+                FilterMode::Nearest,
+                FilterMode::Nearest,
+            )
+            .unwrap();
+        self.texture = Some(tex);
     }
 
     fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, _init: ()) -> App {
         fs_server.load_file(Path::new("assets/GB-Tileset.png"));
 
-        let pipeline = util::new_basic_sprite_pipeline(&ctx);
-        let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000);
+        let pipeline = util::new_basic_sprite_pipeline(&ctx).unwrap();
+        let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000).unwrap();
 
         App { total_time: Duration::ZERO, batcher, pipeline, texture: None, ctx }
     }
@@ -116,8 +120,9 @@ impl App {
                         view_projection,
                         width_height: tex.size().as_vec2(),
                     },
-                );
-            });
+                )
+            })
+            .unwrap();
     }
 }
 
