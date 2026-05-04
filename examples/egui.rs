@@ -69,7 +69,12 @@ impl EventHandler<()> for App {
         });
     }
 
-    fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, _init: ()) -> App {
+    fn init(
+        ctx: Rc<GlContext>,
+        _: Rc<audio::AlContext>,
+        fs_server: Rc<dyn FsServer>,
+        _init: (),
+    ) -> App {
         fs_server.load_file(Path::new("ferris.png"));
 
         #[rustfmt::skip]

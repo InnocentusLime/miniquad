@@ -38,7 +38,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
+    fn init(ctx: Rc<GlContext>, _: Rc<audio::AlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             CubeVert { v_pos: vec3(-1.0, -1.0, -1.0), v_color: vec4(1.0, 0.5, 0.5, 1.0) },

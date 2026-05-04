@@ -6,9 +6,10 @@ extern crate mimiq_derive;
 mod context_init;
 mod embeded_assets;
 mod fs;
-pub mod graphics;
 mod tracing_init;
 
+pub mod audio;
+pub mod graphics;
 pub mod util;
 
 pub use bytemuck::zeroed;
@@ -18,6 +19,7 @@ pub use context_init::GLSL_VERSION;
 pub use egui;
 pub use fs::*;
 pub use glam;
+pub use hound;
 pub use image;
 #[cfg(feature = "derive")]
 pub use mimiq_derive::*;
@@ -179,6 +181,7 @@ impl<I, T: EventHandler<I>> App<I, T> {
         let (window, platform) = create_gfx_ctx_and_window(event_loop, proxy, &self.conf);
         let glow = Arc::new(platform.make_glow_context(self.conf.is_debug));
         let gl_context = Rc::new(graphics::GlContext::new(glow.clone(), (800, 600)));
+        let al_context = Rc::new(audio::AlContext::new());
         tracing::info!(target: TARGET_NAME, "The context has been successfully created");
 
         #[cfg(feature = "egui")]
@@ -190,11 +193,17 @@ impl<I, T: EventHandler<I>> App<I, T> {
             true,
         ));
 
-        let handler = T::init(gl_context.clone(), self.fs_server.clone(), input);
+        let handler = T::init(
+            gl_context.clone(),
+            al_context.clone(),
+            self.fs_server.clone(),
+            input,
+        );
         self.state = AppState::Ready {
             window,
             platform,
             gl_context,
+            _al_context: al_context,
             handler,
             #[cfg(feature = "egui")]
             egui_glow,
@@ -225,6 +234,7 @@ enum AppState<I, T> {
         window: Window,
         platform: PlatformGfxContext,
         gl_context: Rc<graphics::GlContext>,
+        _al_context: Rc<audio::AlContext>,
         #[cfg(feature = "egui")]
         egui_glow: Box<egui_glow::EguiGlow>,
         handler: T,
@@ -286,7 +296,12 @@ pub fn default_log_filter() -> EnvFilter {
 
 /// A trait defining event callbacks.
 pub trait EventHandler<Input>: 'static {
-    fn init(ctx: Rc<graphics::GlContext>, fs_server: Rc<dyn FsServer>, input: Input) -> Self;
+    fn init(
+        gl_context: Rc<graphics::GlContext>,
+        al_context: Rc<audio::AlContext>,
+        fs_server: Rc<dyn FsServer>,
+        input: Input,
+    ) -> Self;
 
     fn file_ready(&mut self, _event: FileReady) {}
 
