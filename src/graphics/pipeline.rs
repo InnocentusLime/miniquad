@@ -4,8 +4,8 @@ use std::rc::Rc;
 
 use crate::graphics::{
     Error, GlContext, ImageUniformField, ImagesUniformBlock, IndexBuffer, NoImages, NoUniforms,
-    PipelineParams, PrimitiveType, Result, UniformBlock, UniformField, Vertex, VertexBuffer,
-    VertexField, VertexIndex, apply_attributes_impl, apply_uniforms_impl,
+    PipelineParams, PrimitiveType, RawBuffer, Result, UniformBlock, UniformField, Vertex,
+    VertexBuffer, VertexField, VertexIndex, apply_attributes_impl, apply_uniforms_impl,
 };
 use crate::{GLSL_VERSION, check_gl};
 
@@ -108,8 +108,8 @@ where
         );
         Img::bind(images);
         self.raw.apply(
-            vertex_buffer.gl_buf,
-            index_buffer.gl_buf,
+            &vertex_buffer.raw,
+            &index_buffer.raw,
             bytemuck::bytes_of(uniforms),
             Uni::FIELDS,
             std::mem::size_of::<Vert>(),
@@ -190,18 +190,18 @@ impl PipelineRaw {
 
     fn apply(
         &self,
-        vertex_buffer: glow::Buffer,
-        index_buffer: glow::Buffer,
+        vertex_buffer: &RawBuffer,
+        index_buffer: &RawBuffer,
         uniform_data: &[u8],
         uniform_layout: &[UniformField],
         attribute_size: usize,
         attribute_layout: &[VertexField],
     ) -> Result<()> {
-        let mut cache = self.ctx.cache.borrow_mut();
+        vertex_buffer.bind();
+        index_buffer.bind();
 
+        let mut cache = self.ctx.cache.borrow_mut();
         cache.bind_program(&self.ctx.gl, self.gl_prog);
-        cache.bind_buffer(&self.ctx.gl, vertex_buffer);
-        cache.bind_index_buffer(&self.ctx.gl, index_buffer);
 
         cache.set_depth_test(&self.ctx.gl, self.params.depth_test);
         cache.set_front_face_order(&self.ctx.gl, self.params.front_face_order);

@@ -1,13 +1,11 @@
-mod buffer_usage;
+mod buffer;
 mod cache;
 mod error;
-mod index_buffer;
 mod pipeline;
 mod pipeline_params;
 mod render_pass;
 mod texture;
 mod ty;
-mod vertex_buffer;
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
@@ -17,15 +15,13 @@ use cache::GlCache;
 use glow::HasContext;
 use image::DynamicImage;
 
-pub use buffer_usage::*;
+pub use buffer::*;
 pub use error::*;
-pub use index_buffer::*;
 pub use pipeline::*;
 pub use pipeline_params::*;
 pub use render_pass::*;
 pub use texture::*;
 pub use ty::*;
-pub use vertex_buffer::*;
 
 #[derive(Debug)]
 pub struct GlContext {
