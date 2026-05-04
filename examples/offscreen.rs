@@ -41,23 +41,29 @@ impl EventHandler<()> for App {
     }
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
-        let color_img = ctx.new_empty_texture(
-            Texture2DFormat::RGBA8,
-            256,
-            256,
-            TextureWrap::Clamp,
-            FilterMode::Linear,
-            FilterMode::Linear,
-        );
-        let depth_img = ctx.new_empty_texture(
-            Texture2DFormat::DepthU16,
-            256,
-            256,
-            TextureWrap::Clamp,
-            FilterMode::Linear,
-            FilterMode::Linear,
-        );
-        let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
+        let color_img = ctx
+            .new_empty_texture(
+                Texture2DFormat::RGBA8,
+                256,
+                256,
+                TextureWrap::Clamp,
+                FilterMode::Linear,
+                FilterMode::Linear,
+            )
+            .unwrap();
+        let depth_img = ctx
+            .new_empty_texture(
+                Texture2DFormat::DepthU16,
+                256,
+                256,
+                TextureWrap::Clamp,
+                FilterMode::Linear,
+                FilterMode::Linear,
+            )
+            .unwrap();
+        let offscreen_pass = ctx
+            .new_render_pass(vec![color_img], Some(depth_img))
+            .unwrap();
 
         #[rustfmt::skip]
         let vertices_display_cube = [
@@ -96,9 +102,12 @@ impl EventHandler<()> for App {
             .map(|v| CubeVert { v_pos: v.v_pos, v_color: v.v_color })
             .collect::<Vec<_>>();
 
-        let vertices_display_cube =
-            ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices_display_cube);
-        let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices_cube);
+        let vertices_display_cube = ctx
+            .new_vertex_buffer(BufferUsage::Immutable, &vertices_display_cube)
+            .unwrap();
+        let vertices_cube = ctx
+            .new_vertex_buffer(BufferUsage::Immutable, &vertices_cube)
+            .unwrap();
 
         #[rustfmt::skip]
         let indicies_cube = ctx.new_index_buffer(BufferUsage::Immutable, &[
@@ -108,24 +117,28 @@ impl EventHandler<()> for App {
             14, 13, 12,  15, 14, 12,
             16, 17, 18,  16, 18, 19,
             22, 21, 20,  23, 22, 20
-        ]);
+        ]).unwrap();
 
-        let display_pipeline = ctx.new_pipeline(
-            include_str!("shaders/mvp_color_texture.vert"),
-            include_str!("shaders/color_texture.frag"),
-            PipelineParams {
-                depth_test: Some(Comparison::LessOrEqual),
-                ..default_pipeline_params()
-            },
-        );
-        let offscreen_pipeline = ctx.new_pipeline(
-            include_str!("shaders/mvp_color.vert"),
-            include_str!("shaders/basic_color.frag"),
-            PipelineParams {
-                depth_test: Some(Comparison::LessOrEqual),
-                ..default_pipeline_params()
-            },
-        );
+        let display_pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/mvp_color_texture.vert"),
+                include_str!("shaders/color_texture.frag"),
+                PipelineParams {
+                    depth_test: Some(Comparison::LessOrEqual),
+                    ..default_pipeline_params()
+                },
+            )
+            .unwrap();
+        let offscreen_pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/mvp_color.vert"),
+                include_str!("shaders/basic_color.frag"),
+                PipelineParams {
+                    depth_test: Some(Comparison::LessOrEqual),
+                    ..default_pipeline_params()
+                },
+            )
+            .unwrap();
 
         App {
             vertices_cube,
@@ -164,8 +177,9 @@ impl App {
                     &self.indicies_cube,
                     &NoImages,
                     &Uniforms { mvp: view_proj * model },
-                );
-            });
+                )
+            })
+            .unwrap();
 
         // and the display-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
@@ -178,8 +192,9 @@ impl App {
                     &self.indicies_cube,
                     &DisplayImages { tex: &self.offscreen_pass.color_attachments()[0] },
                     &Uniforms { mvp: view_proj * model },
-                );
-            });
+                )
+            })
+            .unwrap()
     }
 }
 

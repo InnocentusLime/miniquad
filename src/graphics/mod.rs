@@ -1,5 +1,6 @@
 mod buffer_usage;
 mod cache;
+mod error;
 mod index_buffer;
 mod pipeline;
 mod pipeline_params;
@@ -17,6 +18,7 @@ use glow::HasContext;
 use image::DynamicImage;
 
 pub use buffer_usage::*;
+pub use error::*;
 pub use index_buffer::*;
 pub use pipeline::*;
 pub use pipeline_params::*;
@@ -63,7 +65,7 @@ impl GlContext {
         self: &Rc<Self>,
         usage: BufferUsage,
         size: usize,
-    ) -> VertexBuffer<T> {
+    ) -> Result<VertexBuffer<T>> {
         VertexBuffer::new_empty(self.clone(), usage, size)
     }
 
@@ -71,7 +73,7 @@ impl GlContext {
         self: &Rc<Self>,
         usage: BufferUsage,
         data: &[T],
-    ) -> VertexBuffer<T> {
+    ) -> Result<VertexBuffer<T>> {
         VertexBuffer::new(self.clone(), usage, data)
     }
 
@@ -79,7 +81,7 @@ impl GlContext {
         self: &Rc<Self>,
         usage: BufferUsage,
         size: usize,
-    ) -> IndexBuffer<I> {
+    ) -> Result<IndexBuffer<I>> {
         IndexBuffer::new_empty(self.clone(), usage, size)
     }
 
@@ -87,7 +89,7 @@ impl GlContext {
         self: &Rc<Self>,
         usage: BufferUsage,
         data: &[I],
-    ) -> IndexBuffer<I> {
+    ) -> Result<IndexBuffer<I>> {
         IndexBuffer::new(self.clone(), usage, data)
     }
 
@@ -99,7 +101,7 @@ impl GlContext {
         wrap: TextureWrap,
         min_filter: FilterMode,
         mag_filter: FilterMode,
-    ) -> Texture2D {
+    ) -> Result<Texture2D> {
         Texture2D::new_empty(
             self.clone(),
             format,
@@ -117,7 +119,7 @@ impl GlContext {
         wrap: TextureWrap,
         min_filter: FilterMode,
         mag_filter: FilterMode,
-    ) -> Texture2D {
+    ) -> Result<Texture2D> {
         Texture2D::new(self.clone(), source, wrap, min_filter, mag_filter)
     }
 
@@ -127,7 +129,7 @@ impl GlContext {
         vert_shader: &str,
         frag_shader: &str,
         params: PipelineParams,
-    ) -> Pipeline<V, U, I> {
+    ) -> Result<Pipeline<V, U, I>> {
         Pipeline::new(self.clone(), vert_shader, frag_shader, params)
     }
 
@@ -135,22 +137,8 @@ impl GlContext {
         self: &Rc<Self>,
         color_img: Vec<Texture2D>,
         depth_img: Option<Texture2D>,
-    ) -> RenderPass {
+    ) -> Result<RenderPass> {
         RenderPass::new(self.clone(), color_img, depth_img)
-    }
-
-    #[cfg(debug_assertions)]
-    #[track_caller]
-    pub(crate) fn check_no_gl_error(&self) {
-        let err = unsafe { self.gl.get_error() };
-        if err == glow::NO_ERROR {
-            return;
-        }
-        panic!("detected error: {err:#x}");
-    }
-
-    #[cfg(not(debug_assertions))]
-    pub(crate) fn check_no_gl_error(&self) { /* NOOP */
     }
 }
 

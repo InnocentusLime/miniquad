@@ -38,15 +38,21 @@ impl EventHandler<()> for App {
             TriangleVertex { v_pos: vec2(0.5, -0.5), v_color: u8vec4(0, 0xFF, 0, 0xFF) },
             TriangleVertex { v_pos: vec2(0.0,  0.5), v_color: u8vec4(0, 0, 0xFF, 0xFF) },
         ];
-        let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &vertices);
+        let vertices = ctx
+            .new_vertex_buffer(BufferUsage::Immutable, &vertices)
+            .unwrap();
 
         let indicies = [0, 1, 2];
-        let indicies = ctx.new_index_buffer(BufferUsage::Immutable, &indicies);
-        let pipeline = ctx.new_pipeline(
-            include_str!("shaders/basic_coloru8.vert"),
-            include_str!("shaders/basic_color.frag"),
-            default_pipeline_params(),
-        );
+        let indicies = ctx
+            .new_index_buffer(BufferUsage::Immutable, &indicies)
+            .unwrap();
+        let pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/basic_coloru8.vert"),
+                include_str!("shaders/basic_color.frag"),
+                default_pipeline_params(),
+            )
+            .unwrap();
 
         App { pipeline, vertices, indicies, ctx }
     }
@@ -57,8 +63,9 @@ impl App {
         self.ctx
             .default_pass(Clear::depth_color(Color::BLACK), |_, _| {
                 self.pipeline
-                    .draw(0, 3, &self.vertices, &self.indicies, &NoImages, &NoUniforms);
-            });
+                    .draw(0, 3, &self.vertices, &self.indicies, &NoImages, &NoUniforms)
+            })
+            .unwrap();
     }
 }
 

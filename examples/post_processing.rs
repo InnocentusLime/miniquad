@@ -46,24 +46,30 @@ impl EventHandler<()> for App {
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let (width, height) = ctx.screen_size();
-        let color_img = ctx.new_empty_texture(
-            Texture2DFormat::RGBA8,
-            width,
-            height,
-            TextureWrap::Clamp,
-            FilterMode::Linear,
-            FilterMode::Linear,
-        );
-        let depth_img = ctx.new_empty_texture(
-            Texture2DFormat::DepthU16,
-            width,
-            height,
-            TextureWrap::Clamp,
-            FilterMode::Linear,
-            FilterMode::Linear,
-        );
+        let color_img = ctx
+            .new_empty_texture(
+                Texture2DFormat::RGBA8,
+                width,
+                height,
+                TextureWrap::Clamp,
+                FilterMode::Linear,
+                FilterMode::Linear,
+            )
+            .unwrap();
+        let depth_img = ctx
+            .new_empty_texture(
+                Texture2DFormat::DepthU16,
+                width,
+                height,
+                TextureWrap::Clamp,
+                FilterMode::Linear,
+                FilterMode::Linear,
+            )
+            .unwrap();
 
-        let offscreen_pass = ctx.new_render_pass(vec![color_img], Some(depth_img));
+        let offscreen_pass = ctx
+            .new_render_pass(vec![color_img], Some(depth_img))
+            .unwrap();
 
         #[rustfmt::skip]
         let vertices_cube = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
@@ -96,7 +102,7 @@ impl EventHandler<()> for App {
             CubeVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(1.0, 0.0, 0.5, 1.0) },
             CubeVert { v_pos: vec3(1.0,  1.0,  1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0) },
             CubeVert { v_pos: vec3(1.0,  1.0, -1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0) },
-        ]);
+        ]).unwrap();
 
         #[rustfmt::skip]
         let indicies_cube = ctx.new_index_buffer(BufferUsage::Immutable, &[
@@ -106,7 +112,7 @@ impl EventHandler<()> for App {
             14, 13, 12,  15, 14, 12,
             16, 17, 18,  16, 18, 19,
             22, 21, 20,  23, 22, 20
-        ]);
+        ]).unwrap();
 
         #[rustfmt::skip]
         let vertices_quad = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
@@ -114,27 +120,31 @@ impl EventHandler<()> for App {
             QuadVert { v_pos: vec2(1.0, -1.0), v_uv: vec2(1.0, 0.0) },
             QuadVert { v_pos: vec2(1.0,  1.0), v_uv: vec2(1.0, 1.0) },
             QuadVert { v_pos: vec2(-1.0,  1.0), v_uv: vec2(0.0, 1.0) },
-        ]);
+        ]).unwrap();
 
         #[rustfmt::skip]
         let indicies_quad = ctx.new_index_buffer(BufferUsage::Immutable, &[
             0, 1, 2,
             0, 2, 3,
-        ]);
+        ]).unwrap();
 
-        let post_processing_pipeline = ctx.new_pipeline(
-            include_str!("shaders/basic_texture.vert"),
-            include_str!("shaders/gaus_blur.frag"),
-            default_pipeline_params(),
-        );
-        let offscreen_pipeline = ctx.new_pipeline(
-            include_str!("shaders/mvp_color.vert"),
-            include_str!("shaders/basic_color.frag"),
-            PipelineParams {
-                depth_test: Some(Comparison::LessOrEqual),
-                ..default_pipeline_params()
-            },
-        );
+        let post_processing_pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/basic_texture.vert"),
+                include_str!("shaders/gaus_blur.frag"),
+                default_pipeline_params(),
+            )
+            .unwrap();
+        let offscreen_pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/mvp_color.vert"),
+                include_str!("shaders/basic_color.frag"),
+                PipelineParams {
+                    depth_test: Some(Comparison::LessOrEqual),
+                    ..default_pipeline_params()
+                },
+            )
+            .unwrap();
 
         App {
             vertices_cube,
@@ -153,24 +163,31 @@ impl EventHandler<()> for App {
 
 impl App {
     fn resize_event(&mut self, (width, height): (u32, u32)) {
-        let color_img = self.ctx.new_empty_texture(
-            Texture2DFormat::RGBA8,
-            width,
-            height,
-            TextureWrap::Clamp,
-            FilterMode::Linear,
-            FilterMode::Linear,
-        );
-        let depth_img = self.ctx.new_empty_texture(
-            Texture2DFormat::DepthU16,
-            width,
-            height,
-            TextureWrap::Clamp,
-            FilterMode::Linear,
-            FilterMode::Linear,
-        );
+        let color_img = self
+            .ctx
+            .new_empty_texture(
+                Texture2DFormat::RGBA8,
+                width,
+                height,
+                TextureWrap::Clamp,
+                FilterMode::Linear,
+                FilterMode::Linear,
+            )
+            .unwrap();
+        let depth_img = self
+            .ctx
+            .new_empty_texture(
+                Texture2DFormat::DepthU16,
+                width,
+                height,
+                TextureWrap::Clamp,
+                FilterMode::Linear,
+                FilterMode::Linear,
+            )
+            .unwrap();
 
-        self.offscreen_pass = RenderPass::new(self.ctx.clone(), vec![color_img], Some(depth_img));
+        self.offscreen_pass =
+            RenderPass::new(self.ctx.clone(), vec![color_img], Some(depth_img)).unwrap();
     }
 
     fn draw(&mut self) {
@@ -196,8 +213,9 @@ impl App {
                     &self.indicies_cube,
                     &NoImages,
                     &OffscreenUniforms { mvp: view_proj * model },
-                );
-            });
+                )
+            })
+            .unwrap();
 
         // and the post-processing-pass, rendering a rotating, textured cube, using the
         // previously rendered offscreen render-target as texture
@@ -210,8 +228,9 @@ impl App {
                     &self.indicies_quad,
                     &PostProcessingImages { tex: &self.offscreen_pass.color_attachments()[0] },
                     &PostProcessingUniforms { resolution: vec2(width, height) },
-                );
-            });
+                )
+            })
+            .unwrap()
     }
 }
 

@@ -54,7 +54,8 @@ impl EventHandler<()> for App {
         match event {
             WindowEvent::RedrawRequested => self
                 .ctx
-                .default_pass(Clear::depth_color(Color::BLACK), |_, _| {}),
+                .default_pass(Clear::depth_color(Color::BLACK), |_, _| Ok(()))
+                .unwrap(),
             _ => (),
         }
     }

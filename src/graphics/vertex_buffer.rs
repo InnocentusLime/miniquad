@@ -3,7 +3,8 @@ use std::rc::Rc;
 
 use glow::HasContext;
 
-use crate::graphics::{BufferUsage, GlContext, Vertex};
+use crate::check_gl;
+use crate::graphics::{BufferUsage, Error, GlContext, Result, Vertex};
 
 static TARGET_NAME: &str = "gl.vertex_buffer";
 
@@ -16,26 +17,30 @@ pub struct VertexBuffer<T: Vertex> {
 }
 
 impl<T: Vertex> VertexBuffer<T> {
-    pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> VertexBuffer<T> {
+    pub fn new_empty(
+        ctx: Rc<GlContext>,
+        usage: BufferUsage,
+        size: usize,
+    ) -> Result<VertexBuffer<T>> {
         let size = size * std::mem::size_of::<T>();
-        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>())?;
         unsafe {
             ctx.gl
                 .buffer_data_size(glow::ARRAY_BUFFER, size as i32, super::gl_usage(usage));
         }
-        ctx.check_no_gl_error();
-        VertexBuffer { ctx, gl_buf, size, _phantom: PhantomData }
+        check_gl!(&ctx.gl, Error::BufferInit);
+        Ok(VertexBuffer { ctx, gl_buf, size, _phantom: PhantomData })
     }
 
-    pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> VertexBuffer<T> {
+    pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> Result<VertexBuffer<T>> {
         let data: &[u8] = bytemuck::cast_slice(data);
-        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>())?;
         unsafe {
             ctx.gl
                 .buffer_data_u8_slice(glow::ARRAY_BUFFER, data, super::gl_usage(usage));
         }
-        ctx.check_no_gl_error();
-        VertexBuffer { ctx, gl_buf, size: data.len(), _phantom: PhantomData }
+        check_gl!(&ctx.gl, Error::BufferInit);
+        Ok(VertexBuffer { ctx, gl_buf, size: data.len(), _phantom: PhantomData })
     }
 
     pub fn size(&self) -> usize {
@@ -53,7 +58,6 @@ impl<T: Vertex> VertexBuffer<T> {
                 .gl
                 .buffer_sub_data_u8_slice(glow::ARRAY_BUFFER, 0, data)
         };
-        self.ctx.check_no_gl_error();
     }
 }
 
@@ -71,14 +75,16 @@ impl<T: Vertex> Drop for VertexBuffer<T> {
     }
 }
 
-fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> glow::Buffer {
+fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> Result<glow::Buffer> {
     let mut cache = ctx.cache.borrow_mut();
-    let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
+    let Ok(gl_buf) = (unsafe { ctx.gl.create_buffer() }) else {
+        return Err(Error::BufferAlloc);
+    };
     tracing::debug!(
         target: TARGET_NAME,
         vertex_ty = ty_name,
         "new: {gl_buf:?}",
     );
     cache.bind_buffer(&ctx.gl, gl_buf);
-    gl_buf
+    Ok(gl_buf)
 }

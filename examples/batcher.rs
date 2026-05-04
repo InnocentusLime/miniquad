@@ -37,12 +37,14 @@ impl EventHandler<()> for App {
     }
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
-        let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50);
-        let pipeline = ctx.new_pipeline(
-            include_str!("shaders/basic_vert.vert"),
-            include_str!("shaders/basic_color.frag"),
-            default_pipeline_params(),
-        );
+        let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50).unwrap();
+        let pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/basic_vert.vert"),
+                include_str!("shaders/basic_color.frag"),
+                default_pipeline_params(),
+            )
+            .unwrap();
 
         App { pipeline, batcher, ctx, total_time: Duration::ZERO }
     }
@@ -93,7 +95,8 @@ impl App {
                     &self.batcher.indicies,
                     &NoImages,
                     &NoUniforms,
-                );
-            });
+                )
+            })
+            .unwrap();
     }
 }

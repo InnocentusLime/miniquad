@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use super::{BasicVertex, GeometryBatcher};
-use crate::graphics::{BufferUsage, Color, GlContext, IndexBuffer, VertexBuffer};
+use crate::graphics::{Color, GlContext, IndexBuffer, Result, VertexBuffer};
 
 use glam::{Affine2, Vec2, vec2};
 
@@ -9,11 +9,13 @@ use glam::{Affine2, Vec2, vec2};
 pub struct ShapeBatcher(pub GeometryBatcher<BasicVertex>);
 
 impl ShapeBatcher {
-    pub fn new_from_size(ctx: &Rc<GlContext>, vertices_size: usize, indicies_size: usize) -> Self {
-        Self::new(
-            ctx.new_empty_vertex_buffer(BufferUsage::Stream, vertices_size),
-            ctx.new_empty_index_buffer(BufferUsage::Stream, indicies_size),
-        )
+    pub fn new_from_size(
+        ctx: &Rc<GlContext>,
+        vertices_size: usize,
+        indicies_size: usize,
+    ) -> Result<Self> {
+        let inner = GeometryBatcher::new_from_size(ctx, vertices_size, indicies_size)?;
+        Ok(ShapeBatcher(inner))
     }
 
     pub fn new(vertices: VertexBuffer<BasicVertex>, indicies: IndexBuffer) -> Self {

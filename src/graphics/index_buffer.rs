@@ -4,7 +4,8 @@ use std::{fmt::Debug, marker::PhantomData};
 use bytemuck::Pod;
 use glow::HasContext;
 
-use crate::graphics::{BufferUsage, GlContext};
+use crate::check_gl;
+use crate::graphics::{BufferUsage, Error, GlContext, Result};
 
 static TARGET_NAME: &str = "gl.index_buffer";
 
@@ -17,9 +18,13 @@ pub struct IndexBuffer<T: VertexIndex = u16> {
 }
 
 impl<T: VertexIndex> IndexBuffer<T> {
-    pub fn new_empty(ctx: Rc<GlContext>, usage: BufferUsage, size: usize) -> IndexBuffer<T> {
+    pub fn new_empty(
+        ctx: Rc<GlContext>,
+        usage: BufferUsage,
+        size: usize,
+    ) -> Result<IndexBuffer<T>> {
         let size = size * std::mem::size_of::<T>();
-        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>())?;
         unsafe {
             ctx.gl.buffer_data_size(
                 glow::ELEMENT_ARRAY_BUFFER,
@@ -27,19 +32,19 @@ impl<T: VertexIndex> IndexBuffer<T> {
                 super::gl_usage(usage),
             );
         }
-        ctx.check_no_gl_error();
-        IndexBuffer { ctx, gl_buf, size, _phantom: PhantomData }
+        check_gl!(&ctx.gl, Error::BufferInit);
+        Ok(IndexBuffer { ctx, gl_buf, size, _phantom: PhantomData })
     }
 
-    pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> IndexBuffer<T> {
+    pub fn new(ctx: Rc<GlContext>, usage: BufferUsage, data: &[T]) -> Result<IndexBuffer<T>> {
         let data: &[u8] = bytemuck::cast_slice(data);
-        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>());
+        let gl_buf = create_and_bind_buffer(&ctx, std::any::type_name::<T>())?;
         unsafe {
             ctx.gl
                 .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, super::gl_usage(usage));
         }
-        ctx.check_no_gl_error();
-        IndexBuffer { ctx, gl_buf, size: data.len(), _phantom: PhantomData }
+        check_gl!(&ctx.gl, Error::BufferInit);
+        Ok(IndexBuffer { ctx, gl_buf, size: data.len(), _phantom: PhantomData })
     }
 
     pub fn size(&self) -> usize {
@@ -57,7 +62,6 @@ impl<T: VertexIndex> IndexBuffer<T> {
                 .gl
                 .buffer_sub_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, 0, data)
         };
-        self.ctx.check_no_gl_error();
     }
 }
 
@@ -103,14 +107,16 @@ impl VertexIndex for u32 {
     }
 }
 
-fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> glow::Buffer {
+fn create_and_bind_buffer(ctx: &GlContext, ty_name: &'static str) -> Result<glow::Buffer> {
     let mut cache = ctx.cache.borrow_mut();
-    let gl_buf = unsafe { ctx.gl.create_buffer().unwrap() };
+    let Ok(gl_buf) = (unsafe { ctx.gl.create_buffer() }) else {
+        return Err(Error::BufferAlloc);
+    };
     tracing::debug!(
         target: TARGET_NAME,
         index_ty = ty_name,
         "new: {gl_buf:?}",
     );
     cache.bind_index_buffer(&ctx.gl, gl_buf);
-    gl_buf
+    Ok(gl_buf)
 }

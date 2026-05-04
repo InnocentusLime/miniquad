@@ -32,8 +32,8 @@ impl EventHandler<()> for App {
     }
 
     fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
-        let batcher = util::ShapeBatcher::new_from_size(&ctx, 20_000, 20_000);
-        let pipeline = util::new_basic_pipeline(&ctx);
+        let batcher = util::ShapeBatcher::new_from_size(&ctx, 20_000, 20_000).unwrap();
+        let pipeline = util::new_basic_pipeline(&ctx).unwrap();
 
         App { pipeline, batcher, ctx, total_time: Duration::ZERO }
     }
@@ -138,7 +138,8 @@ impl App {
                     &self.batcher.0.indicies,
                     &NoImages,
                     &BasicPipelineUniforms { view_projection: proj },
-                );
-            });
+                )
+            })
+            .unwrap();
     }
 }

@@ -70,7 +70,7 @@ impl EventHandler<()> for App {
             CubeVert { v_pos: vec3(-1.0,  1.0,  1.0), v_color: vec4(1.0, 0.0, 0.5, 1.0) },
             CubeVert { v_pos: vec3(1.0,  1.0,  1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0) },
             CubeVert { v_pos: vec3(1.0,  1.0, -1.0),  v_color: vec4(1.0, 0.0, 0.5, 1.0) },
-        ]);
+        ]).unwrap();
 
         #[rustfmt::skip]
         let indicies_cube = ctx.new_index_buffer(BufferUsage::Immutable, &[
@@ -80,16 +80,18 @@ impl EventHandler<()> for App {
             14, 13, 12,  15, 14, 12,
             16, 17, 18,  16, 18, 19,
             22, 21, 20,  23, 22, 20
-        ]);
+        ]).unwrap();
 
-        let offscreen_pipeline = ctx.new_pipeline(
-            include_str!("shaders/mvp_color.vert"),
-            include_str!("shaders/basic_color.frag"),
-            PipelineParams {
-                depth_test: Some(Comparison::LessOrEqual),
-                ..default_pipeline_params()
-            },
-        );
+        let offscreen_pipeline = ctx
+            .new_pipeline(
+                include_str!("shaders/mvp_color.vert"),
+                include_str!("shaders/basic_color.frag"),
+                PipelineParams {
+                    depth_test: Some(Comparison::LessOrEqual),
+                    ..default_pipeline_params()
+                },
+            )
+            .unwrap();
 
         App { vertices_cube, indicies_cube, offscreen_pipeline, rx: 0., ry: 0., ctx }
     }
@@ -119,8 +121,9 @@ impl App {
                     &self.indicies_cube,
                     &NoImages,
                     &Uniforms { mvp: view_proj * model },
-                );
-            });
+                )
+            })
+            .unwrap()
     }
 }
 

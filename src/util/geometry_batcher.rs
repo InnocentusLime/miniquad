@@ -1,6 +1,8 @@
 use std::rc::Rc;
 
-use crate::graphics::{BufferUsage, GlContext, IndexBuffer, Vertex, VertexBuffer, VertexIndex};
+use crate::graphics::{
+    BufferUsage, GlContext, IndexBuffer, Result, Vertex, VertexBuffer, VertexIndex,
+};
 
 #[derive(Debug)]
 pub struct GeometryBatcher<V: Vertex, I: VertexIndex = u16> {
@@ -11,11 +13,15 @@ pub struct GeometryBatcher<V: Vertex, I: VertexIndex = u16> {
 }
 
 impl<V: Vertex, I: VertexIndex> GeometryBatcher<V, I> {
-    pub fn new_from_size(ctx: &Rc<GlContext>, vertices_size: usize, indicies_size: usize) -> Self {
-        Self::new(
-            ctx.new_empty_vertex_buffer(BufferUsage::Stream, vertices_size),
-            ctx.new_empty_index_buffer(BufferUsage::Stream, indicies_size),
-        )
+    pub fn new_from_size(
+        ctx: &Rc<GlContext>,
+        vertices_size: usize,
+        indicies_size: usize,
+    ) -> Result<Self> {
+        Ok(Self::new(
+            ctx.new_empty_vertex_buffer(BufferUsage::Stream, vertices_size)?,
+            ctx.new_empty_index_buffer(BufferUsage::Stream, indicies_size)?,
+        ))
     }
 
     pub fn new(vertices: VertexBuffer<V>, indicies: IndexBuffer<I>) -> Self {
