@@ -51,21 +51,21 @@ impl GlCache {
         }
     }
 
-    pub fn bind_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
-        if self.vertex_buffer != Some(buffer) {
-            self.vertex_buffer = Some(buffer);
-            unsafe {
-                gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
+    pub fn bind_buffer(&mut self, gl: &glow::Context, target: u32, buffer: glow::Buffer) {
+        match target {
+            glow::ARRAY_BUFFER if self.vertex_buffer != Some(buffer) => {
+                self.vertex_buffer = Some(buffer);
+                unsafe {
+                    gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
+                }
             }
-        }
-    }
-
-    pub fn bind_index_buffer(&mut self, gl: &glow::Context, buffer: glow::Buffer) {
-        if self.index_buffer != Some(buffer) {
-            self.index_buffer = Some(buffer);
-            unsafe {
-                gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(buffer));
+            glow::ELEMENT_ARRAY_BUFFER if self.vertex_buffer != Some(buffer) => {
+                self.index_buffer = Some(buffer);
+                unsafe {
+                    gl.bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(buffer));
+                }
             }
+            _ => (),
         }
     }
 
