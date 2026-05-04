@@ -31,7 +31,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
+    fn init(ctx: Rc<GlContext>, _: Rc<audio::AlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = [
             TriangleVertex { v_pos: vec2(-0.5, -0.5), v_color: u8vec4(0xFF, 0, 0, 0xFF) },

@@ -36,7 +36,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
+    fn init(ctx: Rc<GlContext>, _: Rc<audio::AlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         let batcher = GeometryBatcher::new_from_size(&ctx, 50, 50).unwrap();
         let pipeline = ctx
             .new_pipeline(

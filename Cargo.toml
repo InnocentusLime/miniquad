@@ -28,6 +28,8 @@ glow = "0.16"
 bytemuck = { version = "1.24", features = ["const_zeroed", "min_const_generics"] }
 glam = { version = "0.30", features = ["scalar-math", "bytemuck"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
+hound = "3.5"
+cpal = "0.17.3"
 # Opt
 egui_glow = { version = "0.33", features = ["winit"], optional = true }
 egui = { version = "0.33", optional = true }

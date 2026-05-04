@@ -54,7 +54,12 @@ impl EventHandler<()> for App {
         self.texture = Some(tex);
     }
 
-    fn init(ctx: Rc<GlContext>, fs_server: Rc<dyn FsServer>, _init: ()) -> App {
+    fn init(
+        ctx: Rc<GlContext>,
+        _: Rc<audio::AlContext>,
+        fs_server: Rc<dyn FsServer>,
+        _init: (),
+    ) -> App {
         fs_server.load_file(Path::new("assets/ferris.png"));
 
         #[rustfmt::skip]

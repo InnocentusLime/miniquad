@@ -38,7 +38,7 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
+    fn init(ctx: Rc<GlContext>, _: Rc<audio::AlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
         #[rustfmt::skip]
         let vertices = ctx.new_vertex_buffer(BufferUsage::Immutable, &[
             ImgVertex { v_pos : Vec2 { x: -0.5, y: -0.5 }, v_uv: Vec2 { x: 0., y: 0. } },

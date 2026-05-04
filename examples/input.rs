@@ -60,7 +60,12 @@ impl EventHandler<()> for App {
         }
     }
 
-    fn init(ctx: Rc<GlContext>, _fs_server: Rc<dyn FsServer>, _init: ()) -> Self {
+    fn init(
+        ctx: Rc<GlContext>,
+        _: Rc<audio::AlContext>,
+        _fs_server: Rc<dyn FsServer>,
+        _init: (),
+    ) -> Self {
         App { ctx, input: util::InputTracker::new() }
     }
 }
