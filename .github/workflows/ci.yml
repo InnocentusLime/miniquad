@@ -43,7 +43,7 @@ jobs:
       - shell: bash
         run: >
           apt-get update &&
-          apt-get install -y --no-install-recommends libwayland-dev libxkbcommon-dev
+          apt-get install -y --no-install-recommends libasound2-dev libwayland-dev libxkbcommon-dev
       - name: Check Native (egui)
         run: cargo build --features egui
       - name: Check Native (base)
@@ -65,6 +65,10 @@ jobs:
             target/
           key: tests-bookworm-1.93-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: tests-bookworm-1.93-cargo-
+      - shell: bash
+        run: >
+          apt-get update &&
+          apt-get install -y --no-install-recommends libasound2-dev
       - name: Run tests
         run: cargo test --workspace --features serde,derive --locked
   cargo-fmt:
