@@ -1,7 +1,7 @@
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use cpal::Sample;
-use cpal::traits::{DeviceTrait, StreamTrait};
+use cpal::traits::DeviceTrait;
 use glam::*;
 
 pub type BufferID = usize;
@@ -29,7 +29,6 @@ pub fn start_backend(
             None,
         )
         .expect("failed to spawn a device stream");
-    stream.play().expect("failed to start the stream");
     (cmd, stream)
 }
 

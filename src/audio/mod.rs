@@ -4,9 +4,13 @@ mod error;
 
 pub use error::*;
 
-use std::{cell::RefCell, rc::Rc, sync::mpsc::Sender};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+    sync::mpsc::Sender,
+};
 
-use cpal::traits::HostTrait;
+use cpal::traits::{HostTrait, StreamTrait};
 
 use crate::audio::backend::{AudioCommand, BufferID, PlaybackID, start_backend};
 
@@ -20,7 +24,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 pub struct AlContext {
     cmd_send: Sender<AudioCommand>,
-    _stream: cpal::Stream,
+
+    stream: cpal::Stream,
+    stream_started: Cell<bool>,
 
     state: RefCell<AudioContextState>,
 }
@@ -50,7 +56,9 @@ impl AlContext {
 
         AlContext {
             cmd_send,
-            _stream: stream,
+
+            stream,
+            stream_started: Cell::new(false),
 
             state: RefCell::new(AudioContextState {
                 next_buffer_id: 0,
@@ -60,6 +68,18 @@ impl AlContext {
                 playback_id_freelist: Vec::new(),
             }),
         }
+    }
+
+    pub(crate) fn start_stream(&self) {
+        let is_started = self.stream_started.get();
+        if is_started {
+            return;
+        }
+
+        if let Err(err) = self.stream.play() {
+            tracing::error!(err=%err, "Failed to start the stream");
+        }
+        self.stream_started.set(true);
     }
 
     // TODO: resampling
