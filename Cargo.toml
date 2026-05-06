@@ -29,7 +29,6 @@ bytemuck = { version = "1.24", features = ["const_zeroed", "min_const_generics"]
 glam = { version = "0.30", features = ["scalar-math", "bytemuck"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
 hound = "3.5"
-cpal = "0.17.3"
 # Opt
 egui_glow = { version = "0.33", features = ["winit"], optional = true }
 egui = { version = "0.33", optional = true }
@@ -41,6 +40,7 @@ winit = { version = "0.30", features = ["rwh_06"] }
 glutin = "0.32"
 glutin-winit = "0.5"
 raw-window-handle = "0.6"
+cpal = "0.17.3"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 winit = "0.30" 
@@ -48,6 +48,7 @@ web-sys = { version = "0.3", features = ["Response", "Location", "ResizeObserver
 wasm-bindgen = "0.2.114"
 tracing-web = "0.1"
 console_error_panic_hook = "0.1"
+cpal = { version = "0.17.3", features = ["wasm-bindgen"] }
 
 [dev-dependencies]
 quad-rand = "0.1"
