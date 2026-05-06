@@ -33,7 +33,7 @@ use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::{StartCause, WindowEvent};
+use winit::event::{ElementState, StartCause, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::{Icon, Window, WindowAttributes};
 
@@ -123,6 +123,18 @@ impl<I, T: EventHandler<I>> ApplicationHandler<AppEvent> for App<I, T> {
                 platform.resize_surface(*new_size);
                 gl_context.client_area_size.set((*new_size).into());
             }
+            // All browsers nowadays require SOME sort of gesture from the user
+            // on the web page for the app to be allowed to do audio.
+            // This behaviour was originally implemented in chrome, but is now also
+            // present in Firefox.
+            //
+            // REF(Chrome): https://developer.chrome.com/blog/web-audio-autoplay/
+            (
+                WindowEvent::MouseInput { state: ElementState::Pressed, .. },
+                AppState::Ready { al_context, .. },
+            ) => {
+                al_context.start_stream();
+            }
             _ => (),
         }
 
@@ -203,7 +215,7 @@ impl<I, T: EventHandler<I>> App<I, T> {
             window,
             platform,
             gl_context,
-            _al_context: al_context,
+            al_context,
             handler,
             #[cfg(feature = "egui")]
             egui_glow,
@@ -234,7 +246,7 @@ enum AppState<I, T> {
         window: Window,
         platform: PlatformGfxContext,
         gl_context: Rc<graphics::GlContext>,
-        _al_context: Rc<audio::AlContext>,
+        al_context: Rc<audio::AlContext>,
         #[cfg(feature = "egui")]
         egui_glow: Box<egui_glow::EguiGlow>,
         handler: T,
