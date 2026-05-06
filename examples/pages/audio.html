@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name=HandheldFriendly content="True" />
+    <meta name=mobile-web-app-capable content="yes" />
+    <meta name=apple-mobile-web-app-capable content="yes" />
+    <style>
+        html,
+        body,
+        canvas {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: absolute;
+            background: black;
+            z-index: 0;
+        }
+
+        noscript {
+            color: red;
+            font-family: mainFont;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        #app_choice {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="app_canvas" tabindex='1'>
+    </canvas>
+    <script type="module">
+        import { initSync } from "./audio.js";
+        fetch("./audio_bg.wasm")
+            .then((response) => response.arrayBuffer())
+            .then((bytes) => initSync({module: bytes}));
+    </script>
+</body>
+</html>
