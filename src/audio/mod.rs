@@ -34,7 +34,16 @@ impl AlContext {
         let config = cpal::StreamConfig {
             channels: 2,
             sample_rate: SAMPLE_RATE,
+
+            // 128 is the sweet spot for real-time enough audio (for games).
+            #[cfg(not(target_family = "wasm"))]
             buffer_size: cpal::BufferSize::Fixed(128),
+
+            // On WASM with cpal's webaudio backend a fixed buffer of 128 is not enough.
+            // There will be a lot of cracks and pops.
+            // Use a bigger buffer.
+            #[cfg(target_family = "wasm")]
+            buffer_size: cpal::BufferSize::Fixed(2048),
         };
         let (cmd_send, stream) =
             start_backend(&config, &device, BUFFERS_CAPACITY, PLAYBACK_CAPACITY);
