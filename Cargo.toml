@@ -1,17 +1,17 @@
 [package]
 name = "mimiq"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["InnocentusLime <innocentuslime.help@gmail.com>", "not-fl3 <not.fl3@gmail.com>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/innocentuslime/miniquad"
 repository = "https://github.com/innocentuslime/miniquad"
 description = """
-A thin OpenGL+winit wrapper for quickly making apps, inspired by miniquad
+A thin OpenGL+cpal+winit wrapper for quickly making apps, inspired by miniquad
 """
 readme = "README.md"
 exclude = ["examples/"]
-keywords = ["graphics", "3D", "opengl", "gamedev", "windowing"]
+keywords = ["audio", "graphics", "3D", "opengl", "gamedev", "windowing"]
 categories = ["rendering::graphics-api"]
 
 [features]
