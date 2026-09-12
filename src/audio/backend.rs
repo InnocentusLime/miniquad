@@ -65,26 +65,17 @@ impl AudioBackend {
 
     fn write_samples_and_advance_playbacks(&mut self, data: &mut [f32]) {
         for chunk in data.chunks_exact_mut(2) {
-            let sample = self
-                .playbacks
-                .iter()
-                .map(|playback| {
-                    let Some(data) = self.buffers.get(playback.src) else {
-                        return EQUILIBRIUM;
-                    };
-                    playback.get_sample(data)
-                })
-                .sum::<Vec2>();
+            let mut sample = EQUILIBRIUM;
+
+            for playback in &mut self.playbacks {
+                if let Some(data) = self.buffers.get(playback.src) {
+                    sample += playback.get_sample(data);
+                    playback.advance(data);
+                }
+            }
 
             chunk[0] = sample.x;
             chunk[1] = sample.y;
-
-            self.playbacks.iter_mut().for_each(|playback| {
-                let Some(data) = self.buffers.get(playback.src) else {
-                    return;
-                };
-                playback.advance(data);
-            })
         }
     }
 
@@ -136,6 +127,7 @@ struct SoundPlayback {
 }
 
 impl SoundPlayback {
+    #[inline]
     fn advance(&mut self, data: &BufferData) {
         if self.pause {
             return;
@@ -151,6 +143,7 @@ impl SoundPlayback {
         }
     }
 
+    #[inline]
     fn get_sample(&self, data: &BufferData) -> Vec2 {
         if self.pause {
             return EQUILIBRIUM;
