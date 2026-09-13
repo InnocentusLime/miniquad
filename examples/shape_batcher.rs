@@ -1,7 +1,10 @@
 //! Draws a bunch of shapes with the shape batcher.
 
 use mimiq::graphics::*;
-use mimiq::util::BasicPipelineUniforms;
+use mimiq::util::{
+    BasicPipelineUniforms, BasicVertex, circle, circle_lines, line, poly_lines, polygon, rect,
+    rect_lines, triangle, triangle_lines,
+};
 use mimiq::*;
 
 use glam::{Mat4, vec2};
@@ -15,7 +18,7 @@ fn main() {
 struct App {
     total_time: Duration,
     pipeline: util::BasicPipeline,
-    batcher: util::ShapeBatcher,
+    batcher: util::GeometryBatcher<BasicVertex>,
     ctx: Rc<GlContext>,
 }
 
@@ -32,7 +35,7 @@ impl EventHandler<()> for App {
     }
 
     fn init(ctx: Rc<GlContext>, _: Rc<audio::AlContext>, _fs: Rc<dyn FsServer>, _init: ()) -> App {
-        let batcher = util::ShapeBatcher::new_from_size(&ctx, 20_000, 20_000).unwrap();
+        let batcher = util::GeometryBatcher::new_from_size(&ctx, 20_000, 20_000).unwrap();
         let pipeline = util::new_basic_pipeline(&ctx).unwrap();
 
         App { pipeline, batcher, ctx, total_time: Duration::ZERO }
@@ -45,35 +48,40 @@ impl App {
 
         self.batcher.clear();
 
-        self.batcher.triangle(
+        triangle(
+            &mut self.batcher,
             Color::RED,
             vec2(0.0, 100.0),
             vec2(100.0, 100.0),
             vec2(0.0, 0.0),
         );
 
-        self.batcher.triangle(
+        triangle(
+            &mut self.batcher,
             Color::GREEN,
             vec2(300.0, 200.0),
             vec2(200.0, 200.0),
             vec2(300.0, 300.0),
         );
 
-        self.batcher.line(
+        line(
+            &mut self.batcher,
             Color::CYAN,
             3.0,
             vec2(50.0, 200.0),
             vec2(100.0, 300.0 + 30.0 * t.sin()),
         );
 
-        self.batcher.line(
+        line(
+            &mut self.batcher,
             Color::CYAN,
             1.0,
             vec2(500.0 + 50.0 * (t * 2.0).cos(), 200.0),
             vec2(100.0, 500.0),
         );
 
-        self.batcher.triangle_lines(
+        triangle_lines(
+            &mut self.batcher,
             Color::CYAN,
             1.0,
             vec2(400.0, 500.0),
@@ -81,7 +89,8 @@ impl App {
             vec2(470.0, 510.0),
         );
 
-        self.batcher.poly_lines(
+        poly_lines(
+            &mut self.batcher,
             Color::GREEN,
             2.0,
             vec2(600.0, 600.0),
@@ -90,7 +99,8 @@ impl App {
             30.0,
         );
 
-        self.batcher.polygon(
+        polygon(
+            &mut self.batcher,
             Color::GREEN,
             vec2(650.0, 600.0),
             t / (0.5 * std::f32::consts::TAU),
@@ -98,26 +108,28 @@ impl App {
             30.0,
         );
 
-        self.batcher
-            .circle_lines(Color::RED, 1.0, vec2(400.0, 600.0), 40.0);
+        circle_lines(&mut self.batcher, Color::RED, 1.0, vec2(400.0, 600.0), 40.0);
 
-        self.batcher.circle(Color::RED, vec2(540.0, 600.0), 40.0);
+        circle(&mut self.batcher, Color::RED, vec2(540.0, 600.0), 40.0);
 
-        self.batcher.rect(
+        rect(
+            &mut self.batcher,
             Color::PURPLE,
             vec2(-50.0, 0.0),
             vec2(100.0, 200.0),
             std::f32::consts::FRAC_PI_2,
         );
 
-        self.batcher.rect(
+        rect(
+            &mut self.batcher,
             Color::PURPLE,
             vec2(300.0, 100.0),
             vec2(100.0, 200.0),
             t / (0.5 * std::f32::consts::TAU),
         );
 
-        self.batcher.rect_lines(
+        rect_lines(
+            &mut self.batcher,
             Color::PURPLE,
             1.0,
             vec2(100.0, 300.0),
@@ -134,8 +146,8 @@ impl App {
                 self.pipeline.draw(
                     0,
                     num_elements,
-                    &self.batcher.0.vertices,
-                    &self.batcher.0.indicies,
+                    &self.batcher.vertices,
+                    &self.batcher.indicies,
                     &NoImages,
                     &BasicPipelineUniforms { view_projection: proj },
                 )

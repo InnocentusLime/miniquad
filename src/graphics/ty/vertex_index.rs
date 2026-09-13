@@ -1,7 +1,7 @@
 use bytemuck::Pod;
 use std::fmt::Debug;
 
-pub trait VertexIndex: Pod + Debug {
+pub trait VertexIndex: From<u8> + Pod + Debug {
     const GL_TYPE: u32;
 
     fn offset_by(self, off: usize) -> Self;
