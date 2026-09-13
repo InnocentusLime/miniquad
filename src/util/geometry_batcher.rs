@@ -32,19 +32,21 @@ impl<V: Vertex, I: VertexIndex> GeometryBatcher<V, I> {
 
     #[track_caller]
     pub fn extend(&mut self, vertices: &[V], indicies: &[I]) {
-        let index_off = self.client_vertices.len();
+        self.client_vertices.extend(vertices);
+        debug_assert!(
+            self.client_vertices.len() <= self.vertices.size(),
+            "vertex buffer overfilled"
+        );
 
+        self.client_indicies.extend(indicies);
         debug_assert!(
-            self.client_vertices.len() + vertices.len() <= self.vertices.size(),
-            "vertex buffer will overfill"
+            self.client_indicies.len() <= self.indicies.size(),
+            "index buffer overfilled"
         );
-        debug_assert!(
-            self.client_indicies.len() + indicies.len() <= self.indicies.size(),
-            "index buffer will overfill"
-        );
-        self.client_vertices.extend(vertices.iter().copied());
-        self.client_indicies
-            .extend(indicies.iter().copied().map(|x| x.offset_by(index_off)));
+    }
+
+    pub fn index_offset(&self) -> usize {
+        self.client_vertices.len()
     }
 
     pub fn element_count(&self) -> u32 {

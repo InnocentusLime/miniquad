@@ -2,7 +2,7 @@
 //! loads an image from file, using file loading capabilities.
 
 use mimiq::graphics::*;
-use mimiq::util::{BasicSpritePipelineUniforms, SpriteBatcher};
+use mimiq::util::{BasicSpritePipelineUniforms, GeometryBatcher, SpriteVertex, sprite};
 use mimiq::*;
 
 use core::f32;
@@ -21,7 +21,7 @@ struct App {
     ctx: Rc<GlContext>,
 
     pipeline: util::BasicSpritePipeline,
-    batcher: util::SpriteBatcher,
+    batcher: util::GeometryBatcher<SpriteVertex>,
     texture: Option<Texture2D>,
 }
 
@@ -63,7 +63,7 @@ impl EventHandler<()> for App {
         fs_server.load_file(Path::new("assets/GB-Tileset.png"));
 
         let pipeline = util::new_basic_sprite_pipeline(&ctx).unwrap();
-        let batcher = util::SpriteBatcher::new_from_size(&ctx, 2000).unwrap();
+        let batcher = util::GeometryBatcher::new_from_size(&ctx, 2000, 2000).unwrap();
 
         App { total_time: Duration::ZERO, batcher, pipeline, texture: None, ctx }
     }
@@ -98,28 +98,29 @@ impl App {
 
                 self.batcher.clear();
                 put_tilemap(&mut self.batcher);
-                self.batcher.add_sprite(util::Sprite {
-                    tex_rect_pos: uvec2(48, 192),
-                    tex_rect_size: uvec2(16, 16),
-                    transform: Affine2::from_translation(vec2(16.0, 16.0)),
-                });
-                self.batcher.add_sprite(util::Sprite {
-                    tex_rect_pos: uvec2(64, 208),
-                    tex_rect_size: uvec2(17, 16),
-                    transform: Affine2::from_translation(vec2(64.0, 16.0)),
-                });
 
-                self.batcher.add_sprite(util::Sprite {
-                    tex_rect_pos: uvec2(64, 48),
-                    tex_rect_size: uvec2(16, 16),
-                    transform: char_tf,
-                });
+                sprite(
+                    &mut self.batcher,
+                    uvec2(48, 192),
+                    uvec2(16, 16),
+                    Affine2::from_translation(vec2(16.0, 16.0)),
+                );
+
+                sprite(
+                    &mut self.batcher,
+                    uvec2(64, 208),
+                    uvec2(17, 16),
+                    Affine2::from_translation(vec2(64.0, 16.0)),
+                );
+
+                sprite(&mut self.batcher, uvec2(64, 48), uvec2(16, 16), char_tf);
+
                 let num_elements = self.batcher.flush();
                 self.pipeline.draw(
                     0,
                     num_elements,
-                    &self.batcher.0.vertices,
-                    &self.batcher.0.indicies,
+                    &self.batcher.vertices,
+                    &self.batcher.indicies,
                     &util::BasicTexImages { tex },
                     &BasicSpritePipelineUniforms {
                         view_projection,
@@ -131,35 +132,18 @@ impl App {
     }
 }
 
-fn put_tilemap(batcher: &mut SpriteBatcher) {
-    let tiles = [
-        util::Sprite {
-            tex_rect_pos: uvec2(32, 192),
-            tex_rect_size: uvec2(16, 16),
-            transform: Affine2::IDENTITY,
-        },
-        util::Sprite {
-            tex_rect_pos: uvec2(32, 176),
-            tex_rect_size: uvec2(16, 16),
-            transform: Affine2::IDENTITY,
-        },
-        util::Sprite {
-            tex_rect_pos: uvec2(16, 176),
-            tex_rect_size: uvec2(16, 16),
-            transform: Affine2::IDENTITY,
-        },
-    ];
+fn put_tilemap(batcher: &mut GeometryBatcher<SpriteVertex>) {
+    let tiles = [uvec2(32, 192), uvec2(32, 176), uvec2(16, 176)];
 
     let side = 16;
     for x in 0..side {
         for y in 0..side {
-            batcher.add_sprite(util::Sprite {
-                transform: Affine2::from_translation(vec2(
-                    x as f32 * 16.0 + 8.0,
-                    y as f32 * 16.0 + 8.0,
-                )),
-                ..tiles[(x ^ 6 * y) % 3]
-            });
+            sprite(
+                batcher,
+                tiles[(x ^ 6 * y) % 3],
+                uvec2(16, 16),
+                Affine2::from_translation(vec2(x as f32 * 16.0 + 8.0, y as f32 * 16.0 + 8.0)),
+            );
         }
     }
 }
